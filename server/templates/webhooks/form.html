@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}{% if webhook %}{% translate "Edit webhook" %}{% else %}{% translate "New webhook" %}{% endif %}{% endblock %}
+{% block content %}
+<div class="page-head"><div><div class="breadcrumb"><a href="{% url 'webhooks:list' %}">{% translate "Webhooks" %}</a>{% if webhook %} / <a href="{% url 'webhooks:detail' webhook.pk %}">{{ webhook }}</a>{% endif %}</div>
+<h1>{% if webhook %}{% translate "Edit webhook" %}{% else %}{% translate "New webhook" %}{% endif %}</h1>
+<p class="lead">{% if webhook %}{% translate "A changed address applies to the deliveries that are still waiting too." %}{% else %}{% translate "After saving you get the secret that the receiving system checks the messages with." %}{% endif %}</p></div></div>
+<form method="post" class="form wide" novalidate>
+  {% csrf_token %}
+  {% include "core/_form_errors.html" %}
+  <div class="panel"><div class="panel-body form">
+    {% include "core/_field.html" with field=form.url %}
+    {% include "core/_field.html" with field=form.description %}
+    <fieldset class="field webhook-events{% if form.events.errors %} has-error{% endif %}">
+      <legend>{{ form.events.label }} <span class="required" aria-hidden="true">*</span></legend>
+      {% for choice in form.events %}<div class="check">{{ choice.tag }}<label for="{{ choice.id_for_label }}">{{ choice.choice_label }} <code class="muted small">{{ choice.data.value }}</code></label></div>{% endfor %}
+      {{ form.events.errors }}
+    </fieldset>
+    {% include "core/_field.html" with field=form.is_active %}
+  </div></div>
+  <div class="btn-row"><button class="btn" type="submit">{% translate "Save webhook" %}</button><a class="btn secondary" href="{% if webhook %}{% url 'webhooks:detail' webhook.pk %}{% else %}{% url 'webhooks:list' %}{% endif %}">{% translate "Cancel" %}</a></div>
+</form>
+{% endblock %}

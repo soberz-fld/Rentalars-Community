@@ -1,0 +1,23 @@
+{% load i18n customfields %}{% comment %}
+  MAT-073: the values of an item on its page – the fields of its model's fieldset the reader may see (AUT-019),
+  in their order; a required value nobody entered yet is marked. Values kept from fields that are no longer part of the
+  fieldset follow apart. Expects: item.
+{% endcomment %}{% item_custom_fields item as custom %}{% if custom.shown %}
+<section class="panel" id="custom-fields" aria-labelledby="custom-fields-head">
+  <div class="panel-head"><h2 id="custom-fields-head">{% translate "Custom fields" %}{% if custom.fieldset %} <span class="muted small">{{ custom.fieldset.name }}</span>{% endif %}</h2>{% if can.write.material %}<a class="btn secondary small" href="{% url 'material:item_edit' item.pk %}#custom-values-head">{% translate "Edit" %}</a>{% endif %}</div>
+  <div class="panel-body">
+    {% if custom.missing %}<p class="message warning" role="status">{% blocktranslate count count=custom.missing|length with fields=custom.missing|join:", " %}A required value is missing: {{ fields }}.{% plural %}Required values are missing: {{ fields }}.{% endblocktranslate %}</p>{% endif %}
+    {% if custom.rows %}
+    <dl class="facts">
+      {% for row in custom.rows %}<dt>{{ row.name }}{% if row.sensitive %} <span class="badge yellow" title="{% translate 'Only for who may see purchase prices' %}">{% translate "confidential" %}</span>{% endif %}</dt><dd>{% if row.html %}{{ row.html }}{% elif row.missing %}<span class="badge red">{% translate "required, missing" %}</span>{% else %}–{% endif %}</dd>{% endfor %}
+    </dl>
+    {% endif %}
+    {% if custom.others %}
+    <details class="custom-others"><summary>{% translate "Values of fields no longer in the fieldset" %}</summary>
+      <dl class="facts">{% for row in custom.others %}<dt>{{ row.name }}</dt><dd>{{ row.html }}</dd>{% endfor %}</dl>
+      <p class="muted small">{% translate "They are kept and show again when the field is part of the model's fieldset." %}</p>
+    </details>
+    {% endif %}
+  </div>
+</section>
+{% endif %}

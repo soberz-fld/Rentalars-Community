@@ -1,0 +1,67 @@
+{% load i18n rentalars chat_tags %}
+{% comment %}
+  UIX-010: the messages of the chat, oldest first like a messenger – others on the left, one's own on the
+  right. data-stamp is the state the list shows; app.js fetches the list anew when the change polling
+  reports another one. Own messages can be changed or deleted for a few minutes.
+  UIX-049: photos as previews that open the photo, videos with a player and their poster frame;
+  a video being made smaller says so until it is done.
+{% endcomment %}
+<div class="chat-list" data-stamp="{{ stamp }}">
+  {% if page.has_older %}<p class="chat-older"><a href="{% url 'chat:project' project.pk %}?before={{ page.messages.0.pk }}">{% translate "Older messages" %}</a></p>{% endif %}
+  {% if page.messages %}
+  <ol class="conversation chat-log" data-scroll-end tabindex="0" aria-label="{% translate 'Messages' %}">
+    {% for message in page.messages %}
+    {% ifchanged message.created_at|date:"Ymd" %}<li class="chat-day"><span>{{ message.created_at|date:"l, d.m.Y" }}</span></li>{% endifchanged %}
+    <li class="bubble {% if message.is_own %}is-out{% else %}is-in{% endif %}" id="m{{ message.pk }}">
+      <article>
+        <header class="bubble-head">
+          <strong>{{ message.author_name|default:_("(deleted account)") }}</strong>
+          <time class="muted" datetime="{{ message.created_at|date:'c' }}">{{ message.created_at|date:"H:i" }}{% if message.edited_at %} · {% translate "changed" %}{% endif %}</time>
+        </header>
+        {% if message.text %}<div class="bubble-text">{{ message|chat_text }}</div>{% endif %}
+        {% with attachments=message.attachments.all %}{% if attachments %}
+        <ul class="chat-media" aria-label="{% translate 'Photos and videos' %}">
+          {% for item in attachments %}
+          <li class="chat-media-item">
+            {% if item.is_ready and item.kind == "photo" %}
+            <a href="{% url 'chat:media' project.pk item.pk %}" target="_blank" rel="noopener"><img src="{% url 'chat:media_small' project.pk item.pk %}" alt="{% translate 'Photo – opens in full size' %}" width="{{ item.width }}" height="{{ item.height }}" loading="lazy"></a>
+            {% elif item.is_ready %}
+            <video controls preload="metadata" playsinline width="{{ item.width }}" height="{{ item.height }}"{% if item.thumbnail %} poster="{% url 'chat:media_small' project.pk item.pk %}"{% endif %} aria-label="{% translate 'Video' %}">
+              <source src="{% url 'chat:media' project.pk item.pk %}" type="video/mp4">
+              <a href="{% url 'chat:media' project.pk item.pk %}">{% translate "Open the video" %}</a>
+            </video>
+            {% elif item.state == "processing" %}
+            <p class="chat-media-state" role="status">{% icon "clock" %}<span>{% translate "Video is being made smaller …" %}</span></p>
+            {% else %}
+            <p class="chat-media-state failed">{% icon "alert" %}<span>{{ item.failure_text }}</span></p>
+            {% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+        {% endif %}{% endwith %}
+        {% if message.changeable %}
+        <div class="chat-own">
+          <details class="chat-edit">
+            <summary>{% translate "Change" %}</summary>
+            <form method="post" action="{% url 'chat:edit' project.pk message.pk %}" hx-post="{% url 'chat:edit' project.pk message.pk %}" hx-target="#chat-messages" hx-swap="innerHTML">
+              {% csrf_token %}
+              <label class="visually-hidden" for="chat-edit-{{ message.pk }}">{% translate "Message" context "chat" %}</label>
+              <textarea id="chat-edit-{{ message.pk }}" name="text" rows="3" maxlength="4000">{{ message.text }}</textarea>
+              <button class="btn small" type="submit">{% translate "Save" %}</button>
+            </form>
+          </details>
+          <form method="post" action="{% url 'chat:delete' project.pk message.pk %}" hx-post="{% url 'chat:delete' project.pk message.pk %}" hx-target="#chat-messages" hx-swap="innerHTML">
+            {% csrf_token %}
+            <button class="link-btn danger" type="submit" data-confirm="{% translate 'Delete this message?' %}">{% translate "Delete" %}</button>
+          </form>
+        </div>
+        {% endif %}
+      </article>
+    </li>
+    {% endfor %}
+  </ol>
+  {% else %}
+  <div class="empty"><strong>{% translate "No messages yet." %}</strong>{% translate "Write the first one – everybody who can open the project reads it." %}</div>
+  {% endif %}
+  {% if chat_error %}<p class="note red" role="alert">{{ chat_error }}</p>{% endif %}
+</div>

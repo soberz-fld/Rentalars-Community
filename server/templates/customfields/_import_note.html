@@ -1,0 +1,2 @@
+{% load i18n customfields %}{# MAT-073: the material import reads a column headed with the name of a custom field. #}{% custom_field_names as names %}{% if names %}
+<p class="muted small">{% blocktranslate trimmed with names=names|join:", " %}Custom fields: a column headed with the name of the field – {{ names }}. The values are checked against the fieldset of each item's material model.{% endblocktranslate %}</p>{% endif %}

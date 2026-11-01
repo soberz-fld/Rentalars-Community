@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{{ item.display_id }} – {% translate "History" %}{% endblock %}
+{% block content %}
+{% include "material/_item_head.html" %}
+<section class="panel">
+  {% if history %}
+  <ul class="history">
+    {% for row in history %}
+    <li>
+      <div><div class="when">{{ row.timestamp|date:"d.m.Y H:i" }}</div><div class="who">{{ row.user }}</div></div>
+      <div>
+        <div>{% if row.kind == "deployment" %}{% icon "projects" %} {% endif %}{% if row.project_id and can.read.projects %}<a href="{% url 'projects:overview' row.project_id %}">{{ row.summary }}</a>{% else %}{{ row.summary|capfirst }}{% endif %}</div>
+        {# MAT-047: the single changes are folded; the summary is enough to find an entry. #}
+        {% if row.changes %}<details class="history-changes"><summary>{% blocktranslate count count=row.changes|length %}{{ count }} change{% plural %}{{ count }} changes{% endblocktranslate %}</summary>
+        {% for change in row.changes %}<div class="change">{{ change.label }}: <del>{{ change.old }}</del> → {{ change.new }}</div>{% endfor %}</details>{% endif %}
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}<div class="empty">{% translate "No changes recorded yet." %}</div>{% endif %}
+</section>
+{% endblock %}

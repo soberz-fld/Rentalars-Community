@@ -1,0 +1,18 @@
+{% load i18n rentalars %}
+{% comment %}
+  PRJ-100 in the dialog over the crew planning (PRJ-094): the new phase is saved and chosen; it lies beyond the
+  rental period. "Extend" asks the server (the answer replaces this content), "Do not extend" closes the dialog.
+  Expects: project, extension.
+{% endcomment %}
+<form hx-post="{% url 'projects:phase_extend_period' project.pk extension.phase.pk %}" hx-target="closest dialog" class="rental-period-question">
+  <div class="dialog-head"><h2 id="phase-dialog-title">{% translate "Extend the rental period?" %}</h2></div>
+  <div class="dialog-body">{% include "projects/_rental_period_question.html" with title_id="phase-dialog-title" %}</div>
+  <div class="dialog-foot">
+    {% if extension.blocked_by %}
+    <button type="button" class="btn" data-close-dialog autofocus>{% translate "Close" %}</button>
+    {% else %}
+    <button type="button" class="btn secondary" data-close-dialog>{% translate "Do not extend" %}</button>
+    <button type="submit" class="btn" autofocus>{% translate "Extend" %}</button>
+    {% endif %}
+  </div>
+</form>

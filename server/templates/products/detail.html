@@ -1,0 +1,232 @@
+{% extends "base.html" %}
+{% load i18n rentalars product_relations %}
+{% block title %}{{ product.article_number }} {{ product.name }}{% endblock %}
+{% block content %}
+{% include "products/_head.html" %}
+
+<div class="columns">
+  <section class="panel">
+    <div class="panel-head"><h2>{% translate "Product" %}</h2></div>
+    <div class="panel-body">
+      <dl class="facts">
+        {% if service_job_function %}{# PRD-044: a service belongs to exactly one job function; planned only with the crew. #}
+        <dt>{% translate "Job function" %}</dt><dd>{% if can.write.personnel %}<a href="{% url 'personnel:job_function_edit' service_job_function.pk %}">{{ service_job_function.name }}</a>{% else %}{{ service_job_function.name }}{% endif %}<div class="muted small">{% translate "Planned under Personnel with this job function; crew lines take price, tax rate and the limit of hours per day from this product." %}</div></dd>
+        {% endif %}
+        {% if product.is_vehicle %}{# LOG-002: a vehicle of the fleet, planned under "Logistik". #}
+        <dt>{% translate "Vehicle type" %}</dt><dd>{% if product.vehicle_type %}{{ product.get_vehicle_type_display|capfirst }}{% else %}–{% endif %}<div class="muted small">{% translate "Planned under Logistics in the project, not as material." %} {% if can.read.material %}<a href="{% url 'material:fleet' %}">{% translate "Fleet" %}</a>{% endif %}</div></dd>
+        {% endif %}
+        <dt>{% translate "Unit" %}</dt><dd>{{ product.unit }}</dd>
+        {# Products of several pieces: what one piece of this product is made of, from the models behind it. #}
+        {% if product.pieces_per_product > 1 %}<dt>{% translate "Consists of" %}</dt><dd>{% if models %}{{ product.pieces_per_product }} × {% for model in models %}{% if can.read.material %}<a href="{% url 'material:model_detail' model.pk %}">{{ model.name }}</a>{% else %}{{ model.name }}{% endif %}{% if not forloop.last %} / {% endif %}{% endfor %}{% else %}{% blocktranslate with count=product.pieces_per_product %}{{ count }} items of the material behind it{% endblocktranslate %}{% endif %}<div class="muted small">{% translate "Stock, planning and packing count in this product; each one takes that many items from the stock." %}</div></dd>{% endif %}
+        {% if product.minimum_stock %}<dt>{% translate "Minimum stock" %}</dt><dd>{{ product.minimum_stock }} {{ product.unit.abbreviation }}{% if low_stock %} <span class="badge red">{% blocktranslate with stock=low_stock.stock %}only {{ stock }} left{% endblocktranslate %}</span>{% endif %}</dd>{% endif %}
+        {% if product.gtin %}<dt>GTIN/EAN</dt><dd>{{ product.gtin }}</dd>{% endif %}
+        {% if product.owner_id %}{# PRD-043: customer material – no price, planned only in the owner's projects. #}
+        <dt>{% translate "Owner" %}</dt><dd>{% if can.read.customers %}<a href="{% url 'customers:detail' product.owner_id %}">{{ product.owner.name }}</a>{% else %}{{ product.owner.name }}{% endif %}</dd>
+        <dt>{% translate "Price" %}</dt><dd>{% translate "Customer material, never charged. Planned only in projects of this customer." %}</dd>
+        {% elif can_see_prices %}
+          {% if product.is_percent_surcharge %}<dt>{% translate "Surcharge" %}</dt><dd>{{ product.surcharge_percent|number }} %</dd>
+          {% elif product.is_vehicle %}{# LOG-005, LOG-006: the rates of a vehicle. #}
+            {% if product.price_per_km is not None %}<dt>{% translate "Price per kilometre (net)" %}</dt><dd>{{ product.price_per_km|money }}</dd>{% endif %}
+            {% if product.is_car %}<dt>{% translate "Trailer surcharge per kilometre (net)" %}</dt><dd>{{ product.trailer_surcharge_per_km|money|default:"–" }}<div class="muted small">{% translate "Added to the price per kilometre on every trip with a trailer." %}</div></dd>{% endif %}
+            {% if product.is_trailer %}
+            <dt>{% translate "Trailer billed" %}</dt><dd>{{ product.get_trailer_billing_display }}</dd>
+            {% if product.price is not None %}<dt>{% translate "Price per day (net)" %}</dt><dd>{{ product.price|money }}</dd>{% endif %}
+            {% endif %}
+          {% else %}
+            {% if product.price is not None %}<dt>{% if product.uses_rental_days %}{% translate "Price per day (net)" %}{% else %}{% translate "Price (net)" %}{% endif %}</dt><dd>{{ product.price|money }}</dd>{% elif service_job_function %}<dt>{% translate "Price (net)" %}</dt><dd><span class="badge yellow">{% translate "no price yet" %}</span></dd>{% endif %}
+            {% if product.hours_limit is not None %}{# PER-035 #}<dt>{% translate "From the limit" %}</dt><dd>{% blocktranslate with limit=product.hours_limit|number price=product.price_above_limit|money %}from {{ limit }} h a day: {{ price }}{% endblocktranslate %}</dd>{% endif %}
+            {% if product.kind == "service" %}{# PER-009 #}<dt>{% translate "Surcharges" context "time surcharge" %}</dt><dd>{% if product.time_surcharges %}{% translate "for night, Sunday and holidays, as in the settings" %}{% else %}{% translate "none for night, Sunday and holidays" %}{% endif %}</dd>{% endif %}
+            {% if product.sale_price is not None %}<dt>{% translate "Sale price (net)" %}</dt><dd>{{ product.sale_price|money }}</dd>{% endif %}
+          {% endif %}
+          {% if not product.is_vehicle %}<dt>{% translate "Billing mode" %}</dt><dd>{{ product.get_billing_mode_display|capfirst }}</dd>{% endif %}
+          {% if product.uses_rental_days %}<dt>{% translate "Rental scale" %}</dt><dd>{% if effective_scale %}{{ effective_scale.name }}{% else %}{% translate "none" %}{% endif %}</dd>{% endif %}
+          <dt>{% translate "Tax rate" %}</dt><dd>{{ product.tax_rate }}</dd>
+          {# PRD-041: the highest discount a line of the product gets. #}
+          <dt>{% translate "Maximum discount" %}</dt><dd>{% if product.max_discount_percent is None %}{% translate "no limit" %}{% elif product.max_discount_percent %}{{ product.max_discount_percent|number }} %{% else %}{% translate "not discountable" %}{% endif %}</dd>
+          {% if product.calculation_note %}<dt>{% translate "Calculation note" %}</dt><dd>{{ product.calculation_note|linebreaksbr }}</dd>{% endif %}
+        {% endif %}
+        {% if product.is_vehicle and can_see_purchase_prices %}{# LOG-010: what the vehicle costs the company. #}
+          <dt>{% translate "Internal cost per kilometre" %}</dt><dd>{{ product.cost_per_km|money|default:"–" }}</dd>
+          {% if product.is_trailer %}<dt>{% translate "Internal cost per day" %}</dt><dd>{{ product.cost_per_day|money|default:"–" }}</dd>{% endif %}
+        {% endif %}
+        {% if product.description %}<dt>{% translate "Description" %}</dt><dd>{{ product.description|linebreaksbr }}</dd>{% endif %}
+        {% if product.note %}<dt>{% translate "Internal note" %}</dt><dd>{{ product.note|linebreaksbr }}</dd>{% endif %}
+      </dl>
+    </div>
+  </section>
+
+  {% if can.special.availability %}{# AUT-032: availability as a special right – the view computes it only then #}
+  <section class="panel">
+    <div class="panel-head"><h2>{% translate "Availability" %}</h2></div>
+    {% comment %}
+      PRD-050 (VFG-011): choosing the period – in the fields or with "Zeitraum im Kalender
+      wählen" (UIX-025) – loads the figures below at once (htmx); "Zeitraum prüfen" is left only for browsers without
+      JavaScript. The figures are the part #availability-result of this very page; the short live region tells screen
+      readers the new figures. The address follows, so that reloading keeps the period.
+    {% endcomment %}
+    <div class="panel-body">
+      {% if from_project %}{# Coming from the planning of a project – its period is asked first; the way back is named. #}
+      <p class="small from-project" id="from-project">{% blocktranslate with number=from_project.number %}Period of the project {{ number }}{% endblocktranslate %} · <a href="{% url 'projects:detail' from_project.pk %}">{% blocktranslate with number=from_project.number name=from_project.name %}Back to {{ number }} {{ name }}{% endblocktranslate %}</a></p>
+      {% endif %}
+      <form method="get" class="form-grid" hx-get="{% url 'products:detail' product.pk %}" hx-trigger="change delay:400ms" hx-target="#availability-result" hx-select="#availability-result" hx-swap="outerHTML" hx-select-oob="#availability-announce:innerHTML" hx-replace-url="true">
+        {% if from_project %}<input type="hidden" name="project" value="{{ from_project.pk }}">{% endif %}
+        {% include "core/_field.html" with field=query_form.start %}
+        {% include "core/_field.html" with field=query_form.end %}
+        <noscript><div class="field"><span class="label">&nbsp;</span><button class="btn secondary" type="submit">{% translate "Check period" %}</button></div></noscript>
+      </form>
+      <p class="visually-hidden" id="availability-announce" aria-live="polite">{% if availability.checked %}{% blocktranslate with free=availability.free_after_optional stock=availability.stock.plannable start=query_start|date:"d.m.Y H:i" end=query_end|date:"d.m.Y H:i" %}{{ free }} of {{ stock }} free from {{ start }} to {{ end }}{% endblocktranslate %}{% endif %}</p>
+    </div>
+    <div id="availability-result">
+    <div class="panel-body">
+      {% if query_form.errors %}<div class="has-error">{{ query_form.start.errors }}{{ query_form.end.errors }}{{ query_form.non_field_errors }}</div>{% endif %}
+      {% if availability.checked %}
+        {% include "core/_stockbar.html" with stock=availability.stock.plannable firm=availability.firm optional=availability.optional own=0 free=availability.free_after_optional %}
+        <p class="muted small">{{ query_start|date:"d.m.Y H:i" }} – {{ query_end|date:"d.m.Y H:i" }}{% if availability.stock.consists_of_pieces %}. {% blocktranslate with total=availability.stock.total_pieces plannable=availability.stock.plannable_pieces per=availability.stock.pieces_per_product %}{{ total }} items exist, {{ plannable }} are plannable – {{ per }} items make one piece of the product.{% endblocktranslate %}{% if availability.stock.left_over_pieces %} {% blocktranslate with left=availability.stock.left_over_pieces %}{{ left }} items left over do not make a whole piece.{% endblocktranslate %}{% endif %}{% elif availability.stock.total != availability.stock.plannable %}. {% blocktranslate with total=availability.stock.total plannable=availability.stock.plannable %}{{ total }} pieces exist, {{ plannable }} are plannable; the rest is defective, blocked or permanently installed.{% endblocktranslate %}{% endif %}</p>
+      {% elif product.is_vehicle %}
+        {# LOG-004, LOG-018: vehicles are booked under "Logistik"; their bookings show in the utilization of the fleet. #}
+        <p class="muted">{% translate "Vehicles are booked under Logistics in the projects; their bookings over all projects are shown in the utilization of the fleet." %}{% if can.read.material %} <a href="{% url 'material:fleet_utilization' %}">{% translate "Utilization of the fleet" %}</a>{% endif %}</p>
+      {% else %}
+        <p class="muted">{% translate "This product has no stock of its own and is not checked for availability." %}</p>
+      {% endif %}
+      {# PRD-051 (VFG-025): "Planung → Materialauslastung" with this product and this period. #}
+      {% if utilization_url %}<p class="small"><a href="{{ utilization_url }}">{% icon "timeline" %}{% translate "Show in the material utilization" %}</a></p>{% endif %}
+    </div>
+    {% if availability.occupiers %}
+    <table class="table stack">
+      <thead><tr><th>{% translate "Occupied by" %}</th><th>{% translate "Period (with buffer)" %}</th><th class="num">{% translate "Quantity" %}</th></tr></thead>
+      <tbody>
+      {% for demand in availability.occupiers %}
+        <tr>
+          <td>{% if demand.via == "blocked" %}<span class="tape">{{ demand.project_number }}</span> {% translate "blocked" %}: {{ demand.project_name }}{% elif demand.project_id in visible_project_ids %}<a href="{% url 'projects:overview' demand.project_id %}">{{ demand.project_number }} {{ demand.project_name }}</a>{% else %}{{ demand.project_number }}{% endif %}{% if demand.firmness.name == "SOFT" %} <span class="badge yellow">{% translate "optional" %}</span>{% endif %}{% if demand.via == "kit" %} <span class="badge">{% translate "in a kit" %}</span>{% elif demand.via == "container" %} <span class="badge">{% translate "inside a container" %}</span>{% endif %}</td>
+          <td data-label="{% translate 'Period (with buffer)' %}">{{ demand.start|date:"d.m. H:i" }} – {% if demand.end.year >= 9000 %}{% translate "sold" %}{% else %}{{ demand.end|date:"d.m. H:i" }}{% endif %}</td>
+          <td class="num" data-label="{% translate 'Quantity' %}">{{ demand.quantity }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+    </div>
+  </section>
+  {% endif %}
+</div>
+
+{% if unconfirmed_changes %}
+{# PRJ-072: projects not yet confirmed whose lines have not taken over what changed at this product. #}
+<section class="panel" id="unconfirmed-changes">
+  <div class="panel-head"><h2>{% translate "Planned in projects that are not fully confirmed yet" %}</h2><span class="muted small">{% translate "These lines still have the old values of this product." %}</span></div>
+  <table class="table stack">
+    <thead><tr><th>{% translate "Project" %}</th><th>{% translate "Lines" %}</th><th class="no-print"></th></tr></thead>
+    <tbody>
+    {% for entry in unconfirmed_changes %}
+      <tr data-project-changes="{{ entry.project.pk }}">
+        <td><a href="{% url 'projects:detail' entry.project.pk %}#product-changes">{{ entry.project.number }} {{ entry.project.name }}</a> <span class="badge {{ entry.project.status|status_colour }}">{{ entry.project.get_status_display }}</span></td>
+        <td data-label="{% translate 'Lines' %}"><ul class="plain">{% for change in entry.changes %}<li><span class="title">{{ change.title }}</span> – {% for part in change.fields %}<span class="muted">{{ part.label }}:</span> {{ part.old }} → <strong>{{ part.new }}</strong>{% if not forloop.last or change.price %}; {% endif %}{% endfor %}{% if change.price %}<span class="muted">{% translate "Price" %}:</span> {{ change.price.unit_price|money }} → <strong>{{ change.price.new_price|money }}</strong>{% endif %}{% if change.set_by_hand %} <span class="badge">{% translate "set by hand" %}</span>{% endif %}</li>{% endfor %}</ul></td>
+        <td class="actions no-print">{% if entry.can_edit %}<form method="post" action="{% url 'products:take_over_changes' product.pk %}" class="inline-form">{% csrf_token %}<input type="hidden" name="project" value="{{ entry.project.pk }}"><button class="btn secondary small" type="submit" data-confirm="{% translate 'Take over the new values of this product in this project? Name and prices of its lines change.' %}">{% translate "Take over" %}</button></form>{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <form method="post" action="{% url 'products:take_over_changes' product.pk %}" class="btn-row">{% csrf_token %}
+    <button class="btn" type="submit" data-confirm="{% blocktranslate trimmed count count=unconfirmed_changes|length %}Take over the new values of this product in {{ count }} project? Name and prices of its lines change there.{% plural %}Take over the new values of this product in {{ count }} projects? Name and prices of its lines change there.{% endblocktranslate %}">{% translate "Take over in all these projects" %}</button>
+    <span class="muted small">{% translate "Lines with values set by hand stay as they are; decide on them in the planning of the project." %}</span>
+  </form>
+</section>
+{% endif %}
+
+{% if product.is_kit %}
+<section class="panel">
+  <div class="panel-head"><h2>{% translate "Components of the kit" %}</h2><span class="muted small">{% translate "The components stay rentable on their own." %}</span></div>
+  {% if components %}
+  <table class="table stack">
+    <thead><tr><th class="num">{% translate "Quantity" %}</th><th>{% translate "Product" %}</th><th></th></tr></thead>
+    <tbody>
+    {% for component in components %}
+      <tr>
+        <td class="num">{{ component.quantity }}</td>
+        <td><a class="artno" href="{% url 'products:detail' component.component_id %}">{{ component.component.article_number }}</a> {{ component.component.name }}</td>
+        <td class="actions">{% if can.write.products %}<form method="post" action="{% url 'products:component_remove' product.pk component.pk %}" class="inline-form">{% csrf_token %}<button class="link-btn danger" data-confirm="{% blocktranslate with name=component.component.name %}Remove “{{ name }}” from this set?{% endblocktranslate %}">{% translate "Remove" %}</button></form>{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<div class="empty"><strong>{% translate "This kit has no components yet." %}</strong>{% translate "Add the products it consists of." %}</div>{% endif %}
+  {% if can.write.products %}
+  <form method="post" action="{% url 'products:component_add' product.pk %}" class="line-add">
+    {% csrf_token %}
+    <div class="typeahead" data-typeahead data-url="{% url 'products:suggest' %}?exclude_kind=surcharge,subrental,service,vehicle{% if product.owner_id %}&amp;owner={{ product.owner_id }}{% endif %}">
+      <input type="search" data-typeahead-input placeholder="{% translate 'Search product to add' %}" aria-label="{% translate 'Product' %}" autocomplete="off">
+      <input type="hidden" name="component" data-typeahead-value>
+    </div>
+    <input class="qty" type="number" name="quantity" value="1" min="1" aria-label="{% translate 'Quantity' %}">
+    <button class="btn secondary" type="submit">{% icon "plus" %}{% translate "Add component" %}</button>
+  </form>
+  {% endif %}
+</section>
+{% endif %}
+
+{% product_relations product %}
+
+{% if product.tracks_stock or product.is_vehicle %}
+<section class="panel">
+  <div class="panel-head"><h2>{% if product.is_vehicle %}{% translate "Vehicles" %}{% else %}{% translate "Assigned material" %}{% endif %}</h2>{% if can.write.material %}<a class="btn secondary small" href="{% url 'material:model_create' %}?product={{ product.pk }}">{% icon "plus" %}{% translate "New material model" %}</a>{% endif %}</div>
+  {% if can.write.material %}
+  {# PRD-046: besides a new model, an existing model without product – chosen by typing. #}
+  <form method="post" action="{% url 'material:model_assign' %}" class="line-add">
+    {% csrf_token %}<input type="hidden" name="product" value="{{ product.pk }}">
+    {# Model search: suggests as soon as the field is entered; models that cannot be chosen are named, too. #}
+    <div class="typeahead" data-typeahead data-typeahead-on-focus data-url="{% url 'material:model_suggest' %}">
+      <input type="search" data-typeahead-input placeholder="{% translate 'Search a model without product' %}" aria-label="{% translate 'Existing model' %}" autocomplete="off">
+      <input type="hidden" name="material_model" data-typeahead-value>
+    </div>
+    <button class="btn secondary" type="submit">{% icon "plus" %}{% translate "Assign existing model" %}</button>
+  </form>
+  {% endif %}
+  {% if models or items %}
+  <div class="panel-body">
+    {% for model in models %}<a class="badge accent" href="{% url 'material:model_detail' model.pk %}">{{ model.name }}{% if model.manufacturer %} ({{ model.manufacturer }}){% endif %}</a> {% endfor %}
+  </div>
+  <table class="table stack">
+    <thead><tr><th>{% translate "ID" %}</th><th>{% translate "Model" %}</th><th>{% translate "Installed in" %}</th><th>{% translate "Status" %}</th></tr></thead>
+    <tbody>
+    {% for item in items %}
+      <tr>
+        <td><a class="tape" href="{% url 'material:item_detail' item.pk %}">{{ item.display_id }}</a>{% if item.material_model.is_bulk %} <span class="badge">{{ item.quantity }} {% translate "pcs." %}</span>{% endif %}</td>
+        <td data-label="{% translate 'Model' %}">{{ item.material_model.name }}</td>
+        <td data-label="{% translate 'Installed in' %}">{% if item.installed_in %}<a class="tape" href="{% url 'material:item_detail' item.installed_in_id %}">{{ item.installed_in.inventory_number|item_id }}</a> <span class="muted small">{% if item.travels_only_with_container %}{% translate "fixed" %}{% else %}{% translate "loose" %}{% endif %}</span>{% endif %}</td>
+        <td data-label="{% translate 'Status' %}"><span class="badge {{ item.status|status_colour }}">{{ item.get_status_display }}</span></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% elif product.is_vehicle %}{# LOG-002 #}
+  <div class="empty"><strong>{% translate "This vehicle product has no vehicles yet." %}</strong>{% translate "Its vehicles and trailers are the items of a material model assigned to it." %}</div>
+  {% else %}
+  <div class="empty"><strong>{% translate "No material is assigned to this product." %}</strong>{% translate "Without material the stock is 0 and every booking shows a shortage. Assign the product to a material model." %}</div>
+  {% endif %}
+</section>
+{% endif %}
+
+{% if used_in_kits %}
+<section class="panel">
+  <div class="panel-head"><h2>{% translate "Part of these kits" %}</h2></div>
+  <div class="panel-body">{% for component in used_in_kits %}<a class="artno" href="{% url 'products:detail' component.kit_id %}">{{ component.kit.article_number }}</a> {{ component.kit.name }} ({{ component.quantity }} ×){% if not forloop.last %}, {% endif %}{% endfor %}</div>
+</section>
+{% endif %}
+
+{% include "schedule/_calendar_link.html" with subject=product %}{# VFG-040 #}
+
+<section class="panel">
+  <div class="panel-head"><h2>{% translate "History" %}</h2></div>
+  {% include "core/_history.html" %}
+</section>
+
+{% if can.write.products %}
+<div class="section btn-row">
+  <form method="post" action="{% url 'products:set_active' product.pk %}">{% csrf_token %}
+    {% if product.is_active %}<input type="hidden" name="active" value="0"><button class="btn secondary" type="submit" data-confirm="{% translate 'Deactivate this product? It stays in old projects but can no longer be added to new ones.' %}">{% translate "Deactivate product" %}</button>
+    {% else %}<input type="hidden" name="active" value="1"><button class="btn secondary" type="submit">{% translate "Reactivate product" %}</button>{% endif %}
+  </form>
+  {% if can.delete.products %}<form method="post" action="{% url 'products:delete' product.pk %}">{% csrf_token %}<button class="btn danger" type="submit" data-confirm="{% translate 'Delete this product for good?' %}">{% icon "trash" %}{% translate "Delete product" %}</button></form>{% endif %}
+</div>
+{% endif %}
+{% endblock %}

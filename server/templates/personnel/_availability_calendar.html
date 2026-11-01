@@ -1,0 +1,126 @@
+{% load i18n rentalars %}
+{% comment %}
+The availability calendar of a person (PER-021): green, yellow, red, and the busy times of the linked calendars (PER-022,
+PER-031) – as a month, or as a week with hours (PER-030, personnel/availability_week.py; the grid borrows the week of the
+planning calendar, VFG-021). At any moment one availability counts (PER-027): the calendar and the list show periods,
+not the stored entries. Expects: place, calendar (month) or week, shown_periods, mark_form, weekdays,
+availability_editable, availability_own, series_rows, this_week, this_month; person for the pages of personnel planning.
+Choosing days: tap the first and the last day – of the month, or the heads of the week (static/js/app.js fills the two
+date fields) –, then the colour. Without JavaScript the date fields are typed in.
+{% endcomment %}
+{% if availability_own %}{% url 'personnel:own_availability' as calendar_base %}{% url 'personnel:own_availability' as mark_action %}{% url 'personnel:own_availability_remove' as remove_action %}{% else %}{% url 'personnel:person_availability' person.pk as calendar_base %}{% url 'personnel:person_availability_mark' person.pk as mark_action %}{% url 'personnel:person_availability_remove' person.pk as remove_action %}{% endif %}
+<div class="avail-calendar" data-avail-calendar>
+  <div class="avail-views">
+    <div class="segmented" role="group" aria-label="{% translate 'View' %}">
+      <a class="btn secondary small{% if place.view == 'month' %} is-active{% endif %}" href="{{ calendar_base }}?view=month&amp;month={{ place.month|date:'Y-m' }}#availability"{% if place.view == "month" %} aria-current="true"{% endif %}>{% translate "Month" %}</a>
+      <a class="btn secondary small{% if place.view == 'week' %} is-active{% endif %}" href="{{ calendar_base }}?view=week&amp;week={{ place.monday|date:'Y-m-d' }}#availability"{% if place.view == "week" %} aria-current="true"{% endif %}>{% translate "Week" %}</a>
+    </div>
+    {% if place.view == "week" and week.monday != this_week %}<a class="btn secondary small" href="{{ calendar_base }}?view=week&amp;week={{ this_week|date:'Y-m-d' }}#availability">{% translate "this week" %}</a>{% elif place.view == "month" and calendar.month != this_month %}<a class="btn secondary small" href="{{ calendar_base }}?view=month&amp;month={{ this_month|date:'Y-m' }}#availability">{% translate "today" %}</a>{% endif %}
+  </div>
+  {% if place.view == "week" %}
+  <div class="avail-nav">
+    <a class="btn secondary small" href="{{ calendar_base }}?view=week&amp;week={{ week.previous|date:'Y-m-d' }}#availability">‹ {% translate "earlier" %}<span class="visually-hidden"> – {% translate 'previous week' %}</span></a>
+    <h3 id="avail-month">{% blocktranslate with number=week.number %}Week {{ number }}{% endblocktranslate %} <span class="muted">{{ week.monday|date:"d.m." }} – {{ week.sunday|date:"d.m.Y" }}</span></h3>
+    <a class="btn secondary small" href="{{ calendar_base }}?view=week&amp;week={{ week.next|date:'Y-m-d' }}#availability">{% translate "later" %} ›<span class="visually-hidden"> – {% translate 'next week' %}</span></a>
+  </div>
+  {% include "personnel/_availability_week.html" %}
+  {% else %}
+  <div class="avail-nav">
+    <a class="btn secondary small" href="{{ calendar_base }}?month={{ calendar.previous|date:'Y-m' }}#availability">‹ {{ calendar.previous|date:"F" }}<span class="visually-hidden"> – {% translate 'Previous month' %}</span></a>
+    <h3 id="avail-month">{{ calendar.month|date:"F Y" }}</h3>
+    <a class="btn secondary small" href="{{ calendar_base }}?month={{ calendar.next|date:'Y-m' }}#availability">{{ calendar.next|date:"F" }} ›<span class="visually-hidden"> – {% translate 'Next month' %}</span></a>
+  </div>
+  <table class="avail-grid" aria-labelledby="avail-month">
+    <thead><tr>{% for name in weekdays %}<th scope="col">{{ name }}</th>{% endfor %}</tr></thead>
+    <tbody>
+    {% for week_row in calendar.weeks %}
+      <tr>
+      {% for day in week_row %}
+        <td>{% if availability_editable %}<button type="button" class="avail-day{% if day.state %} {{ day.state }}{% endif %}{% if day.partial %} partial{% endif %}{% if day.from_feed %} feed{% endif %}{% if not day.in_month %} outside{% endif %}{% if day.is_today %} today{% endif %}" data-avail-day="{{ day.day|date:'Y-m-d' }}" aria-pressed="false" aria-label="{{ day.label }}" title="{{ day.label }}">{% else %}<span class="avail-day{% if day.state %} {{ day.state }}{% endif %}{% if day.partial %} partial{% endif %}{% if day.from_feed %} feed{% endif %}{% if not day.in_month %} outside{% endif %}{% if day.is_today %} today{% endif %}" title="{{ day.label }}"><span class="visually-hidden">{{ day.label }}</span>{% endif %}<span class="num" aria-hidden="true">{{ day.day.day }}</span>{% if day.planned %}<span class="planned-dot" aria-hidden="true"></span>{% endif %}{% if availability_editable %}</button>{% else %}</span>{% endif %}</td>
+      {% endfor %}
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+  <ul class="avail-legend">
+    <li><span class="swatch available" aria-hidden="true"></span>{% translate "available" %}</li>
+    <li><span class="swatch limited" aria-hidden="true"></span>{% translate "available with limits" %}</li>
+    <li><span class="swatch unavailable" aria-hidden="true"></span>{% translate "not available" %}</li>
+    <li><span class="swatch unavailable feed" aria-hidden="true"></span>{% translate "busy in the linked calendar" %}</li>
+    {% if place.view == "week" %}<li><span class="swatch deployment" aria-hidden="true"></span>{% translate "deployment" %}</li><li><span class="swatch deployment clash" aria-hidden="true"></span>{% translate "deployment although not available" %}</li>{% else %}<li><span class="swatch partial" aria-hidden="true"></span>{% translate "part of the day" %}</li>
+    <li><span class="planned-dot" aria-hidden="true"></span>{% translate "planned" %}</li>{% endif %}
+  </ul>
+</div>
+
+{% if availability_editable %}
+<form method="post" action="{{ mark_action }}" class="avail-form" data-avail-form novalidate>
+  {% csrf_token %}{% include "core/_required_note.html" with form=mark_form %}
+  {% include "personnel/_calendar_place.html" %}
+  <div class="inline-fields">
+    <div class="field"><label for="{{ mark_form.start_day.id_for_label }}">{{ mark_form.start_day.label }}{% include "core/_required_mark.html" with field=mark_form.start_day %}</label>{{ mark_form.start_day }}</div>
+    <div class="field"><label for="{{ mark_form.end_day.id_for_label }}">{{ mark_form.end_day.label }}{% include "core/_required_mark.html" with field=mark_form.end_day %}</label>{{ mark_form.end_day }}{% if mark_form.end_day.help_text %}<div class="help" id="{{ mark_form.end_day.auto_id }}_helptext">{{ mark_form.end_day.help_text }}</div>{% endif %}</div>
+    <div class="field grow"><label for="{{ mark_form.note.id_for_label }}">{{ mark_form.note.label }}{% include "core/_required_mark.html" with field=mark_form.note %}</label>{{ mark_form.note }}</div>
+  </div>
+  <div class="inline-fields avail-times">
+    <div class="field check-field"><div class="check">{{ mark_form.with_times }}<label for="{{ mark_form.with_times.id_for_label }}">{{ mark_form.with_times.label }}{% include "core/_required_mark.html" with field=mark_form.with_times %}</label></div></div>
+    <div class="field narrow" data-avail-time><label for="{{ mark_form.start_time.id_for_label }}">{{ mark_form.start_time.label }}{% include "core/_required_mark.html" with field=mark_form.start_time %}</label>{{ mark_form.start_time }}</div>
+    <div class="field narrow" data-avail-time><label for="{{ mark_form.end_time.id_for_label }}">{{ mark_form.end_time.label }}{% include "core/_required_mark.html" with field=mark_form.end_time %}</label>{{ mark_form.end_time }}</div>
+  </div>
+  {# PER-028: repeat like an appointment series. #}
+  <details class="avail-repeat-toggle"{% if mark_form.repeat.value %} open{% endif %}>
+    <summary>{% translate "Repeat" %} …</summary>
+    {% include "personnel/_repeat_fields.html" with form=mark_form %}
+  </details>
+  {% if place.view == "week" %}<p class="avail-selection" data-avail-selection aria-live="polite"></p>{% endif %}
+  <div class="btn-row avail-buttons">
+    <button class="btn avail-btn available" type="submit" name="state" value="available">{% translate "Available" %}</button>
+    <button class="btn avail-btn limited" type="submit" name="state" value="limited">{% translate "With limits" %}</button>
+    <button class="btn avail-btn unavailable" type="submit" name="state" value="unavailable">{% translate "Not available" %}</button>
+    <button class="btn secondary" type="submit" name="state" value="clear">{% translate "Remove entry" %}</button>
+  </div>
+  <p class="help-line">{% translate "Tap the first and the last day in the calendar, then the colour. Without times the whole days count; with times the colour applies on each of the days. A new colour replaces what was entered for that time." %}{% if place.view == "week" %} {% translate "In the week, tap the heads of the days – or mark a time range in the columns: drag with the mouse, or on a phone tap its start and then its end. Over several days the same hours count on each day." %}{% endif %}</p>
+</form>
+{% endif %}
+
+{# PER-027: one availability at any moment – busy times of the linked calendar that overlap or touch are one block. #}
+{% if shown_periods %}
+<table class="table stack avail-list">
+  <caption class="visually-hidden">{% if place.view == "week" %}{% translate "Entries in this week" %}{% else %}{% translate "Entries in this month" %}{% endif %}</caption>
+  <tbody>
+  {% for period in shown_periods %}
+    <tr>
+      <td><span class="avail {% if period.state == 'available' %}ok{% elif period.state == 'limited' %}tight{% else %}short{% endif %}">{{ period.get_state_display|capfirst }}</span>{% if period.note %}<div class="muted small">{{ period.note }}</div>{% endif %}</td>
+      <td>{{ period.start|date:"D d.m.Y H:i" }} – {{ period.end|date:"D d.m.Y H:i" }}</td>
+      <td class="muted small">{% if period.from_feed %}{% translate "busy in the linked calendar" %}{% elif period.in_series %}{% translate "series" %}{% else %}{% translate "entered" %}{% endif %}</td>
+      <td class="actions">{% if availability_editable and not period.from_feed %}<form method="post" action="{{ remove_action }}" class="inline-form">{% csrf_token %}{% include "personnel/_calendar_place.html" %}<input type="hidden" name="start" value="{{ period.start|date:'c' }}"><input type="hidden" name="end" value="{{ period.end|date:'c' }}"><button class="link-btn" type="submit">{% translate "remove" %}</button></form>{% endif %}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+{% if series_rows %}
+{# PER-028: the series, to change from a day on or to remove. #}
+<div class="avail-series">
+  <h3>{% translate "Series" %}</h3>
+  <ul class="plain series-list">
+  {% for row in series_rows %}
+    <li class="series-row">
+      <div><span class="avail {% if row.series.state == 'available' %}ok{% elif row.series.state == 'limited' %}tight{% else %}short{% endif %}">{{ row.series.get_state_display|capfirst }}</span> {{ row.description }}{% if row.series.note %}<div class="muted small">{{ row.series.note }}</div>{% endif %}</div>
+      {% if availability_editable %}
+      <div class="series-actions">
+        <a class="btn secondary small" href="{% if availability_own %}{% url 'personnel:own_series' row.series.pk %}{% else %}{% url 'personnel:person_series' person.pk row.series.pk %}{% endif %}">{% icon "edit" %}{% translate "Change" %}</a>
+        <form method="post" action="{% if availability_own %}{% url 'personnel:own_series_remove' row.series.pk %}{% else %}{% url 'personnel:person_series_remove' person.pk row.series.pk %}{% endif %}" class="inline-fields series-remove" novalidate>
+          {% csrf_token %}
+          {% include "personnel/_calendar_place.html" %}
+          <div class="field"><label for="series-from-{{ row.series.pk }}">{% translate "Remove from" %}</label><input type="date" id="series-from-{{ row.series.pk }}" name="from_day" value="{{ row.from_day|date:'Y-m-d' }}"></div>
+          <button class="btn secondary small" type="submit">{% translate "Remove from this day" %}</button>
+          <button class="btn secondary small" type="submit" name="all" value="1" data-confirm="{% translate 'Remove the whole series, also what is over?' %}">{% translate "Remove all" %}</button>
+        </form>
+      </div>
+      {% endif %}
+    </li>
+  {% endfor %}
+  </ul>
+</div>
+{% endif %}

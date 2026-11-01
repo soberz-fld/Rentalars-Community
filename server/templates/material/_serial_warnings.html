@@ -1,0 +1,14 @@
+{% load i18n %}
+{% comment %}
+  Duplicate serial numbers (MAT-004, MAT-050): serial numbers that exist already. A warning, not an error: it
+  comes after the first "save", the second one with the tick (which carries the mark of exactly these warnings) goes through.
+  Needs: serial_warnings (texts), serial_token, confirm_label (the tick's text, e.g. "Create anyway").
+{% endcomment %}
+{% if serial_warnings %}
+<div class="note" role="alert" id="serial-warnings">
+  <strong>{% translate "Serial numbers that exist already:" %}</strong>
+  <ul class="plain-list">{% for warning in serial_warnings %}<li>{{ warning }}</li>{% endfor %}</ul>
+  <p class="muted small">{% translate "Retired and sold items count as well. The same number can be right, e.g. at another manufacturer's model." %}</p>
+  <div class="field"><div class="check"><input type="checkbox" name="confirm_serials" id="id_confirm_serials" value="{{ serial_token }}"><label for="id_confirm_serials">{{ confirm_label }}</label></div></div>
+</div>
+{% endif %}

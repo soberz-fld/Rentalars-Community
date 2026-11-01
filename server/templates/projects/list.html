@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Projects" %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>{% translate "Projects" %}</h1></div>
+  <div class="actions">{% if can.write.projects %}<a class="btn secondary" href="{% url 'projects:templates' %}">{% icon "copy" %}{% translate "Templates" %}</a><a class="btn" href="{% url 'projects:create' %}">{% icon "plus" %}{% translate "New project" %}</a>{% endif %}</div>
+</div>
+{% include "projects/_list_tabs.html" with tab="list" %}
+<div class="panel">
+  <form method="get" class="filters">
+    <div class="field grow"><label for="f-q">{% translate "Number, name, venue or customer" %}</label><input type="search" id="f-q" name="q" value="{{ q }}"></div>
+    {% filterpanel "projects" %}
+    <div class="field"><label for="f-status">{% translate "Status" %}</label>
+      <select id="f-status" name="status" data-autosubmit><option value="">{% translate "All running" %}</option>{% for value, label in statuses %}<option value="{{ value }}"{% if value in selected_statuses %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+    {% if show_customers %}<div class="field"><label for="f-customer">{% translate "Customer" %}</label>
+      <select id="f-customer" name="customer" data-autosubmit><option value="">{% translate "All" %}</option>{% for customer in customers %}<option value="{{ customer.pk }}"{% if filters.customer == customer.pk|stringformat:"s" %} selected{% endif %}>{{ customer.name }}</option>{% endfor %}</select></div>
+    <div class="field"><label for="f-manager">{% translate "Project manager" %}</label>
+      <select id="f-manager" name="manager" data-autosubmit><option value="">{% translate "All" %}</option>{% for manager in managers %}<option value="{{ manager.pk }}"{% if filters.manager == manager.pk|stringformat:"s" %} selected{% endif %}>{{ manager }}</option>{% endfor %}</select></div>{% endif %}
+    {# PRJ-105: follow-ups – due, mine or all of them, in every status. #}
+    {% if show_customers %}<div class="field"><label for="f-follow-up">{% translate "Follow-up" %}</label>
+      <select id="f-follow-up" name="follow_up" data-autosubmit><option value="">{% translate "All" %}</option>{% for value, label in follow_up_choices %}<option value="{{ value }}"{% if filters.follow_up == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>{% endif %}
+    {# DOK-015: closed projects whose invoice is still open. #}
+    {% if can.special.prices %}<div class="field"><label for="f-invoice">{% translate "Invoice" %}</label>
+      <select id="f-invoice" name="invoice" data-autosubmit><option value="">{% translate "All" %}</option><option value="open"{% if filters.invoice == "open" %} selected{% endif %}>{% translate "closed, invoice open" %}</option></select></div>{% endif %}
+    <div class="field"><label for="f-since">{% translate "From" %}</label><input type="date" id="f-since" name="since" value="{{ filters.since }}"></div>
+    <div class="field"><label for="f-until">{% translate "Until" %}</label><input type="date" id="f-until" name="until" value="{{ filters.until }}"></div>
+    <button class="btn secondary" type="submit">{% translate "Filter" %}</button>
+    {% endfilterpanel %}
+  </form>
+  {% include "core/_table_tools.html" %}
+  {% if page.object_list %}
+  {% if bulk_may %}{% include "core/_table.html" with stack=True bulk_extra="projects/_bulk_projects.html" %}{% else %}{% include "core/_table.html" with stack=True %}{% endif %}
+  {% else %}
+  <div class="empty"><strong>{% translate "No projects match." %}</strong>{% translate "Closed and cancelled projects are hidden unless you choose their status or search." %}</div>
+  {% endif %}
+  {% include "core/_pagination.html" %}
+</div>
+{% endblock %}

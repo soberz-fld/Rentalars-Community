@@ -1,0 +1,7 @@
+{% load i18n %}
+{# PRJ-115, MAT-053: the tabs of "Auswertung". #}
+<div class="page-head"><div><h1>{% translate "Reports" %}</h1></div></div>
+<nav class="tabs" aria-label="{% translate 'Reports' %}">
+  <a href="{% url 'projects:report' %}"{% if tab == "profitability" %} aria-current="page"{% endif %}>{% translate "Profitability" %}</a>
+  {% if can.special.purchase_prices and can.read.material %}<a href="{% url 'projects:report_material' %}"{% if tab == "material" %} aria-current="page"{% endif %}>{% translate "Material" %}</a>{% endif %}
+</nav>

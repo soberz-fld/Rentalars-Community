@@ -1,0 +1,17 @@
+{% load i18n rentalars %}
+{% comment %}
+  The subtotal of a group with subgroups, below the last of them (PRJ-037): its own lines and the subtotals of
+  its subgroups, then its own discount or flat price. Expects: group (PlannedGroup); oob (optional). A plain
+  div with a table and no div inside, so that it is one part of the planning (see PlanningPatchTests).
+{% endcomment %}
+{% if can_see_prices %}
+<div id="group-total-{{ group.group.pk }}"{% if oob %} hx-swap-oob="true"{% endif %} class="group-total{% if not group.prices.counts_toward_total %} is-optional{% endif %}">
+  <table class="group-total-table">
+    {% if group.prices.cap_excess %}<tr><td class="muted small" colspan="2">{% blocktranslate with amount=group.prices.cap_excess|money %}The maximum discount of a job function keeps {{ amount }} of the group’s discount from applying.{% endblocktranslate %}</td></tr>{% endif %}
+    {% if group.prices.discount %}
+    <tr><td class="muted">{% if group.group.flat_price is not None %}{% translate "Flat price; lines and subgroups add up to more by" %}{% else %}{% translate "Group discount" %}{% endif %}</td><td class="num muted">− {{ group.prices.discount|money }}</td></tr>
+    {% endif %}
+    <tr class="subtotal-row"><td>{% if group.prices.counts_toward_total %}{% blocktranslate with title=group.group.name %}Subtotal {{ title }} with subgroups{% endblocktranslate %}{% else %}{% blocktranslate with title=group.group.name %}Subtotal {{ title }} with subgroups (not part of the project total){% endblocktranslate %}{% endif %}</td><td class="num">{{ group.prices.subtotal|money }}</td></tr>
+  </table>
+</div>
+{% endif %}

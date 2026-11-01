@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}{% translate "Draft by AI" %} {{ project.number }}{% endblock %}
+{% block content %}
+{# ADM-017: the reply draft on a page of its own – only without JavaScript; otherwise it appears in the mail form. #}
+<div class="page-head"><div><div class="breadcrumb"><a href="{% url 'mail:project_mails' project.pk %}">{% translate "Correspondence" %} {{ project.number }}</a></div><h1>{% translate "Draft by AI" %}</h1></div></div>
+<section class="panel"><div class="panel-body">
+  {% include "ai/_draft.html" %}
+  <p><a class="btn secondary" href="{% url 'mail:compose' project.pk %}{% if answer %}?answer={{ answer }}{% endif %}">{% translate "Back to the mail" %}</a></p>
+</div></section>
+{% endblock %}

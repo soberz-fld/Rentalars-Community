@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Automatic summaries" %}{% endblock %}
+{% block content %}
+{% comment %}
+  Automatic AI summaries, information security: off until an administrator opts in. The notice says which (EML-056, NFA-079)
+  provider gets which data classes; the form holds the window, the caps, the statuses and the data classes; the list
+  shows every run with its errors.
+{% endcomment %}
+<div class="page-head"><div><div class="breadcrumb"><a href="{% url 'core:administration' %}">{% translate "Settings" %}</a> / <a href="{% url 'ai:settings' %}">{% translate "AI" %}</a></div><h1>{% translate "Automatic summaries" %}</h1>
+<p class="lead">{% translate "At night, projects and service cases that got new mails since their last summary are summarised by AI – the same summary as the button “Summarise”, marked as made automatically." %}</p></div></div>
+<div class="columns">
+  <section class="panel" id="notice" aria-labelledby="notice-title">
+    <div class="panel-head"><h2 id="notice-title">{% translate "Where the data go" %}</h2>
+      {% if state == "ok" %}<span class="badge green">{% translate "on" %}</span>{% elif state == "changed" %}<span class="badge red">{% translate "stopped: other provider" %}</span>{% elif state == "unavailable" %}<span class="badge yellow">{% translate "no provider" %}</span>{% else %}<span class="badge outline">{% translate "off" %}</span>{% endif %}</div>
+    <div class="panel-body settings-stack">
+      {% if notice.problem %}
+      <p class="note">{{ notice.problem }}</p>
+      <p class="muted small">{% translate "Choose the provider of the summaries under Settings → AI first." %}</p>
+      {% else %}
+      <p>{% blocktranslate with provider=notice.endpoint.label %}The summaries go to: <strong>{{ provider }}</strong>.{% endblocktranslate %}
+        {% if notice.endpoint.is_local %}<span class="badge green">{% translate "local AI on this server – nothing leaves it" %}</span>
+        {% elif notice.leaves_company %}<span class="badge red">{% translate "cloud service – the data leave the company" %}</span>
+        {% else %}<span class="badge outline">{% translate "in the company network" %}</span>{% endif %}</p>
+      {% if notice.leaves_company %}<p class="note red">{% translate "Texts of mails with names, dates and amounts of your customers go to a service outside the company. Check your agreement with the provider (order processing) and your privacy statement before you switch this on." %}</p>{% endif %}
+      <h3>{% translate "What is sent" %}</h3>
+      <ul>{% for text in notice.sent %}<li>{{ text }}</li>{% endfor %}</ul>
+      <h3>{% translate "Taken out of the texts before sending" %}</h3>
+      {% if notice.removed %}<ul>{% for text in notice.removed %}<li>{{ text }}</li>{% endfor %}</ul>{% else %}<p class="note">{% translate "Nothing is taken out: bank data, passwords and addresses in mails go to the provider as they are." %}</p>{% endif %}
+      <h3>{% translate "Never sent" %}</h3>
+      <ul>{% for text in notice.never %}<li>{{ text }}</li>{% endfor %}</ul>
+      <p class="muted small">{% translate "The filters recognise what has a recognisable shape. What a mail says in plain words – names, addresses, an offer – goes along. The summary shows only to people who may read all messages of the project." %}</p>
+      {% endif %}
+      {% if state == "changed" %}<p class="note red">{% translate "The provider of the summaries is not the one you agreed to. The job does not run until you confirm again below." %}</p>{% endif %}
+      {% if ai_settings.auto_enabled_at %}<p class="muted small">{% blocktranslate with date=ai_settings.auto_enabled_at|date:"SHORT_DATETIME_FORMAT" user=ai_settings.auto_enabled_by|default:"–" %}Switched on by {{ user }} on {{ date }}.{% endblocktranslate %}</p>{% endif %}
+      {% if can_write %}
+      <div class="btn-row">
+        <form method="post" action="{% url 'ai:auto_preview' %}" class="inline-form">{% csrf_token %}<button class="btn secondary" type="submit">{% translate "Show what would be summarised" %}</button></form>
+        {% if state == "ok" %}<form method="post" action="{% url 'ai:auto_run' %}" class="inline-form">{% csrf_token %}<button class="btn secondary" type="submit">{% translate "Run now" %}</button></form>{% endif %}
+      </div>
+      {% endif %}
+    </div>
+  </section>
+
+  {% if preview %}
+  <section class="panel" id="preview" aria-labelledby="preview-title">
+    <div class="panel-head"><h2 id="preview-title">{% translate "What would be summarised" %}</h2></div>
+    {% if preview.candidates %}
+    <table class="table stack">
+      <thead><tr><th>{% translate "Project" %}</th><th>{% translate "Why" %}</th><th>{% translate "Mails" %}</th></tr></thead>
+      <tbody>{% for entry in preview.details %}{% if entry.outcome == "would" %}<tr>
+        <td>{% if entry.project %}<a href="{% url 'mail:project_mails' entry.project %}">{{ entry.number }} {{ entry.name }}</a>{% else %}{{ entry.error }}{% endif %}</td>
+        <td data-label="{% translate 'Why' %}">{% if entry.reason == "new" %}{% translate "no summary yet" %}{% elif entry.reason == "changed" %}{% translate "new mails" %}{% endif %}</td>
+        <td data-label="{% translate 'Mails' %}">{{ entry.mails }}{% if entry.new_mails and entry.reason == "changed" %} (+{{ entry.new_mails }}){% endif %}</td>
+      </tr>{% endif %}{% endfor %}</tbody>
+    </table>
+    <div class="panel-body"><p class="muted small">{% translate "No model was asked and nothing was stored. A project whose readable texts did not change is left out when it is its turn." %}</p></div>
+    {% else %}<div class="empty">{% translate "Nothing to summarise: no project or service case in the chosen statuses changed since its last summary." %}</div>{% endif %}
+  </section>
+  {% endif %}
+
+  <section class="panel" id="settings" aria-labelledby="settings-title">
+    <div class="panel-head"><h2 id="settings-title">{% translate "Settings" %}</h2></div>
+    <div class="panel-body">
+      <form method="post" class="form" novalidate>
+        {% csrf_token %}
+        {% include "core/_form_errors.html" %}
+        {% include "core/_field.html" with field=form.auto_enabled %}
+        {% include "core/_field.html" with field=form.consent %}
+        {% include "core/_field.html" with field=form.auto_window_start %}
+        {% include "core/_field.html" with field=form.auto_window_end %}
+        {% include "core/_field.html" with field=form.auto_max_per_run %}
+        {% include "core/_field.html" with field=form.auto_token_budget %}
+        {% include "core/_field.html" with field=form.auto_min_interval_hours %}
+        {% include "core/_field.html" with field=form.auto_min_mails %}
+        {% include "core/_field.html" with field=form.auto_keep_versions %}
+        {% include "core/_field.html" with field=form.auto_project_statuses %}
+        {% include "core/_field.html" with field=form.auto_case_statuses %}
+        <h3>{% translate "What the job reads" %}</h3>
+        <p class="muted small">{% translate "The job has no user. It reads what you allow here; the mails of the project and its parts, without the quoted earlier mails, are always read." %}</p>
+        {% include "core/_field.html" with field=form.auto_include_notes %}
+        {% include "core/_field.html" with field=form.auto_include_chat %}
+        {% include "core/_field.html" with field=form.auto_include_locked %}
+        <h3>{% translate "For all summaries" %}</h3>
+        {% include "core/_field.html" with field=form.send_attachment_names %}
+        {% include "core/_field.html" with field=form.privacy_remove %}
+        {% include "core/_field.html" with field=form.max_input_chars %}
+        {% include "core/_field.html" with field=form.manual_per_hour %}
+        {% if can_write %}<div><button class="btn" type="submit">{% translate "Save" %}</button></div>{% endif %}
+      </form>
+    </div>
+  </section>
+
+  <section class="panel" id="runs" aria-labelledby="runs-title">
+    <div class="panel-head"><h2 id="runs-title">{% translate "Runs" %}</h2></div>
+    {% if runs %}
+    <table class="table stack">
+      <thead><tr><th>{% translate "Started" %}</th><th>{% translate "Result" %}</th><th>{% translate "Summarised" %}</th><th>{% translate "Unchanged" %}</th><th>{% translate "Failed" %}</th><th>{% translate "Tokens" %}</th></tr></thead>
+      <tbody>{% for run in runs %}<tr>
+        <td>{{ run.started_at|date:"SHORT_DATETIME_FORMAT" }}{% if run.triggered_by %}<div class="muted small">{{ run.triggered_by }}</div>{% endif %}</td>
+        <td data-label="{% translate 'Result' %}"><span class="badge {% if run.state == 'done' %}green{% elif run.state == 'failed' %}red{% else %}yellow{% endif %}">{{ run.get_state_display }}</span>{% if run.reason_text %}<div class="small">{{ run.reason_text }}</div>{% endif %}
+          {% for entry in run.details %}{% if entry.outcome == "failed" %}<div class="small note red">{% if entry.number %}{{ entry.number }}: {% endif %}{{ entry.error }}</div>{% elif entry.outcome == "only_locked" %}<div class="small note">{% blocktranslate count count=entry.count %}{{ count }} project has only messages with lock, which the job may not read.{% plural %}{{ count }} projects have only messages with lock, which the job may not read.{% endblocktranslate %}</div>{% endif %}{% endfor %}</td>
+        <td data-label="{% translate 'Summarised' %}">{{ run.summarised }}</td>
+        <td data-label="{% translate 'Unchanged' %}">{{ run.unchanged }}</td>
+        <td data-label="{% translate 'Failed' %}">{{ run.failed }}</td>
+        <td data-label="{% translate 'Tokens' %}">{{ run.tokens }}</td>
+      </tr>{% endfor %}</tbody>
+    </table>
+    {% else %}<div class="empty">{% translate "No run yet." %}</div>{% endif %}
+  </section>
+</div>
+{% endblock %}

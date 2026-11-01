@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}{{ chapter.title }} – {% translate "Manual" %}{% endblock %}
+{% block content %}
+{# Manual chapters: one chapter of the user manual with the chapters beside it and "previous" / "next". (UIX-057) #}
+<div class="page-head"><div><h1>{% translate "Manual" %}</h1></div></div>
+{% if manual.fallback %}<div class="note" role="note" lang="en-GB">{% translate "The English manual is not available yet. Here is the German one." %}</div>{% endif %}
+<div class="manual-layout">
+  <nav class="manual-toc panel" aria-label="{% translate 'Chapters of the manual' %}">
+    <details open>
+      <summary>{% translate "Chapters" %}</summary>
+      <ol>
+        <li><a href="{% url 'core:manual' %}">{% translate "Contents of the manual" %}</a></li>
+        {% for entry in manual.chapters %}
+        <li><a href="{% url 'core:manual_chapter' entry.number %}"{% if entry.number == chapter.number %} aria-current="page"{% endif %}>{% if entry.number == chapter.number %}<strong>{{ entry.title }}</strong>{% else %}{{ entry.title }}{% endif %}</a>{% if entry.number == chapter.number %}
+          <ol>{% for section in chapter.sections %}{% if section.level == "3" %}<li><a href="#{{ section.id }}">{{ section.name }}</a></li>{% endif %}{% endfor %}</ol>{% endif %}
+        </li>{% endfor %}
+      </ol>
+    </details>
+  </nav>
+  <div class="manual-main" lang="{% if manual.language == 'en' %}en-GB{% else %}de{% endif %}">
+    <p class="manual-pager manual-pager-top">
+      {% if previous %}<a class="btn secondary" rel="prev" href="{% url 'core:manual_chapter' previous.number %}"><span aria-hidden="true">←</span> {% translate "Previous chapter" %}</a>{% endif %}
+      <a class="btn secondary" href="{% url 'core:manual' %}">{% translate "Contents" %}</a>
+      {% if next %}<a class="btn" rel="next" href="{% url 'core:manual_chapter' next.number %}">{% translate "Next chapter" %} <span aria-hidden="true">→</span></a>{% endif %}
+    </p>
+    <article class="manual panel">
+      <div class="panel-body">{{ chapter.html|safe }}</div>
+    </article>
+    <nav class="manual-pager" aria-label="{% translate 'Previous and next chapter' %}">
+      {% if previous %}<a class="btn secondary" rel="prev" href="{% url 'core:manual_chapter' previous.number %}"><span aria-hidden="true">←</span> {{ previous.title }}</a>{% endif %}
+      {% if next %}<a class="btn" rel="next" href="{% url 'core:manual_chapter' next.number %}">{{ next.title }} <span aria-hidden="true">→</span></a>{% endif %}
+    </nav>
+  </div>
+</div>
+{% endblock %}

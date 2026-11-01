@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% if model %}{{ model.name }}{% else %}{% translate "New material model" %}{% endif %}{% endblock %}
+{% block content %}
+<div class="page-head"><div><div class="breadcrumb"><a href="{% url 'material:model_list' %}">{% translate "Material models" %}</a></div><h1>{% if model %}{{ model.name }}{% else %}{% translate "New material model" %}{% endif %}</h1>
+{% if not model %}<p class="lead">{% translate "A model describes the article type. Afterwards you create its single items." %}</p>{% endif %}
+{% if original %}<p class="note">{# MAT-064: duplicate #}{% blocktranslate with name=original.name %}A copy of “{{ name }}”: its values are filled in. Its items and files stay with the original.{% endblocktranslate %}</p>{% endif %}</div></div>
+<form method="post" class="form wide" novalidate>
+  {% csrf_token %}
+  {% include "core/_form_errors.html" %}
+  <div class="panel"><div class="panel-body">
+    <div class="form-grid">
+      {% include "core/_field.html" with field=form.name %}
+      {% include "core/_field.html" with field=form.short_name %}
+      {% include "core/_field.html" with field=form.category %}
+      {% include "core/_field.html" with field=form.category_specific %}
+      {# MAT-010: the further fields of the category #}
+      {% for field in form.extra_bound_fields %}{% include "core/_field.html" %}{% endfor %}
+      {# MAT-048: manufacturer and product typed with suggestions; a new manufacturer is created on saving #}
+      {% url 'material:manufacturer_suggest' as manufacturer_url %}{% translate "Search or type a new name" as manufacturer_placeholder %}{% include "material/_name_typeahead.html" with field=form.manufacturer_name url=manufacturer_url placeholder=manufacturer_placeholder %}
+      {% url 'material:product_suggest' as product_url %}{% translate "Article number or name" as product_placeholder %}{% include "core/_typeahead_field.html" with field=form.default_product url=product_url text=form.product_text placeholder=product_placeholder %}
+      {% include "core/_field.html" with field=form.tracking_mode %}
+    </div>
+    {% with product=form.instance.default_product %}{% if product and product.pieces_per_product > 1 %}{# A product of several pieces #}<p class="note">{% blocktranslate with number=product.article_number count=product.pieces_per_product %}One piece of the product {{ number }} consists of {{ count }} items of this model. The number is set in the product.{% endblocktranslate %}</p>{% endif %}{% endwith %}
+    {% include "core/_field.html" with field=form.specification %}
+    {% if form.copy_inspection_types %}{% include "core/_field.html" with field=form.copy_inspection_types %}{% endif %}
+  </div></div>
+  {# MAT-049, MAT-016: what packlists add up, and the power of one piece #}
+  <div class="panel">
+    <div class="panel-head"><h2>{% translate "Weight, dimensions and power" %}</h2></div>
+    <div class="panel-body">
+      <div class="form-grid">
+        {% include "core/_field.html" with field=form.weight_kg %}
+        {% include "core/_field.html" with field=form.power_w %}
+        {% include "core/_field.html" with field=form.protection_class %}{# MAT-077 #}
+      </div>
+      <div class="form-grid">
+        {% include "core/_field.html" with field=form.length_cm %}
+        {% include "core/_field.html" with field=form.width_cm %}
+        {% include "core/_field.html" with field=form.height_cm %}
+      </div>
+      {% if model.volume_litres %}<p class="muted small">{% blocktranslate with volume=model.volume_litres|number %}Volume from the dimensions: {{ volume }} l{% endblocktranslate %}</p>{% else %}<p class="muted small">{% translate "With length, width and height the volume is calculated for the packing lists." %}</p>{% endif %}
+    </div>
+  </div>
+  {# MAT-072: the fieldset of the model #}
+  {% include "customfields/_fieldset_choice.html" %}
+  <div class="btn-row"><button class="btn" type="submit">{% translate "Save model" %}</button><a class="btn secondary" href="{% if model %}{% url 'material:model_detail' model.pk %}{% elif original %}{% url 'material:model_detail' original.pk %}{% else %}{% url 'material:model_list' %}{% endif %}">{% translate "Cancel" %}</a></div>
+</form>
+{% endblock %}

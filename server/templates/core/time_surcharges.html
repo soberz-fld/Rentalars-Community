@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% comment %}
+  Einstellungen → Zuschläge (PER-009, PER-040): switches for price and costs, the list of rules (add, remove, order;
+  each with its percentage for price and costs), the holidays – statutory ones of a German federal state and/or own
+  ones – with the computed days of this year and the next, and the button "Nach § 3b EStG einstellen".
+{% endcomment %}
+{% block title %}{% translate "Surcharges for night, Sunday and holidays" %}{% endblock %}
+{% block content %}
+<div class="page-head"><div><div class="breadcrumb"><a href="{% url 'core:administration' %}">{% translate "Settings" %}</a></div><h1>{% translate "Surcharges for night, Sunday and holidays" %}</h1>{# PER-009: said plainly – only crew lines, never any other line of a project. #}<p class="lead" data-crew-lines-only>{% translate "Only crew lines get these surcharges – never material, incidental costs or any other line of a project – and only if they are billed by the hour (by plan or by effort), not with a flat rate or per day. The rules work in any country; the button sets those of § 3b EStG." %}</p></div></div>
+<form method="post" class="form" novalidate id="time-surcharges">
+  {% csrf_token %}
+  {% include "core/_form_errors.html" %}
+  {{ rules.non_form_errors }}{{ holidays.non_form_errors }}
+  <section class="panel">
+    <div class="panel-head"><h2>{% translate "Which crew lines" %}</h2></div>
+    <div class="panel-body">
+      <div class="form-grid">
+        {% include "core/_field.html" with field=form.on_price %}
+        {% include "core/_field.html" with field=form.on_costs %}
+      </div>
+      <p class="muted small">{% translate "A crew line keeps its own switches: in its dialog they can be changed for that line. A service can exclude its lines on its product page. Other products have no such switch: their lines never get these surcharges." %}</p>
+    </div>
+  </section>
+  <section class="panel" id="surcharge-rules">
+    <div class="panel-head">
+      <h2>{% translate "Rules" context "time surcharge" %}</h2>
+      {% if can_write %}<button class="btn secondary small" type="submit" form="surcharges-section-3b" data-confirm="{% translate 'Replace all rules by those of § 3b EStG? Rules of your own are deleted; the holidays stay.' %}">{% translate "Set as § 3b EStG" %}</button>{% endif %}
+    </div>
+    <div class="panel-body">
+      <p class="muted small">{% translate "Of the rules on weekdays, holidays and days of the year only the highest percentage counts; of the rules at a time of day too; the two add up – as § 3b EStG: night 25 percent plus holiday 125 percent. With the same percentage the rule further down counts. Rules with the same name and percentage show as one in the planning and in documents. 0 percent: no surcharge." %}</p>
+      <p class="muted small">{% translate "A rule “only for work begun before midnight” takes the place of the other rules at a time of day while it holds – as the 40 percent from 0:00 to 4:00 of § 3b EStG." %}</p>
+      {{ rules.management_form }}
+      <div class="surcharge-list" data-formset="rules" data-order-label="{% translate 'Order' context 'time surcharge' %}" data-up-label="{% translate 'Move the rule up' %}" data-down-label="{% translate 'Move the rule down' %}" data-moved-label="{% translate 'The rule is now in place {place}.' %}">
+        <div data-formset-rows>
+        {% for rule in rules %}{% include "core/_surcharge_rule.html" with rule=rule number=forloop.counter %}{% endfor %}
+        </div>
+        <template data-formset-empty>{% include "core/_surcharge_rule.html" with rule=rules.empty_form number="" %}</template>
+        {% if can_write %}<button class="btn secondary small" type="button" data-formset-add="rules" hidden>{% translate "Add a rule" %}</button>{% endif %}
+      </div>
+      <div class="form-grid next-day">{% include "core/_field.html" with field=form.next_day_until %}</div>
+    </div>
+  </section>
+  <section class="panel" id="surcharge-holidays">
+    <div class="panel-head"><h2>{% translate "Holidays" context "time surcharge" %}</h2></div>
+    <div class="panel-body">
+      <div class="form-grid">
+        {% include "core/_field.html" with field=form.german_holidays %}
+        <div data-show-if="german_holidays=on"{% if not form.german_holidays.value %} class="hidden"{% endif %}>{% include "core/_field.html" with field=form.state %}</div>
+      </div>
+      <h3>{% translate "Own holidays" %}</h3>
+      <p class="muted small">{% translate "For work in another country, or days the company keeps: every year on a day, once on a date, or a number of days from Easter Sunday." %}</p>
+      {{ holidays.management_form }}
+      <div class="surcharge-list" data-formset="holidays">
+        <div data-formset-rows>
+        {% for holiday in holidays %}{% include "core/_own_holiday.html" with holiday=holiday number=forloop.counter %}{% endfor %}
+        </div>
+        <template data-formset-empty>{% include "core/_own_holiday.html" with holiday=holidays.empty_form number="" %}</template>
+        {% if can_write %}<button class="btn secondary small" type="button" data-formset-add="holidays" hidden>{% translate "Add a holiday" %}</button>{% endif %}
+      </div>
+    </div>
+  </section>
+  {% if can_write %}<div class="btn-row"><button class="btn" type="submit">{% translate "Save settings" %}</button></div>{% endif %}
+</form>
+{% if can_write %}<form method="post" action="{% url 'core:time_surcharges_section_3b' %}" id="surcharges-section-3b">{% csrf_token %}</form>{% endif %}
+<section class="panel" id="holidays">
+  <div class="panel-head"><h2>{% blocktranslate with first=holiday_years.0 second=holiday_years.1 %}Holidays {{ first }} and {{ second }}{% endblocktranslate %}</h2><span class="muted small">{% if state_label %}{{ state_label }}{% else %}{% translate "only own holidays" %}{% endif %}</span></div>
+  <table class="table stack">
+    <thead><tr><th scope="col">{% translate "Day" %}</th><th scope="col">{% translate "Holiday" context "time surcharge" %}</th></tr></thead>
+    <tbody>
+    {% for day, name, own in holiday_rows %}<tr><td data-label="{% translate 'Day' %}">{{ day|date:"D d.m.Y" }}</td><td data-label="{% translate 'Holiday' context 'time surcharge' %}">{{ name }}{% if own %} <span class="badge">{% translate "own" context "holiday" %}</span>{% endif %}</td></tr>{% empty %}<tr><td colspan="2" class="muted">{% translate "No holidays." %}</td></tr>{% endfor %}
+    </tbody>
+  </table>
+  <div class="panel-body"><p class="muted small">{% translate "Computed by Rentalars itself, also the days that move with Easter – no service on the internet is asked. Saved settings show here." %}</p></div>
+</section>
+{% endblock %}

@@ -1,0 +1,67 @@
+{% load i18n rentalars %}
+{% comment %}
+  The quick entry (ZEI-003): opened as a dialog from every page. Project first – the one the person is
+  planned in right now (ZEI-006) – then job function, day, begin and end. Choosing another project loads
+  the form again with the job functions of that project (ZEI-007) and keeps what was typed.
+
+  Every request replaces this block itself (#quick-entry), so the same markup works inside the dialog and
+  on a page of its own (timetracking/quick_page.html), which is what a browser without scripts gets.
+{% endcomment %}
+<div id="quick-entry">
+  <div class="dialog-head"><h2>{% translate "Record time" %}{% if person and may_manage %} – {{ person.name }}{% endif %}</h2><button type="button" class="icon-btn" data-close-dialog data-href="{% url 'timetracking:my_times' %}" aria-label="{% translate 'Close' %}">{% icon "close" %}</button></div>
+  {% if not person %}
+  <div class="dialog-body">
+    <p>{% translate "Your user account is not linked to a person yet, so there is nobody to record times for." %}</p>
+    <p class="muted">{% translate "Ask personnel planning to link your account in the personnel data." %}</p>
+  </div>
+  <div class="dialog-foot"><button type="button" class="btn secondary" data-close-dialog data-href="{% url 'timetracking:my_times' %}">{% translate "Close" %}</button></div>
+  {% else %}
+  {% if with_messages %}<div class="dialog-body">{% include "core/_messages.html" %}</div>{% endif %}
+  {% if running %}
+  <form class="dialog-body timer-running" method="post" action="{% url 'timetracking:timer_stop' %}" hx-post="{% url 'timetracking:timer_stop' %}" hx-target="#quick-entry" hx-swap="outerHTML" autocomplete="off">
+    {% csrf_token %}
+    {% if may_manage %}<input type="hidden" name="person" value="{{ person.pk }}">{% endif %}
+    <p><span class="badge accent">{% translate "Stopwatch running" %}</span> <strong data-timer-since="{{ running.start|date:'c' }}">{{ running.start|date:"H:i" }}</strong></p>
+    <p>{{ running.project_label }}, {{ running.job_function.name }}<br><span class="muted small">{% blocktranslate with time=running.start|date:"D d.m. H:i" %}since {{ time }}{% endblocktranslate %}</span></p>
+    <div class="inline-fields">
+      <div class="field narrow"><label for="stop-break">{% translate "Break (minutes)" %}</label><input type="text" inputmode="numeric" id="stop-break" name="break_minutes" value="0"></div>
+      <button class="btn" type="submit">{% icon "stop" %}{% translate "Stop" %}</button>
+    </div>
+    <div class="check"><input type="checkbox" id="stop-submit" name="submit" checked><label for="stop-submit">{% translate "Hand in for approval right away" %}</label></div>
+  </form>
+  {% else %}
+  <form method="post" action="{% url 'timetracking:quick' %}" hx-post="{% url 'timetracking:quick' %}" hx-target="#quick-entry" hx-swap="outerHTML" novalidate autocomplete="off">
+    {% csrf_token %}
+    <div class="dialog-body form">
+      {% include "core/_form_errors.html" %}
+      {% if may_manage %}<input type="hidden" name="person" value="{{ person.pk }}">{% endif %}
+      {% if form.only_without_project %}
+      <p class="note">{% translate "You are not scheduled for any project, and there is no internal project. The time is recorded without project; whoever approves it assigns the project." %}</p>
+      {% endif %}
+      <div class="form-row">
+        <div class="field{% if form.project.errors %} has-error{% endif %}">
+          <label for="{{ form.project.id_for_label }}">{{ form.project.label }}{% include "core/_required_mark.html" with field=form.project %}</label>
+          {# Another project has other job functions: load the form again, keep what was typed. #}
+          <select name="project" id="{{ form.project.id_for_label }}" hx-get="{% url 'timetracking:quick' %}" hx-include="closest form" hx-target="#quick-entry" hx-swap="outerHTML" hx-trigger="change">
+            {% for group, options in form.fields.project.choices %}<optgroup label="{{ group }}">{% for value, label in options %}<option value="{{ value }}"{% if value == form.initial.project %} selected{% endif %}>{{ label }}</option>{% endfor %}</optgroup>{% endfor %}
+          </select>
+          {{ form.project.errors }}
+        </div>
+      </div>
+      <div class="form-row">{% include "core/_field.html" with field=form.job_function %}</div>
+      {% include "timetracking/_parts.html" %}
+      <div class="form-row">{% include "core/_field.html" with field=form.day %}</div>
+      <div class="form-row pair keep">{% include "core/_field.html" with field=form.begin %}{% include "core/_field.html" with field=form.end %}</div>
+      <div class="form-row pair keep">{% include "core/_field.html" with field=form.break_minutes %}{% include "core/_field.html" with field=form.note %}</div>
+      {% include "core/_field.html" with field=form.submit %}
+    </div>
+    <div class="dialog-foot">
+      <button type="submit" class="btn secondary" formaction="{% url 'timetracking:timer_start' %}" formnovalidate hx-post="{% url 'timetracking:timer_start' %}" hx-target="#quick-entry" hx-swap="outerHTML">{% icon "play" %}{% translate "Start stopwatch" %}</button>
+      <span class="spacer"></span>
+      <button type="button" class="btn secondary" data-close-dialog data-href="{% url 'timetracking:my_times' %}">{% translate "Cancel" %}</button>
+      <button type="submit" class="btn">{% translate "Save time" %}</button>
+    </div>
+  </form>
+  {% endif %}
+  {% endif %}
+</div>

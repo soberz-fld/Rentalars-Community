@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% load i18n rentalars service_cases %}
+{% block title %}{{ case.number }} {{ case.name }}{% endblock %}
+{% block content %}
+{% comment %}
+  PRJ-090: the page of a service case – what it is about, for whom, who reported it, who takes care of it, its status
+  (open, in progress, done), what is still open and the latest mails. Files, correspondence, access and history are
+  the tabs of a project.
+{% endcomment %}
+{% include "projects/_head.html" %}
+{% load statements %}{% statement_hint case %}{# DOK-016: the monthly statements of the case #}
+<div class="columns case-page">
+  <section class="panel" aria-labelledby="case-title">
+    <div class="panel-head"><h2 id="case-title">{% translate "Service case" %}</h2>{% if can_customer_pdf %}{# PRJ-131: overview and open correspondence as a PDF for the customer, stored under Documents #}<form method="post" action="{% url 'projects:case_customer_pdf' case %}" class="inline-form">{% csrf_token %}<button class="btn secondary small" type="submit" title="{% translate 'Overview and the messages without lock as a PDF; it is stored under “Documents”' %}">{% icon "download" %}{% translate "PDF for the customer" %}</button></form>{% endif %}{% if can.write.time_tracking and case.case_status != "done" %}{# ZEI-024: times on an open case, also unplanned #}<a class="btn secondary small" href="{% url 'timetracking:quick' %}?project={{ case.pk }}" hx-get="{% url 'timetracking:quick' %}?project={{ case.pk }}" hx-target="#dialog">{% icon "clock" %}{% translate "Record time" %}</a>{% endif %}</div>
+    <div class="panel-body">
+      <dl class="facts">
+        <dt>{% translate "Status" %}</dt>
+        <dd>
+          {% if status_form %}
+          {# PRJ-112: waiting, waiting to close and backlog open the follow-up dialog; the status is saved with it. #}
+          <form method="post" action="{% url 'projects:case_status' case %}" hx-post="{% url 'projects:case_status' case %}" hx-target="#dialog" class="inline-form compact-form case-status-form" data-follow-up-statuses="waiting,closing,backlog" data-saved="{{ case.case_status }}">
+            {% csrf_token %}
+            <label class="visually-hidden" for="id_case_status">{% translate "Status" %}</label>
+            {{ status_form.case_status }}
+            <button class="btn secondary small" type="submit">{% translate "Set status" %}</button>
+          </form>
+          {% if case.case_status == "waiting" %}<div class="muted small">{{ case.case_status_label }}</div>{% endif %}
+          <div class="muted small" id="case-status-hint">{% translate "Choosing “Waiting”, “Waiting to close” or “Backlog” opens the follow-up – the status is saved with it." %}</div>
+          {% else %}<span class="badge {{ case.case_status|case_colour }}">{{ case.case_status_label }}</span>{% endif %}
+        </dd>
+        {# PRJ-122: the customer's name shows in every role; contact and reporter only to who may see customers. #}
+        <dt>{% translate "Customer" %}</dt>
+        <dd>{% if case.is_internal %}<span class="badge">{% translate "internal" %}</span>{% if case.source_defect_id %} {% translate "our own material" %}{% endif %}{% elif case.customer_id %}{% if can.read.customers %}<a href="{% url 'customers:detail' case.customer_id %}">{{ case.customer.name }}</a>{% else %}{{ case.customer.name }}{% endif %}{% else %}{# PRJ-090: required; a case made from a mail (EML-047) or an older one may lack it – the edit form asks for it #}<span class="badge yellow">{% translate "customer missing" %}</span>{% if can_edit and show_customer %} <a href="{% url 'projects:case_edit' case %}">{% translate "Choose the customer" %}</a>{% endif %}{% endif %}</dd>
+        {% if show_customer %}
+        {% if case.contact_id %}<dt>{% translate "Contact" %}</dt><dd>{{ case.contact.name }}{% if case.contact.phone %} · <a href="tel:{{ case.contact.phone }}">{{ case.contact.phone }}</a>{% endif %}{% if case.contact.email %} · <a href="mailto:{{ case.contact.email }}">{{ case.contact.email }}</a>{% endif %}</dd>{% endif %}
+        {% if case.case_contact %}<dt>{% translate "Reported by" %}</dt><dd>{{ case.case_contact }}</dd>{% endif %}
+        {% endif %}
+        <dt>{% translate "Responsible" %}</dt><dd>{{ case.manager|default:"–" }}</dd>
+        <dt>{% translate "Created" %}</dt><dd>{{ case.created_at|date:"d.m.Y H:i" }}</dd>
+      </dl>
+      <h3 class="case-description-title">{% translate "Description" %}</h3>
+      {% if case.notes %}<div class="case-notes">{{ case.notes|linebreaks }}</div>{% else %}<p class="muted">{% translate "No description yet." %}</p>{% endif %}
+    </div>
+  </section>
+
+  {% if mails is not None %}
+  <section class="panel" aria-labelledby="case-mails">
+    <div class="panel-head"><h2 id="case-mails">{% translate "Latest mails" %}</h2>
+      <span class="btn-row">{% if may_write_mail %}<a class="btn secondary small" href="{% url 'mail:compose' case %}">{% icon "mail" %}{% translate "Write mail" %}</a>{% endif %}{% if mail_count %}<a class="btn secondary small" href="{% url 'mail:project_mails' case %}">{% blocktranslate count count=mail_count %}All {{ count }} mail{% plural %}All {{ count }} mails{% endblocktranslate %}</a>{% endif %}</span></div>
+    {% if mails %}
+    <ul class="file-list case-mails">
+      {% for mail in mails %}
+      <li><a href="{% url 'mail:detail' case mail.pk %}">{% if mail.is_note %}{{ mail.note_title }}{% else %}{{ mail.subject|default:"–" }}{% endif %}</a>{% if mail.locked %} <span class="badge lock-badge" title="{% translate 'With lock: only those who may see prices and calculation read it' %}">{% icon "lock" %}<span class="visually-hidden">{% translate "with lock" %}</span></span>{% endif %}{# EML-055 #}
+        <div class="muted small">{% if mail.is_note %}{% translate "note" %} · {{ mail.sender_name }}{% elif mail.direction == "out" %}{% translate "sent" %}{% else %}{{ mail.sender_label }}{% endif %} · {{ mail.date|date:"d.m.Y H:i" }}</div></li>
+      {% endfor %}
+    </ul>
+    {% elif not reads_all_mail %}<div class="empty">{% translate "No open messages." %}</div>{# EML-055: those with lock are not shown #}
+    {% else %}<div class="empty">{% blocktranslate with tag=case.mail_tag %}No mails yet. Mails with {{ tag }} in the subject land here.{% endblocktranslate %}</div>{% endif %}
+  </section>
+  {% endif %}
+</div>
+
+{# PRJ-119: the box "Verwandt" with the related projects and cases. #}
+{% load project_relations %}{% related_box case %}
+
+{# PRJ-108: people taking part – they see the case under My area and record their times on it; no crew planning. #}
+<section class="panel" id="participants" aria-labelledby="case-participants">
+  <div class="panel-head"><h2 id="case-participants">{% translate "People taking part" %}</h2><span class="muted small">{% translate "They see the case under “My area” and record their times on it – no deployment request, no availability check, no costs from the plan." %}</span></div>
+  {% if participants %}
+  <table class="table stack case-participants">
+    <thead><tr><th>{% translate "Person" %}</th><th>{% translate "Job function" %}</th><th>{% translate "Note" %}</th><th>{% translate "Added" %}</th>{% if can_edit %}<th><span class="visually-hidden">{% translate "Actions" %}</span></th>{% endif %}</tr></thead>
+    <tbody>
+    {% for participant in participants %}
+      <tr>
+        <td>{{ participant.person.name }}</td>
+        <td data-label="{% translate 'Job function' %}">{{ participant.job_function.name|default:"–" }}</td>
+        <td data-label="{% translate 'Note' %}">{{ participant.note|default:"–" }}</td>
+        <td class="nowrap" data-label="{% translate 'Added' %}">{{ participant.created_at|date:"d.m.Y" }}{% if participant.added_by %}<div class="muted small">{{ participant.added_by }}</div>{% endif %}</td>
+        {% if can_edit %}<td class="actions"><form method="post" action="{% url 'projects:case_participant_remove' case.pk participant.pk %}" class="inline-form">{% csrf_token %}<button class="icon-btn" type="submit" aria-label="{% blocktranslate with person=participant.person.name %}Take {{ person }} off the case{% endblocktranslate %}" title="{% translate 'Take off the case' %}" data-confirm="{% blocktranslate with person=participant.person.name %}Take {{ person }} off the case? Their times stay.{% endblocktranslate %}">{% icon "trash" %}</button></form></td>{% endif %}
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<div class="empty">{% translate "Nobody else takes part yet." %}</div>{% endif %}
+  {% if participant_form %}
+  <div class="panel-body">
+    <form method="post" action="{% url 'projects:case_participant_add' case.pk %}" class="form participant-form">
+      {% csrf_token %}{% include "core/_required_note.html" with form=participant_form %}
+      <div class="form-grid">
+        {% include "core/_field.html" with field=participant_form.person %}
+        {% include "core/_field.html" with field=participant_form.job_function %}
+        {% include "core/_field.html" with field=participant_form.note %}
+      </div>
+      <p class="help-line">{% translate "Somebody who takes part already keeps the place; function and note are changed." %}</p>
+      <div class="btn-row"><button class="btn secondary small" type="submit">{% icon "plus" %}{% translate "Add person" %}</button></div>
+    </form>
+  </div>
+  {% endif %}
+</section>
+
+<section class="panel" id="open-items" aria-labelledby="case-items">
+  <div class="panel-head"><h2 id="case-items">{% translate "Open items" %}</h2></div>
+  {% if open_items %}
+  <ul class="checklist">
+    {% for item in open_items %}
+    <li{% if item.is_done %} class="done"{% endif %}>
+      {% if can_edit %}
+      <form method="post" action="{% url 'projects:open_item_toggle' case.pk item.pk %}" class="inline-form">
+        {% csrf_token %}<input type="hidden" name="done" value="{% if item.is_done %}0{% else %}1{% endif %}">
+        <button class="check-btn{% if item.is_done %} on{% endif %}" type="submit" aria-label="{% if item.is_done %}{% translate 'Mark as open' %}{% else %}{% translate 'Mark as done' %}{% endif %}">{% if item.is_done %}{% icon "check" %}{% endif %}</button>
+      </form>
+      {% else %}<span class="check-btn{% if item.is_done %} on{% endif %}">{% if item.is_done %}{% icon "check" %}{% endif %}</span>{% endif %}
+      <span class="text"><span class="item-text">{{ item.text }}</span>{% if item.is_done %}<span class="muted small"> – {% blocktranslate with who=item.done_by|default:"?" when=item.done_at|date:"d.m.Y H:i" %}done by {{ who }}, {{ when }}{% endblocktranslate %}</span>{% endif %}</span>
+      {% if can_edit %}<form method="post" action="{% url 'projects:open_item_delete' case.pk item.pk %}" class="inline-form">{% csrf_token %}<button class="icon-btn" type="submit" aria-label="{% translate 'Remove' %}" data-confirm="{% translate 'Remove this open item?' %}">{% icon "trash" %}</button></form>{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}<div class="empty">{% translate "Nothing is open." %}</div>{% endif %}
+  {% if items_form %}
+  <div class="panel-body">
+    <form method="post" action="{% url 'projects:open_items_add' case.pk %}" class="form">
+      {% csrf_token %}{% include "core/_required_note.html" with form=items_form %}
+      {% include "core/_field.html" with field=items_form.texts %}
+      <div class="btn-row"><button class="btn secondary small" type="submit">{% icon "plus" %}{% translate "Note" context "verb" %}</button></div>
+    </form>
+  </div>
+  {% endif %}
+</section>
+{% endblock %}

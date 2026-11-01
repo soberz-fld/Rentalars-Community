@@ -1,0 +1,12 @@
+{% load i18n rentalars %}
+{# Pictures and documents of a model or item (MAT-017). Expects: files; readonly to hide the delete buttons. #}
+{% if files %}
+<ul class="file-list material-files">{% for stored in files %}
+  <li>
+    {% if stored.is_picture %}<a href="{% url 'material:file' stored.pk %}"><img src="{% url 'material:file_small' stored.pk %}" alt="{{ stored.label }}" class="thumb" loading="lazy"></a>{% else %}{% icon "file" %}{% endif %}
+    <a href="{% url 'material:file' stored.pk %}">{{ stored.label }}</a> <span class="badge">{{ stored.get_kind_display }}</span>
+    <span class="muted small">{{ stored.uploaded_at|date:"d.m.Y" }}</span>
+    {% if not readonly and can.delete.material %}<form method="post" action="{% url 'material:file_delete' stored.pk %}" class="inline-form">{% csrf_token %}<button class="link-btn" type="submit" data-confirm="{% translate 'Remove this file?' %}">{% translate "remove" %}</button></form>{% endif %}
+  </li>
+{% endfor %}</ul>
+{% else %}<div class="empty">{% translate "No files yet." %}</div>{% endif %}

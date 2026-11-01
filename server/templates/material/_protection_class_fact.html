@@ -1,0 +1,3 @@
+{% load i18n %}{# MAT-077: the protection class in the facts of an item (its own, else its model's) or of a model. #}
+{% if item %}{% if item.effective_protection_class %}<dt>{% translate "Protection class" %}</dt><dd>{% if item.protection_class_override %}{{ item.get_protection_class_override_display }} <span class="badge" title="{% translate 'The model says:' %} {{ item.material_model.get_protection_class_display|default:'–' }}">{% translate "own" %}</span>{% else %}{{ item.material_model.get_protection_class_display }}{% endif %}</dd>{% endif %}
+{% elif model.protection_class %}<dt>{% translate "Protection class" %}</dt><dd>{{ model.get_protection_class_display }}</dd>{% endif %}

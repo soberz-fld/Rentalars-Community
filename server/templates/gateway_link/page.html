@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Gateway" %}{% endblock %}
+{% block content %}
+{% comment %}
+  GWL-011: pair an app with the gateway, list the paired devices, lock one out – the work of
+  "rentalars gateway pair / devices / revoke", for administrators in the browser. Connecting the server to the
+  gateway stays a command on the server.
+{% endcomment %}
+<div class="page-head"><div><div class="breadcrumb"><a href="{% url 'core:administration' %}">{% translate "Settings" %}</a></div><h1>{% translate "Gateway" %}</h1>
+<p class="lead">{% translate "The apps reach the server through the Rentalars Gateway. Here you pair an app and lock a device out." %}</p></div>
+<div class="actions"><a class="btn secondary" href="{% url 'core:self_check' %}">{% icon "refresh" %}{% translate "Self-check" %}</a></div></div>
+
+{% if not state.connected %}
+<section class="panel"><div class="panel-body">
+  <p>{% translate "No gateway is connected. The apps reach the server directly, as before." %}</p>
+  <p class="muted">{% translate "To connect one, run this command on the server with the connection text of the gateway:" %}</p>
+  <p><code class="command">sudo rentalars gateway connect 'RGWL1:…'</code></p>
+</div></section>
+{% else %}
+<div class="columns">
+  <section class="panel" aria-labelledby="gateway-state">
+    <div class="panel-head"><h2 id="gateway-state">{% translate "Connection" %}</h2></div>
+    <div class="panel-body settings-stack">
+      <dl class="facts">
+        <dt>{% translate "Gateway" %}</dt><dd>{{ state.link.gateway_url }}</dd>
+        <dt>{% translate "State" %}</dt>
+        <dd>{% if state.answering %}<span class="badge green">{% translate "connected" %}</span> {% blocktranslate with seconds=state.age %}last answer {{ seconds }} seconds ago{% endblocktranslate %}
+          {% elif state.no_answer_yet %}<span class="badge yellow">{% translate "no answer yet" %}</span> {% translate "Is the service rentalars-gateway-link running?" %}
+          {% else %}<span class="badge red">{% translate "not connected" %}</span> {% blocktranslate with seconds=state.age %}last answer {{ seconds }} seconds ago{% endblocktranslate %} – {% translate "Is the service rentalars-gateway-link running?" %}{% endif %}</dd>
+        {% if state.link.last_error %}<dt>{% translate "Last error" %}</dt><dd>{{ state.link.last_error }}</dd>{% endif %}
+        <dt>{% translate "Open pairing codes" %}</dt><dd>{{ open_offers }}</dd>
+      </dl>
+    </div>
+  </section>
+
+  <section class="panel" aria-labelledby="gateway-pair">
+    <div class="panel-head"><h2 id="gateway-pair">{% translate "Pair an app" %}</h2></div>
+    <div class="panel-body settings-stack">
+    {% if offer %}
+      <p class="note accent">{% blocktranslate with user=offer.user minutes=offer.minutes %}Pairing code for {{ user }} – valid for {{ minutes }} minutes and once only.{% endblocktranslate %}</p>
+      <div class="qr" role="img" aria-label="{% translate 'QR code of the pairing code' %}">{{ offer.qr }}</div>
+      <p class="muted">{% translate "In the app: add an installation → “Pair with gateway” → scan the code or paste the text:" %}</p>
+      <textarea class="mono" readonly rows="4" onfocus="this.select()" aria-label="{% translate 'Pairing code as text' %}">{{ offer.text }}</textarea>
+      <p class="muted">{% translate "Whoever has this code can sign in as this account. Do not send it by e-mail or chat; it disappears from here when you leave the page." %}</p>
+    {% endif %}
+    {% if can_change %}
+      <form method="post">{% csrf_token %}
+        {% include "core/_form_errors.html" with form=form %}
+        {% for field in form %}{% include "core/_field.html" with field=field %}{% endfor %}
+        <button class="btn" type="submit">{% icon "plus" %}{% translate "Make a pairing code" %}</button>
+      </form>
+    {% else %}
+      <p class="muted">{% translate "Only administrators who may delete in the settings can pair an app." %}</p>
+    {% endif %}
+    </div>
+  </section>
+</div>
+{% endif %}
+
+<section class="panel" aria-labelledby="gateway-devices">
+  <div class="panel-head"><h2 id="gateway-devices">{% translate "Paired apps" %}</h2></div>
+  {% if devices %}
+  <table class="table stack">
+    <thead><tr><th>{% translate "Device" %}</th><th>{% translate "Account" %}</th><th>{% translate "Paired" %}</th><th>{% translate "Last used" %}</th><th>{% translate "State" %}</th><th></th></tr></thead>
+    <tbody>
+    {% for device in devices %}
+      <tr>
+        <td>{{ device.name|default:"–" }}{% if device.platform %} <span class="muted">({{ device.platform }})</span>{% endif %}<div class="muted mono">{{ device.device_id|slice:":12" }}</div></td>
+        <td data-label="{% translate 'Account' %}">{{ device.user }}</td>
+        <td data-label="{% translate 'Paired' %}">{{ device.paired_at|date:"SHORT_DATETIME_FORMAT" }}</td>
+        <td data-label="{% translate 'Last used' %}">{% if device.last_seen_at %}{{ device.last_seen_at|date:"SHORT_DATETIME_FORMAT" }}{% else %}–{% endif %}</td>
+        <td data-label="{% translate 'State' %}">{% if device.user.is_active %}<span class="badge green">{% translate "active" %}</span>{% else %}<span class="badge yellow">{% translate "account inactive" %}</span>{% endif %}</td>
+        <td class="row-actions">{% if can_change %}<form method="post" action="{% url 'gateway:revoke' device.device_id %}" class="inline-form">{% csrf_token %}<button class="btn secondary danger" type="submit" data-confirm="{% translate 'Lock this device out? The app has to be paired again.' %}">{% translate "Lock out" %}</button></form>{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<div class="panel-body"><p class="muted">{% translate "No app is paired." %}</p></div>{% endif %}
+</section>
+
+{% if revoked %}
+<details class="panel">
+  <summary class="panel-head"><h2>{% blocktranslate count n=revoked|length %}{{ n }} locked-out device{% plural %}{{ n }} locked-out devices{% endblocktranslate %}</h2></summary>
+  <table class="table stack">
+    <thead><tr><th>{% translate "Device" %}</th><th>{% translate "Account" %}</th><th>{% translate "Last used" %}</th><th>{% translate "Locked out" %}</th></tr></thead>
+    <tbody>
+    {% for device in revoked %}
+      <tr><td>{{ device.name|default:"–" }}<div class="muted mono">{{ device.device_id|slice:":12" }}</div></td><td data-label="{% translate 'Account' %}">{{ device.user }}</td>
+        <td data-label="{% translate 'Last used' %}">{% if device.last_seen_at %}{{ device.last_seen_at|date:"SHORT_DATETIME_FORMAT" }}{% else %}–{% endif %}</td>
+        <td data-label="{% translate 'Locked out' %}">{{ device.revoked_at|date:"SHORT_DATETIME_FORMAT" }}{% if device.revoked_by %} · {{ device.revoked_by }}{% endif %}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</details>
+{% endif %}
+{% endblock %}

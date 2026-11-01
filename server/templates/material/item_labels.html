@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}{% blocktranslate with id=item.display_id %}Label for {{ id }}{% endblocktranslate %}{% endblock %}
+{% block content %}
+{# MAT-066: the dialog "Etikett" of an item as a page of its own, without the page script. #}
+<div class="page-head"><div><div class="breadcrumb"><a href="{% url 'material:item_detail' item.pk %}">{{ item.display_id }} {{ item.material_model.name }}</a></div><h1>{% translate "Labels" %}</h1></div></div>
+<div class="panel dialog-page">{% include "material/_item_labels.html" %}</div>
+{% endblock %}

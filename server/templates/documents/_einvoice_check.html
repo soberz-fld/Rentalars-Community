@@ -1,0 +1,22 @@
+{% load i18n %}
+{% comment %}
+  DOK-042: the result of the check of an e-invoice against the rules. Expects check (a dict: ok, errors, warnings,
+  findings, profile, syntax, ruleset, checked_at; empty while there was none), check_url (POST to check again; empty = no button)
+  and next (where to return). The check is Rentalars' own reading of the core rules; it does not replace a validator.
+{% endcomment %}
+<div class="einvoice-check" id="einvoice-check">
+  {% if check %}
+  <p><span class="badge {% if check.ok %}green{% else %}red{% endif %}">{% if check.ok %}{% translate "meets the rules checked" %}{% else %}{% blocktranslate count count=check.errors %}{{ count }} rule broken{% plural %}{{ count }} rules broken{% endblocktranslate %}{% endif %}</span>
+    {% if check.warnings %}<span class="badge yellow">{% blocktranslate count count=check.warnings %}{{ count }} remark{% plural %}{{ count }} remarks{% endblocktranslate %}</span>{% endif %}
+    <span class="muted small">{{ check.syntax }}{% if check.profile %} · {{ check.profile }}{% endif %} · {% translate "rules" %} {{ check.ruleset }}</span>
+    {% if check_url %}<form method="post" action="{{ check_url }}" class="inline-form">{% csrf_token %}<input type="hidden" name="next" value="{{ next }}"><button class="btn secondary small" type="submit">{% translate "Check again" %}</button></form>{% endif %}</p>
+  {% if check.findings %}
+  <ul class="small">{% for finding in check.findings %}
+    <li><span class="badge {% if finding.severity == 'error' %}red{% else %}yellow{% endif %}">{{ finding.rule }}</span> {{ finding.message }}{% if finding.location %} <span class="muted">({{ finding.location }})</span>{% endif %}</li>
+  {% endfor %}</ul>
+  {% endif %}
+  <p class="muted small">{% translate "Rentalars checks the core rules of EN 16931 and the XRechnung itself. This is no replacement for the validator of the recipient; the schema and the Schematron rules of the KoSIT are not part of it." %}</p>
+  {% elif check_url %}
+  <form method="post" action="{{ check_url }}" class="inline-form">{% csrf_token %}<input type="hidden" name="next" value="{{ next }}"><button class="btn secondary small" type="submit">{% translate "Check the e-invoice" %}</button></form>
+  {% endif %}
+</div>

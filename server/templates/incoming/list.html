@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Incoming documents" %}{% endblock %}
+{% block content %}
+{% comment %}
+  Incoming invoices: Buchhaltung → Eingangsrechnungen. Every invoice a supplier sent, as a table of core/tables.py (DOK-023, DOK-024)
+  (rentalars/incoming/tables.py): columns, sorting, groups, CSV; the filters behind one button (UIX-038); below it the
+  sums of the filtered invoices. A new invoice is uploaded on the tab "Beleg erfassen" and read at once.
+{% endcomment %}
+<div class="page-head">
+  <div><h1>{% translate "Accounting" %}</h1></div>
+  <div class="actions">{% if can.read.administration %}<a class="btn secondary" href="{% url 'incoming:settings' %}">{% icon "settings" %}{% translate "Settings for incoming invoices" %}</a>{% endif %}</div>
+</div>
+{% include "documents/_accounting_tabs.html" %}
+<div class="panel">
+  <div class="panel-head"><h2>{% translate "Incoming documents" %}</h2><span class="muted small">{% translate "Every invoice a supplier sent, with its status and note. Open one to correct it, to spread the ancillary costs and to book the goods in." %}</span></div>
+  <form method="get" class="filters">
+    <div class="field grow"><label for="f-q">{% translate "Number, supplier, note or position" %}</label><input type="search" id="f-q" name="q" value="{{ filters.text }}"></div>
+    {% filterpanel "incoming" %}
+    <div class="field"><label for="f-supplier">{% translate "Supplier" %}</label>
+      <select id="f-supplier" name="supplier" data-autosubmit><option value="">{% translate "All" %}</option>{% for supplier in suppliers %}<option value="{{ supplier.pk }}"{% if filters.supplier == supplier.pk %} selected{% endif %}>{{ supplier.name }}</option>{% endfor %}</select></div>
+    <div class="field"><label for="f-status">{% translate "Status" %}</label>
+      <select id="f-status" name="status" data-autosubmit><option value="">{% translate "All" %}</option>{% for value, label in status_choices %}<option value="{{ value }}"{% if filters.status == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+    <div class="field"><label for="f-since">{% translate "From" %}</label><input type="date" id="f-since" name="since" value="{{ filters.since|date:'Y-m-d' }}"></div>
+    <div class="field"><label for="f-until">{% translate "Until" %}</label><input type="date" id="f-until" name="until" value="{{ filters.until|date:'Y-m-d' }}"></div>
+    <button class="btn secondary" type="submit">{% translate "Filter" %}</button>
+    {% endfilterpanel %}
+  </form>
+  {% include "core/_table_tools.html" %}
+  {% if rows %}
+  {% include "core/_table.html" with stack=True %}
+  {% else %}
+  <div class="empty"><strong>{% translate "No invoices match." %}</strong>{% if may_change %}<a href="{% url 'incoming:capture' %}">{% translate "Capture the first invoice." %}</a>{% endif %}</div>
+  {% endif %}
+  {% include "core/_pagination.html" %}
+</div>
+{% if totals.count %}
+<section class="panel" aria-labelledby="incoming-sums">
+  <div class="panel-head"><h2 id="incoming-sums">{% translate "Sum of the filtered invoices" %}</h2><span class="muted small">{% translate "Of all invoices of the filter, not only of this page; amounts in other currencies are converted with the exchange rate of their invoice." %}</span></div>
+  <table class="table stack">
+    <thead><tr><th scope="col" class="num">{% translate "Count" %}</th><th scope="col" class="num">{% translate "Net" %}</th><th scope="col" class="num">{% translate "Tax" %}</th><th scope="col" class="num">{% translate "Gross" %}</th></tr></thead>
+    <tbody><tr><td class="num" data-label="{% translate 'Count' %}">{{ totals.count|thousands }}</td><td class="num" data-label="{% translate 'Net' %}">{{ totals.net|money }}</td><td class="num" data-label="{% translate 'Tax' %}">{{ totals.tax|money }}</td><td class="num" data-label="{% translate 'Gross' %}">{{ totals.gross|money }}</td></tr></tbody>
+  </table>
+  {% if totals.incomplete %}<p class="note" role="status">{% icon "alert" %} <strong>{% translate "These sums are incomplete." %}</strong>{% if totals.missing_rate %} {% blocktranslate count counter=totals.missing_rate %}{{ counter }} invoice in another currency has no exchange rate yet and is missing from the sums.{% plural %}{{ counter }} invoices in another currency have no exchange rate yet and are missing from the sums.{% endblocktranslate %}{% endif %}{% if totals.without_amount %} {% blocktranslate count counter=totals.without_amount %}{{ counter }} invoice has no amounts yet and adds nothing.{% plural %}{{ counter }} invoices have no amounts yet and add nothing.{% endblocktranslate %}{% endif %}</p>{% endif %}
+  {% if totals.foreign %}<p class="muted small">{% blocktranslate count counter=totals.foreign %}{{ counter }} invoice is in another currency.{% plural %}{{ counter }} invoices are in another currency.{% endblocktranslate %}</p>{% endif %}
+</section>
+{% endif %}
+{% endblock %}

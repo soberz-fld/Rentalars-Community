@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{{ webhook }}{% endblock %}
+{% block content %}
+{% comment %}
+  API-012: one webhook – where it sends to, which events, its secret, a test, and every delivery with what was sent
+  and what came back. A delivery that failed for good can be sent again.
+{% endcomment %}
+<div class="page-head"><div><div class="breadcrumb"><a href="{% url 'core:administration' %}">{% translate "Settings" %}</a> / <a href="{% url 'webhooks:list' %}">{% translate "Webhooks" %}</a></div>
+<h1>{% if webhook.description %}{{ webhook.description }}{% else %}{% translate "Webhook" %} {{ webhook.pk }}{% endif %}</h1>
+<p class="lead webhook-url">{{ webhook.url }}</p></div>
+<div class="actions">
+  {% if can_edit %}
+  <form method="post" action="{% url 'webhooks:test' webhook.pk %}" class="inline-form">{% csrf_token %}<button class="btn" type="submit">{% icon "mail" %}{% translate "Send test" %}</button></form>
+  <a class="btn secondary" href="{% url 'webhooks:edit' webhook.pk %}">{% icon "edit" %}{% translate "Edit" %}</a>
+  {% endif %}
+  {% if can_delete %}<form method="post" action="{% url 'webhooks:delete' webhook.pk %}" class="inline-form">{% csrf_token %}<button class="btn secondary" type="submit" data-confirm="{% translate 'Delete this webhook with all its deliveries? The receiving system is told nothing more.' %}">{% icon "trash" %}{% translate "Delete" %}</button></form>{% endif %}
+</div></div>
+
+{% if webhook.switched_off_at %}
+<p class="note red section">{% blocktranslate with moment=webhook.switched_off_at|date:"d.m.Y H:i" count count=webhook.failures_in_a_row %}Switched off automatically on {{ moment }}: {{ count }} delivery in a row failed after all its attempts. Check the receiving system, send a test, and switch the webhook on again under “Edit”. Waiting deliveries are sent then.{% plural %}Switched off automatically on {{ moment }}: {{ count }} deliveries in a row failed after all their attempts. Check the receiving system, send a test, and switch the webhook on again under “Edit”. Waiting deliveries are sent then.{% endblocktranslate %}</p>
+{% elif not webhook.is_active %}
+<p class="note section">{% translate "This webhook is switched off: nothing is sent, and no events are noted for it." %}</p>
+{% endif %}
+
+<div class="columns">
+  <section class="panel" aria-labelledby="webhook-settings">
+    <div class="panel-head"><h2 id="webhook-settings">{% translate "Settings" %}</h2></div>
+    <div class="panel-body settings-stack">
+      <dl class="facts">
+        <dt>{% translate "Address (URL)" %}</dt><dd><code class="webhook-url">{{ webhook.url }}</code></dd>
+        <dt>{% translate "Events" %}</dt>
+        <dd><ul class="plain webhook-event-list">{% for name, label in event_labels %}<li>{{ label }} <code class="muted small">{{ name }}</code></li>{% endfor %}</ul></dd>
+        <dt>{% translate "Status" %}</dt>
+        <dd>{% if webhook.is_active %}<span class="badge green">{% translate "active" %}</span>{% elif webhook.switched_off_at %}<span class="badge red">{% translate "switched off automatically" %}</span>{% else %}<span class="badge">{% translate "off" %}</span>{% endif %}</dd>
+        <dt>{% translate "Created" %}</dt>
+        <dd>{{ webhook.created_at|date:"d.m.Y H:i" }}{% if webhook.created_by %}, {{ webhook.created_by }}{% endif %}</dd>
+        <dt>{% translate "Secret" %}</dt>
+        <dd>{% if webhook.secret_created_at %}<span class="muted small">{% blocktranslate with moment=webhook.secret_created_at|date:"d.m.Y H:i" %}created {{ moment }}{% endblocktranslate %}</span>{% endif %}
+          {% include "webhooks/_secret.html" %}</dd>
+      </dl>
+    </div>
+  </section>
+  <section class="panel" aria-labelledby="webhook-signature">
+    <div class="panel-head"><h2 id="webhook-signature">{% translate "What the receiver gets" %}</h2></div>
+    <div class="panel-body settings-stack">
+      <p>{% translate "Each event comes as a POST with JSON: version, the ID of the delivery, the event, the time and the data of the event. Prices and costs are never part of it." %}</p>
+      <p>{% blocktranslate %}The header <code>X-Rentalars-Signature</code> carries <code>sha256=</code> and the HMAC-SHA256 of the body, made with the secret. The receiver computes the same and only trusts messages where both agree. <code>X-Rentalars-Delivery</code> is the same on every attempt: a message that arrives twice is taken once.{% endblocktranslate %}</p>
+      <p class="muted small">{% blocktranslate count attempts=max_attempts %}An answer 2xx counts as delivered. Otherwise Rentalars tries again after 1 minute, 5 minutes, 30 minutes, 2 hours and 12 hours – {{ attempts }} attempt in all. Redirections are not followed.{% plural %}An answer 2xx counts as delivered. Otherwise Rentalars tries again after 1 minute, 5 minutes, 30 minutes, 2 hours and 12 hours – {{ attempts }} attempts in all. Redirections are not followed.{% endblocktranslate %}
+      {% blocktranslate count count=switch_off_after %}After {{ count }} delivery in a row that failed for good, the webhook is switched off and the administrators are told.{% plural %}After {{ count }} deliveries in a row that failed for good, the webhook is switched off and the administrators are told.{% endblocktranslate %}</p>
+      <p class="muted small">{% translate "The events and an example of each are in the API documentation under “webhooks”." %} <a href="{% url 'api:docs' %}" target="_blank" rel="noopener">{% translate "API documentation" %}</a></p>
+    </div>
+  </section>
+</div>
+
+<section class="panel" aria-labelledby="webhook-deliveries">
+  <div class="panel-head"><h2 id="webhook-deliveries">{% translate "Deliveries" %}</h2><span class="muted small">{% blocktranslate count days=retention_days %}Kept for {{ days }} day.{% plural %}Kept for {{ days }} days.{% endblocktranslate %}</span></div>
+  <form method="get" class="filters">
+    {% filterpanel "webhook-deliveries" %}
+    <div class="field"><label for="f-status">{% translate "Status" %}</label>
+      <select id="f-status" name="status" data-autosubmit><option value="">{% translate "All" %}</option>{% for value, label in statuses %}<option value="{{ value }}"{% if chosen_status == value %} selected{% endif %}>{{ label|capfirst }}</option>{% endfor %}</select></div>
+    <button class="btn secondary" type="submit">{% translate "Filter" %}</button>
+    {% endfilterpanel %}
+  </form>
+  {% if rows %}
+  <table class="table stack webhook-deliveries">
+    <thead><tr><th>{% translate "Created" %}</th><th>{% translate "Event" context "webhook" %}</th><th>{% translate "Status" %}</th><th>{% translate "Attempts" %}</th><th>{% translate "Last answer" %}</th><th></th></tr></thead>
+    <tbody>
+    {% for delivery, label, body in rows %}
+      <tr>
+        <td>{{ delivery.created_at|date:"d.m.Y H:i:s" }}</td>
+        <td data-label="{% translate 'Event' context 'webhook' %}">
+          <details class="webhook-payload"><summary>{{ label }} <code class="muted small">{{ delivery.event }}</code></summary>
+            <div class="muted small">{% translate "Delivery ID" %}: <code>{{ delivery.uuid }}</code></div>
+            <pre>{{ body }}</pre>
+            {% if delivery.last_response %}<div class="muted small">{% translate "Beginning of the last answer" %}</div><pre>{{ delivery.last_response }}</pre>{% endif %}
+          </details>
+        </td>
+        <td data-label="{% translate 'Status' %}">
+          {% if delivery.status == "delivered" %}<span class="badge green">{{ delivery.get_status_display }}</span><div class="muted small">{{ delivery.delivered_at|date:"d.m.Y H:i:s" }}</div>
+          {% elif delivery.status == "failed" %}<span class="badge red">{{ delivery.get_status_display }}</span>
+          {% else %}<span class="badge yellow">{{ delivery.get_status_display }}</span>{% if delivery.next_attempt_at %}<div class="muted small">{% blocktranslate with moment=delivery.next_attempt_at|date:"d.m.Y H:i" %}next attempt {{ moment }}{% endblocktranslate %}</div>{% endif %}{% endif %}
+        </td>
+        <td class="num" data-label="{% translate 'Attempts' %}">{{ delivery.attempts }}</td>
+        <td data-label="{% translate 'Last answer' %}">{% if delivery.last_status_code %}<strong>{{ delivery.last_status_code }}</strong>{% endif %}{% if delivery.last_duration_ms is not None %} <span class="muted small">{{ delivery.last_duration_ms }} ms</span>{% endif %}{% if delivery.last_error %}<div class="small">{{ delivery.last_error }}</div>{% endif %}{% if not delivery.attempts %}<span class="muted">–</span>{% endif %}</td>
+        <td class="actions">{% if can_edit and delivery.is_redeliverable %}<form method="post" action="{% url 'webhooks:redeliver' webhook.pk delivery.pk %}" class="inline-form">{% csrf_token %}<button class="btn secondary small" type="submit">{% icon "refresh" %}{% translate "Send again" %}</button></form>{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty">{% if chosen_status %}{% translate "No deliveries in this state." %}{% else %}{% translate "No deliveries yet. They appear here as soon as one of the chosen events happens – or after “Send test”." %}{% endif %}</div>
+  {% endif %}
+  {% include "core/_pagination.html" %}
+</section>
+{% endblock %}

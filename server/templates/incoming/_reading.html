@@ -1,0 +1,29 @@
+{% load i18n rentalars %}
+{% comment %}
+  Incoming invoices: what became of reading the file – the AI is still reading (asks again every two seconds; (DOK-023, DOK-024)
+  the page is loaded anew when it is done), the AI read it, only the text was read, or nothing could be read.
+  Expects: invoice, job (the reading task, while it runs), finished.
+{% endcomment %}
+<div class="incoming-reading" id="incoming-reading" aria-live="polite"{% if not finished %} hx-get="{% url 'incoming:reading' invoice.pk %}" hx-trigger="every 2s" hx-target="this" hx-swap="outerHTML"{% endif %}>
+  {% if not finished %}
+  <p><span class="badge yellow">{% translate "being read" %}</span> {% translate "The AI reads the invoice …" %}{% if job and job.message %}<span class="muted"> – {{ job.message }}</span>{% endif %}</p>
+  {% if job %}<div class="progress" role="progressbar" aria-valuenow="{{ job.progress }}" aria-valuemin="0" aria-valuemax="100" aria-label="{% translate 'Progress' %}"><span style="width: {{ job.progress }}%"></span></div>{% endif %}
+  <p class="muted small">{% translate "Number, date and supplier are in already; the positions follow. This page reloads when the AI is done." %}</p>
+  {% else %}
+  {% with reading=invoice.reading %}
+  {% if invoice.reading_state == "failed" %}
+  <p class="note">{{ reading.error|default:_("The invoice could not be read.") }}</p>
+  {% elif reading.source == "einvoice" %}
+  <p><span class="badge accent">{% translate "read from the XML" %}</span> {% translate "The values were taken from the structured data of the e-invoice, without AI. Check them all the same." %}</p>
+  {% elif reading.source == "ai" %}
+  <p><span class="badge accent">{% translate "read by AI" %}</span> {% translate "Check every value; the AI can be wrong." %}{% if reading.ai %} <span class="muted small">{% blocktranslate with model=reading.ai.model provider=reading.ai.provider %}Read by the model {{ model }} ({{ provider }}).{% endblocktranslate %}</span>{% endif %}</p>
+  {% elif reading.source == "text" %}
+  <p><span class="badge">{% translate "read from the text" %}</span> {% translate "Number, date, supplier and totals were taken from the text of the PDF; the positions you enter yourself – reading them needs the AI (Settings → AI)." %}</p>
+  {% else %}
+  <p class="muted">{% translate "The invoice was not read." %}</p>
+  {% endif %}
+  {% if reading.error and invoice.reading_state != "failed" %}<p class="note">{{ reading.error }}</p>{% endif %}
+  {% if reading.note %}<p class="note small">{{ reading.note }}</p>{% endif %}
+  {% endwith %}
+  {% endif %}
+</div>

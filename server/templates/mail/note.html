@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{{ note.note_title }}{% endblock %}
+{% block content %}
+{% include "projects/_head.html" %}
+{% comment %}
+  EML-051: one note of the correspondence – who wrote it, when it happened, what it says. Its writer, or who
+  may edit the project, changes or removes it here; nobody answers it.
+  EML-055: whether the note has a lock, and the button to change it for who may.
+{% endcomment %}
+<section class="panel mail-view note-view">
+  <div class="panel-head">
+    <h2><span class="badge is-note">{% icon "note" %}{% translate "Note" %}</span> {{ note.note_title }}</h2>
+    <div class="actions">
+      {% if can_lock %}{% include "mail/_mail_lock_button.html" with mail=note %}{% endif %}
+      {% if form %}
+      <form method="post" action="{% url 'mail:delete' project.pk note.pk %}" class="inline-form no-print">{% csrf_token %}<button class="btn danger small" type="submit" data-confirm="{% translate 'Remove this note from the correspondence?' %}">{% icon "trash" %}{% translate "Remove" %}</button></form>
+      {% endif %}
+    </div>
+  </div>
+  <div class="panel-body">
+    <p class="muted small">{% blocktranslate with who=note.sent_by|default:note.sender_name|default:"–" when=note.date|date:"D d.m.Y H:i" %}Noted by {{ who }} for {{ when }}{% endblocktranslate %}{% if note.project_id != project.pk %} · {{ note.project.number }}{% endif %}</p>
+    <div class="mail-text">{{ note.text_body|urlize|linebreaksbr }}</div>
+  </div>
+  {% include "mail/_lock_state.html" with mail=note %}
+</section>
+{% if form %}
+<section class="panel no-print" aria-labelledby="note-edit-title">
+  <div class="panel-head"><h2 id="note-edit-title">{% translate "Change note" %}</h2></div>
+  <div class="panel-body">
+    <form method="post" action="{% url 'mail:note_edit' project.pk note.pk %}" class="form wide" novalidate>
+      {% csrf_token %}
+      {% include "core/_form_errors.html" %}
+      <div class="form-grid">
+        {% include "core/_field.html" with field=form.date %}
+        {% include "core/_field.html" with field=form.subject %}
+      </div>
+      {% include "core/_field.html" with field=form.text %}
+      <div class="btn-row"><button class="btn" type="submit">{% translate "Save note" %}</button><a class="btn secondary" href="{% url 'mail:project_mails' project.pk %}">{% translate "Back to the correspondence" %}</a></div>
+    </form>
+  </div>
+</section>
+{% endif %}
+{% endblock %}

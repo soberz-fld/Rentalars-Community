@@ -1,0 +1,4 @@
+{% load i18n %}{% comment %}
+  EML-049: from when mails without tag are taken in, and whether only unread ones – for a mailbox or an address
+  (``holder``). ``inline``: as part of a line, else as a line of its own.
+{% endcomment %}{% if holder.untagged_since or holder.untagged_unread_only %}{% if inline %} {% else %}<div class="muted small">{% endif %}{% if holder.untagged_since %}{% blocktranslate with moment=holder.untagged_since|date:"d.m.Y H:i" %}from {{ moment }}{% endblocktranslate %}{% endif %}{% if holder.untagged_unread_only %}{% if holder.untagged_since %}, {% endif %}{% translate "only unread ones" %}{% endif %}{% if not inline %}</div>{% endif %}{% endif %}

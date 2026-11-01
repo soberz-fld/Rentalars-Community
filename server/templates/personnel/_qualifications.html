@@ -1,0 +1,19 @@
+{% load i18n %}
+{% comment %}
+  The qualifications of a person with expiry date and certificate (PER-014). Expects: person, qualifications;
+  editable links each to its form.
+{% endcomment %}
+{% if qualifications %}
+<table class="table stack" data-sort-table>
+  <thead><tr><th scope="col">{% translate "Qualification" %}</th><th scope="col">{% translate "Valid until" %}</th><th scope="col">{% translate "Certificate" %}</th></tr></thead>
+  <tbody>
+  {% for qualification in qualifications %}
+    <tr>
+      <td>{% if editable %}<a href="{% url 'personnel:qualification_edit' person.pk qualification.pk %}">{{ qualification.qualification_type.name }}</a>{% else %}{{ qualification.qualification_type.name }}{% endif %}{% if qualification.detail %}<div class="muted small">{{ qualification.detail }}</div>{% endif %}</td>
+      <td data-label="{% translate 'Valid until' %}" data-sort-value="{{ qualification.valid_until|date:'Y-m-d'|default:'9999' }}">{% if qualification.valid_until %}<span class="badge {% if qualification.state == 'expired' %}red{% elif qualification.state == 'soon' %}yellow{% else %}green{% endif %}">{{ qualification.valid_until|date:"d.m.Y" }}</span>{% else %}<span class="muted">{% translate "no expiry" %}</span>{% endif %}</td>
+      <td data-label="{% translate 'Certificate' %}">{% if qualification.document %}<a href="{% url 'personnel:qualification_document' person.pk qualification.pk %}">{{ qualification.document_name|default:_("open") }}</a>{% else %}<span class="muted">–</span>{% endif %}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}<div class="empty">{% translate "No qualifications recorded." %}</div>{% endif %}

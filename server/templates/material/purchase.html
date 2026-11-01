@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Enter a purchase" %}{% endblock %}
+{% block content %}
+{% comment %}
+  MAT-061 (MAT-019, MAT-050): supplier and invoice once, then one row per model. Saving creates every
+  item in one step with consecutive IDs and hangs the invoice on each. The invoice can fill the form: with AI the
+  positions as well, without AI number, date and a known supplier. Every button but "Create items" shows the page
+  again with what was typed (rentalars/material/purchase_views.py); nothing is created before.
+  MAT-075: one row at first, "Another position" adds one; below the rows the sum of the positions
+  net and gross next to the total of the invoice (material/_purchase_sum.html), kept up to date by the page script.
+{% endcomment %}
+<div class="page-head"><div><div class="breadcrumb"><a href="{% url 'material:item_list' %}">{% translate "Material management" %}</a></div><h1>{% translate "Enter a purchase" %}</h1>
+<p class="lead">{% translate "Supplier and invoice once, then one row per model: the items get consecutive IDs and share the purchase data." %}</p></div></div>
+<form method="post" enctype="multipart/form-data" class="form wide purchase-form" id="purchase-form" novalidate>
+  {% csrf_token %}
+  {# Enter in a field saves – not the first button of the form, "Read the invoice". #}
+  <button type="submit" name="action" value="save" class="visually-hidden" tabindex="-1" aria-hidden="true">{% translate "Create items" %}</button>
+  {% include "core/_form_errors.html" %}
+  {% if not form|marks_required %}{% include "core/_required_note.html" with form=formset.empty_form %}{% endif %}{# UIX-051: the rows have required fields #}
+  {% if formset.non_form_errors %}<div class="message error" role="alert">{% for error in formset.non_form_errors %}<div>{{ error }}</div>{% endfor %}</div>{% endif %}
+  {# Duplicate serial numbers: confirmed with "Create anyway", then the items are created #}
+  {% translate "Create anyway" as confirm_label %}{% include "material/_serial_warnings.html" %}
+
+  <section class="panel" aria-labelledby="purchase-invoice-title">
+    <div class="panel-head"><h2 id="purchase-invoice-title">{% translate "Invoice" %}</h2></div>
+    <div class="panel-body">
+      {% if invoice %}
+      <input type="hidden" name="upload" value="{{ invoice.token }}">
+      <p class="purchase-invoice">{% icon "file" %} <strong>{{ invoice.name }}</strong> <span class="muted small">{{ invoice.size|filesizeformat }}</span> – {% translate "attached to every new item when you save." %}</p>
+      {% endif %}
+      <div class="form-grid">{% include "core/_field.html" with field=form.invoice %}</div>
+      <p class="muted small">{% if ai_on %}{% translate "“Read the invoice” lets the AI suggest supplier, invoice number, date and the positions." %}{% else %}{% translate "“Read the invoice” takes invoice number, date and a known supplier from its text; the positions you enter yourself – reading them needs the AI (Settings → AI)." %}{% endif %} {% translate "Only PDFs with text are read; a scanned invoice is not (there is no text recognition)." %}</p>
+      <div class="btn-row">
+        <button class="btn secondary" type="submit" name="action" value="read">{% icon "invoice" %}{% translate "Read the invoice" %}</button>
+        {% if invoice %}<button class="btn secondary" type="submit" name="action" value="drop">{% icon "trash" %}{% translate "Remove the invoice" %}</button>{% endif %}
+      </div>
+      {% if job %}{% include "material/_purchase_reading.html" %}{% endif %}
+    </div>
+  </section>
+
+  <section class="panel" aria-labelledby="purchase-head-title">
+    <div class="panel-head"><h2 id="purchase-head-title">{% translate "Purchase" %}</h2></div>
+    <div class="panel-body form-grid">
+      {% url 'material:supplier_suggest' as supplier_url %}{% translate "Search or type a new name" as supplier_placeholder %}{% include "material/_name_typeahead.html" with field=form.supplier_name url=supplier_url placeholder=supplier_placeholder %}
+      {% include "core/_field.html" with field=form.invoice_number %}
+      {% include "core/_field.html" with field=form.purchase_date %}
+      {% if form.prices %}
+      {# IMP-014: gross prices are stored net, with the tax rate they include. #}
+      {% include "core/_field.html" with field=form.prices %}
+      <div data-show-if="prices=gross"{% if form.prices.value != "gross" %} class="hidden"{% endif %}>{% include "core/_field.html" with field=form.price_tax_rate %}</div>
+      {% endif %}
+      {% include "core/_field.html" with field=form.inventory_number %}
+      {% include "core/_field.html" with field=form.purchase_note %}
+      {% if form.invoice_total_net %}{{ form.invoice_total_net }}{{ form.invoice_total_gross }}{% endif %}
+    </div>
+  </section>
+
+  <section class="panel" aria-labelledby="purchase-positions-title">
+    <div class="panel-head"><h2 id="purchase-positions-title">{% translate "Positions" %}</h2></div>
+    <div class="panel-body">
+      <p class="muted small">{% translate "Choose a model or type the name of a new one – a new model needs its category. Rows left empty are ignored." %}{% if with_prices %} {% translate "Prices are per piece; for bulk material the row gets the price of all pieces." %}{% endif %}</p>
+      {{ formset.management_form }}
+      <div class="purchase-positions" data-formset="pos" data-purchase-positions data-removed-label="{% translate 'The row was removed.' %}" data-remove-label="{% translate 'Remove the row' %}">
+        <div data-formset-rows>
+        {% for row in formset %}{% include "material/_purchase_position.html" with row=row number=forloop.counter %}{% endfor %}
+        </div>
+        <template data-formset-empty>{% include "material/_purchase_position.html" with row=formset.empty_form number="" %}</template>
+        <div class="btn-row">
+          <button class="btn secondary small" type="button" data-formset-add="pos" hidden>{% icon "plus" %}{% translate "Another position" %}</button>
+          <button class="btn secondary small" type="submit" name="action" value="more" data-purchase-more>{% icon "plus" %}{% translate "Another position" %}</button>
+        </div>
+      </div>
+      {% if sums %}{% include "material/_purchase_sum.html" %}{% endif %}
+    </div>
+  </section>
+  <div class="btn-row"><button class="btn" type="submit" name="action" value="save">{% icon "check" %}{% translate "Create items" %}</button><a class="btn secondary" href="{% url 'material:item_list' %}">{% translate "Cancel" %}</a></div>
+</form>
+{% endblock %}

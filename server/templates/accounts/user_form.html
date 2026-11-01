@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% if is_new %}{% translate "Invite user" %}{% else %}{{ edited_user.username }}{% endif %}{% endblock %}
+{% block content %}
+<div class="page-head"><div><div class="breadcrumb"><a href="{% url 'accounts:user_list' %}">{% translate "Users" %}</a></div><h1>{% if is_new %}{% translate "Invite user" %}{% else %}{{ edited_user.username }}{% endif %}</h1>
+{% if is_new %}<p class="lead">{% translate "The user receives an e-mail with a link to set a password. The account is a person of the personnel at the same time." %}</p>{% else %}<p class="lead"><a href="{% url 'personnel:person_detail' edited_user.person.pk %}">{% translate "Personnel data of this person" %}</a></p>{% endif %}</div></div>
+<div class="panel"><div class="panel-body">
+  <form method="post" class="form" novalidate>
+    {% csrf_token %}
+    {% include "core/_form_errors.html" %}
+    <div class="form-grid">
+      {% include "core/_field.html" with field=form.username %}
+      {% include "core/_field.html" with field=form.email %}
+      {% include "core/_field.html" with field=form.first_name %}
+      {% include "core/_field.html" with field=form.last_name %}
+    </div>
+    {% include "core/_field.html" with field=form.roles %}
+    {# AUT-029: the roles the directory gave are read-only here; they follow the groups at every login. #}
+    {% if form.directory_roles %}
+    <div class="field" id="directory-roles">
+      <span class="label" id="directory-roles-label">{% translate "Roles from the directory (LDAP)" %}</span>
+      <ul class="plain" aria-labelledby="directory-roles-label">{% for role in form.directory_roles %}<li>{{ role.name }} <span class="badge outline">{% translate "from the directory" %}</span></li>{% endfor %}</ul>
+      <div class="help">{% translate "They follow the groups of the user at every login and cannot be taken away here. Roles ticked above are kept." %}</div>
+    </div>
+    {% endif %}
+    <div class="form-grid">{% include "core/_field.html" with field=form.valid_until %}{% include "core/_field.html" with field=form.language %}</div>
+    {% include "core/_field.html" with field=form.is_superuser %}
+    {% include "core/_field.html" with field=form.local_account %}
+    <div class="btn-row"><button class="btn" type="submit">{% if is_new %}{% translate "Send invitation" %}{% else %}{% translate "Save user" %}{% endif %}</button><a class="btn secondary" href="{% url 'accounts:user_list' %}">{% translate "Cancel" %}</a></div>
+  </form>
+</div></div>
+{% if not is_new and edited_user.ldap_dn %}
+<section class="panel" aria-labelledby="directory-title">
+  <div class="panel-head"><h2 id="directory-title">{% translate "Directory (LDAP)" %}</h2></div>
+  <div class="panel-body">
+    <dl class="facts">
+      <dt>{% translate "Entry in the directory" %}</dt><dd><code>{{ edited_user.ldap_dn }}</code></dd>
+      <dt>{% translate "Last confirmed by the directory" %}</dt><dd>{% if edited_user.ldap_synced_at %}{{ edited_user.ldap_synced_at|date:"SHORT_DATETIME_FORMAT" }}{% else %}–{% endif %}</dd>
+      {% if edited_user.ldap_deactivated_at %}<dt>{% translate "Deactivated by the directory" %}</dt><dd>{{ edited_user.ldap_deactivated_at|date:"SHORT_DATETIME_FORMAT" }}</dd>{% endif %}
+    </dl>
+    <p class="muted small">{% if edited_user.local_account %}{% translate "This is a local account: the directory does not change it any more." %}{% else %}{% translate "Name, e-mail address and roles from the directory are brought up to date at every login. The password is kept in the directory." %}{% endif %}</p>
+  </div>
+</section>
+{% endif %}
+{% if not is_new %}
+<div class="panel"><div class="panel-body btn-row">
+  {% if edited_user.has_two_factor %}
+    <form method="post" action="{% url 'accounts:user_reset_two_factor' edited_user.pk %}">{% csrf_token %}<button class="btn secondary" type="submit" data-confirm="{% translate 'Switch off the two-factor login of this user? Only for a lost phone; the user sets it up again.' %}">{% icon "lock" %}{% translate "Reset two-factor login" %}</button></form>
+  {% endif %}
+  {% if edited_user.is_active %}
+    {% if not password_external %}
+    {% if edited_user.email %}<form method="post" action="{% url 'accounts:user_send_invitation' edited_user.pk %}">{% csrf_token %}<button class="btn secondary" type="submit">{% translate "Send link for setting a password" %}</button></form>{% endif %}
+    {# AUT-027: for the emergency, and for people without an e-mail address. #}
+    <form method="post" action="{% url 'accounts:user_one_time_password' edited_user.pk %}">{% csrf_token %}<button class="btn secondary" type="submit" data-confirm="{% translate 'Set a one-time password? A password the user had stops working; the next login asks for a new one.' %}">{% icon "lock" %}{% translate "Set one-time password" %}</button></form>
+    {% endif %}
+    <form method="post" action="{% url 'accounts:user_set_active' edited_user.pk %}">{% csrf_token %}<input type="hidden" name="active" value="0"><button class="btn danger" type="submit" data-confirm="{% translate 'Deactivate this user? The user can no longer log in; data and history are kept.' %}">{% translate "Deactivate user" %}</button></form>
+  {% else %}
+    <span class="muted">{% translate "This user is deactivated and cannot log in." %}</span>
+    <form method="post" action="{% url 'accounts:user_set_active' edited_user.pk %}">{% csrf_token %}<input type="hidden" name="active" value="1"><button class="btn secondary" type="submit">{% translate "Reactivate user" %}</button></form>
+  {% endif %}
+</div></div>
+{% endif %}
+{% endblock %}

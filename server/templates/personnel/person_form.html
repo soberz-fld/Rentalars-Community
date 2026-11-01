@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}{% if person %}{{ person.name }}{% else %}{% translate "New person" %}{% endif %}{% endblock %}
+{% block content %}
+<div class="page-head"><div><div class="breadcrumb">{% if person %}<a href="{% url 'personnel:person_detail' person.pk %}">{{ person.name }}</a>{% else %}<a href="{% url 'personnel:person_list' %}">{% translate "Personnel" %}</a>{% endif %}</div><h1>{% if person %}{% translate "Edit person" %}{% else %}{% translate "New person" %}{% endif %}</h1>
+{% if not person %}<p class="lead">{% translate "Job functions and hourly rates are added on the next page." %}</p>{% endif %}</div></div>
+<form method="post" class="form wide" novalidate>
+  {% csrf_token %}
+  {% include "core/_form_errors.html" %}
+  <div class="panel"><div class="panel-body">
+    <div class="form-grid">
+      {% include "core/_field.html" with field=form.first_name %}
+      {% include "core/_field.html" with field=form.last_name %}
+      {% include "core/_field.html" with field=form.kind %}
+      {% include "core/_field.html" with field=form.position %}
+      {% include "core/_field.html" with field=form.email %}
+      {% include "core/_field.html" with field=form.phone %}
+      {# ZEI-027: the way to work, deducted from trips by kilometre. #}
+      {% include "core/_field.html" with field=form.commute_km %}
+    </div>
+    {% include "core/_field.html" with field=form.note %}
+  </div></div>
+  {# PER-003: only freelancers have a company and tax data. #}
+  <div class="panel" data-show-if="kind=freelancer">
+    <div class="panel-head"><h2>{% translate "Freelancer" %}</h2></div>
+    <div class="panel-body form-grid">
+      {% include "core/_field.html" with field=form.company %}
+      {% include "core/_field.html" with field=form.street %}
+      {% include "core/_field.html" with field=form.postal_code %}
+      {% include "core/_field.html" with field=form.city %}
+      {% include "core/_field.html" with field=form.tax_number %}
+      {% include "core/_field.html" with field=form.vat_id %}
+    </div>
+  </div>
+  <div class="panel">
+    <div class="panel-head"><h2>{% translate "Login and colleagues" %}</h2></div>
+    <div class="panel-body">
+      {# AUT-026: the person logs in with an account of its own; it comes with the person. #}
+      <p class="help-line">{% if person %}{% blocktranslate with username=person.user.username %}Logs in as <strong>{{ username }}</strong>.{% endblocktranslate %}{% else %}{% translate "The person gets a login of its own, with the role “Crew” (freelancers: “Freelancer”). Roles are changed under Settings → Users." %}{% endif %}</p>
+      {% if form.invite %}{% include "core/_field.html" with field=form.invite %}{% endif %}
+      {% include "core/_field.html" with field=form.share_phone %}
+      {% include "core/_field.html" with field=form.share_email %}
+    </div>
+  </div>
+  <div class="btn-row"><button class="btn" type="submit">{% translate "Save person" %}</button><a class="btn secondary" href="{% if person %}{% url 'personnel:person_detail' person.pk %}{% else %}{% url 'personnel:person_list' %}{% endif %}">{% translate "Cancel" %}</a></div>
+</form>
+{% endblock %}

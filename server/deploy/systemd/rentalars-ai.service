@@ -1,0 +1,53 @@
+# The local AI of Rentalars (EML-040, EML-044): llama.cpp's llama-server with a small language model.
+#
+# Installed, switched on and set up by "sudo rentalars ai install" (deploy/ai.sh), which writes
+# /etc/rentalars/ai-local.env (model, port, threads) and the memory limit in rentalars-ai.service.d/.
+# Without them – on every server where nobody installed the local AI – the service does not start.
+# "sudo rentalars ai remove" switches it off again.
+#
+# The server listens only on 127.0.0.1 and may reach nothing but this machine; it runs as a user of its own
+# without rights (DynamicUser), with lower priority than Rentalars, and reads the model read-only.
+
+[Unit]
+Description=Rentalars – lokale KI (llama.cpp)
+Documentation=file:///opt/rentalars/app/docs/betrieb/betrieb.md
+After=network.target
+ConditionPathExists=/etc/rentalars/ai-local.env
+ConditionPathExists=/opt/rentalars/ai/bin/llama-server
+
+[Service]
+Type=simple
+EnvironmentFile=/etc/rentalars/ai-local.env
+ExecStart=/opt/rentalars/ai/bin/llama-server --host 127.0.0.1 --port ${AI_PORT} --model ${AI_MODEL} --alias ${AI_ALIAS} --ctx-size ${AI_CONTEXT} --threads ${AI_THREADS} --parallel 1 $AI_EXTRA
+Restart=on-failure
+RestartSec=10
+# Rentalars and the database come first; the limits of the installed model follow in rentalars-ai.service.d/.
+Nice=10
+CPUWeight=20
+IOWeight=20
+MemoryMax=3G
+
+DynamicUser=yes
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+RestrictNamespaces=yes
+LockPersonality=yes
+SystemCallArchitectures=native
+CapabilityBoundingSet=
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+IPAddressDeny=any
+IPAddressAllow=localhost
+
+[Install]
+WantedBy=multi-user.target

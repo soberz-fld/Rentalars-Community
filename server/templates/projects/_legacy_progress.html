@@ -1,0 +1,15 @@
+{% load i18n rentalars %}
+{% comment %}
+  Legacy import: the AI reads the invoices of a batch in the background. While it runs the block asks again every (PRJ-130)
+  two seconds (the page reloads when it is done); without the page script "Check again" does. Expects: batch, job, waiting.
+{% endcomment %}
+<div class="legacy-progress" id="legacy-progress" aria-live="polite"{% if waiting and job and not job.is_finished %} hx-get="{% url 'projects:legacy_progress' batch.pk %}" hx-trigger="every 2s" hx-target="this" hx-swap="outerHTML"{% endif %}>
+  {% if job and not job.is_finished %}
+  <p><span class="badge yellow">{{ job.get_status_display }}</span> {% blocktranslate count counter=waiting %}{{ counter }} invoice waits to be read …{% plural %}{{ counter }} invoices wait to be read …{% endblocktranslate %}{% if job.message %}<span class="muted"> – {{ job.message }}</span>{% endif %}</p>
+  <div class="progress" role="progressbar" aria-valuenow="{{ job.progress }}" aria-valuemin="0" aria-valuemax="100" aria-label="{% translate 'Progress' %}"><span style="width: {{ job.progress }}%"></span></div>
+  <p class="muted small">{% translate "Each invoice is read for itself; the page shows them as they are ready." %}</p>
+  <a class="btn secondary small" href="{% url 'projects:legacy_batch' batch.pk %}">{% icon "refresh" %}{% translate "Check again" %}</a>
+  {% elif waiting %}
+  <p class="note red">{% if job %}{{ job.message|default:_("Reading stopped.") }}{% else %}{% translate "Reading has not started." %}{% endif %}</p>
+  {% endif %}
+</div>

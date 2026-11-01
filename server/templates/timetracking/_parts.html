@@ -1,0 +1,12 @@
+{% load i18n %}
+{% comment %}
+  ZEI-025: further job functions of the same period, each with its hours. The job function above gets the
+  hours that are left. Folded away until it is needed; open when the period is divided already.
+{% endcomment %}
+<details class="time-parts"{% if form.has_parts %} open{% endif %}>
+  <summary>{% translate "Several job functions in this period" %}</summary>
+  <p class="help-line">{% translate "Worked in more than one job function from begin to end? Add each further one with its hours. The job function above gets the hours that are left." %}</p>
+  {% for function, hours in form.part_fields %}
+  <div class="form-row pair keep time-part">{% include "core/_field.html" with field=function %}{% include "core/_field.html" with field=hours %}</div>
+  {% endfor %}
+</details>

@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Chat" %} {{ project.number }}{% endblock %}
+{% block content %}
+{% include "projects/_head.html" %}
+{% comment %}
+  UIX-010: the chat of the project, for everybody who can open it – the crew with the deployment view
+  included, which the page says. New messages of others come in place through the change polling
+  (UIX-020; app.js, block "Chat in the project"); one's own appear at once. "@" and a name mention a
+  reader, who is notified. UIX-049: photos and videos go with a message; the server makes them
+  smaller (chat.media). On a phone a second field opens the camera.
+{% endcomment %}
+<section class="panel chat" data-chat="{{ project.pk }}" data-chat-url="{% url 'chat:messages' project.pk %}">
+  <div class="panel-head"><h2>{% translate "Chat" %}</h2></div>
+  <div class="chat-audience">
+    <p class="note">{% icon "crew" %}<span>{% translate "Everybody who can open this project reads along – the crew scheduled for it as well, through the overview." %}</span></p>
+    <details class="chat-readers">
+      <summary>{% blocktranslate count count=readers|length %}{{ count }} person reads along{% plural %}{{ count }} people read along{% endblocktranslate %}</summary>
+      <ul>
+        {% for reader in readers %}
+        <li>{% if reader.is_me %}{{ reader.name }} <span class="muted">({% translate "you" %})</span>{% else %}<button type="button" class="link-btn" data-chat-mention="{{ reader.name }}" title="{% blocktranslate with name=reader.name %}Mention {{ name }}{% endblocktranslate %}">{{ reader.name }}</button>{% endif %}{% if reader.is_crew %} <span class="badge">{% translate "crew" %}</span>{% endif %}</li>
+        {% endfor %}
+      </ul>
+    </details>
+  </div>
+  <div id="chat-messages" class="chat-messages">{% include "chat/_messages.html" %}</div>
+  {# UIX-010: new messages of others are announced to screen readers; the list itself is replaced, so not live. #}
+  <p class="visually-hidden" aria-live="polite" data-chat-announce data-text-new="{% translate 'New message from' %}"></p>
+  <form class="chat-form" method="post" action="{% url 'chat:project' project.pk %}" enctype="multipart/form-data" hx-post="{% url 'chat:project' project.pk %}" hx-encoding="multipart/form-data" hx-target="#chat-messages" hx-swap="innerHTML" hx-disabled-elt="find button[type='submit']" novalidate data-chat-form data-max-files="{{ max_files }}" data-max-photo-mb="{{ max_photo_mb }}" data-max-video-mb="{{ max_video_mb }}" data-max-message-mb="{{ max_message_mb }}" data-text-too-large="{% blocktranslate %}Too large: photos up to {{ max_photo_mb }} MB, videos up to {{ max_video_mb }} MB, together up to {{ max_message_mb }} MB.{% endblocktranslate %}" data-text-too-many="{% blocktranslate %}At most {{ max_files }} files per message.{% endblocktranslate %}">
+    {% csrf_token %}
+    <div class="field{% if form.text.errors %} has-error{% endif %}">
+      <label for="chat-text">{% translate "Message" context "chat" %}</label>
+      <div class="chat-input">
+        <textarea id="chat-text" name="text" rows="3" maxlength="{{ max_length }}" autocomplete="off" aria-describedby="chat-help" data-chat-input aria-autocomplete="list" aria-controls="chat-suggestions">{{ form.text.value|default:"" }}</textarea>
+        <ul id="chat-suggestions" class="chat-suggestions hidden" role="listbox" aria-label="{% translate 'Mention' %}"></ul>
+      </div>
+      <div class="help" id="chat-help">{% translate "Type @ and a name to mention somebody – they are notified. Ctrl+Enter sends." %}</div>
+      {{ form.text.errors }}
+    </div>
+    <div class="chat-attach">
+      <div class="field{% if file_error %} has-error{% endif %}">
+        <label for="chat-files">{% translate "Attach photos or videos" %}</label>
+        <input id="chat-files" type="file" name="files" accept="image/*,video/*" multiple aria-describedby="chat-files-help" data-chat-files>
+      </div>
+      {# On a phone: straight to the camera. #}
+      <div class="field chat-camera">
+        <label for="chat-camera">{% icon "camera" %}{% translate "Take a photo or video" %}</label>
+        <input id="chat-camera" type="file" name="files" accept="image/*,video/*" capture="environment" aria-describedby="chat-files-help" data-chat-files>
+      </div>
+      <div class="help" id="chat-files-help">{% blocktranslate %}Photos up to {{ max_photo_mb }} MB, videos up to {{ max_video_mb }} MB. The server makes them smaller: photos to {{ photo_side }} pixels without location data, videos to 720p.{% endblocktranslate %}{% if not videos_possible %} {% translate "Videos are not possible at the moment: the server lacks ffmpeg." %}{% endif %}</div>
+      <p class="note red{% if not file_error %} hidden{% endif %}" role="alert" data-chat-file-error>{{ file_error }}</p>
+    </div>
+    <div class="chat-send">
+      <button class="btn" type="submit">{% icon "reply" %}{% translate "Send" %}</button>
+      <progress class="chat-progress hidden" max="100" value="0" aria-label="{% translate 'Upload' %}" data-chat-progress></progress>
+    </div>
+  </form>
+</section>
+{% endblock %}

@@ -1,0 +1,47 @@
+{% load i18n rentalars %}
+{% comment %}
+  One group of the planning with its own lines and subtotal. Expects: group (PlannedGroup); oob (optional).
+  PRJ-083: the buttons "optional" and "Alternative" stand next to edit, copy and delete.
+  PRJ-037: a group with subgroups shows its own lines here and its subtotal with the subgroups below them
+  (_group_total.html); its heading is one level deeper per level of nesting.
+{% endcomment %}
+<section id="group-{{ group.group.pk }}"{% if oob %} hx-swap-oob="true"{% endif %} class="group{% if group.depth %} is-nested{% endif %}{% if not group.prices.counts_toward_total %} is-optional{% endif %}" data-group="{{ group.group.pk }}">
+  <div class="group-head">
+    {% if can_edit %}<button type="button" class="group-drag no-print" data-group-handle data-move-url="{% url 'projects:group_move' project.pk group.group.pk %}" aria-label="{% blocktranslate with name=group.path %}Move group “{{ name }}”: drag, or the arrow keys (left and right change the level){% endblocktranslate %}" title="{% translate 'Move: drag, or the arrow keys' %}">{% icon "drag" %}</button>{% endif %}
+    {% if group.children %}<button type="button" class="group-toggle no-print" data-group-toggle="{{ group.group.pk }}" aria-expanded="true" aria-controls="group-children-{{ group.group.pk }}" aria-label="{% blocktranslate with name=group.group.name %}Subgroups of “{{ name }}”{% endblocktranslate %}" title="{% translate 'Show or hide the subgroups' %}"><span class="group-chevron" aria-hidden="true"></span></button>{% endif %}
+    <h{{ group.heading_level }}>{{ group.group.name }}</h{{ group.heading_level }}>
+    {% if group.group.kind != "normal" %}<span class="badge yellow" data-kind="{{ group.group.kind }}">{{ group.group.get_kind_display }}</span>{% elif group.group.kind_is_inherited %}<span class="badge yellow">{% blocktranslate with kind=group.group.effective_kind_label %}{{ kind }}, like the group above{% endblocktranslate %}</span>{% endif %}
+    {# PRJ-083: what an alternative group could replace. #}
+    {% if group.alternative_to %}<span class="muted small alternative-of">{% blocktranslate with name=group.alternative_to.name %}alternative to “{{ name }}”{% endblocktranslate %}</span>{% endif %}
+    {% if group.group.rental_days %}<span class="badge">{% blocktranslate count days=group.group.rental_days %}{{ days }} rental day{% plural %}{{ days }} rental days{% endblocktranslate %}</span>{% endif %}
+    <span class="spacer"></span>
+    {% if can_edit %}
+    <span class="btn-row no-print">
+      {# PRJ-083: optional switches on and off; "Alternative" asks which group this one could replace. #}
+      <button class="icon-btn toggle{% if group.group.kind == 'optional' %} is-on{% endif %}" type="button" hx-post="{% url 'projects:group_kind' project.pk group.group.pk %}" hx-vals='{"kind": "{% if group.group.kind == 'optional' %}normal{% else %}optional{% endif %}"}' hx-target="#planning" hx-swap="outerHTML" aria-pressed="{% if group.group.kind == 'optional' %}true{% else %}false{% endif %}" aria-label="{% translate 'Optional group' %}" title="{% translate 'Optional: shown with its price, not part of the total' %}">{% icon "optional" %}</button>
+      <button class="icon-btn toggle{% if group.group.kind == 'alternative' %} is-on{% endif %}" type="button" hx-get="{% url 'projects:group_alternative' project.pk group.group.pk %}" hx-target="#dialog" aria-haspopup="dialog" aria-label="{% translate 'Alternative to another group …' %}" title="{% translate 'Alternative to another group …' %}">{% icon "alternative" %}</button>
+      <button class="icon-btn" type="button" hx-get="{% url 'projects:group_edit' project.pk group.group.pk %}" hx-target="#dialog" aria-label="{% translate 'Edit group' %}" title="{% translate 'Edit group' %}">{% icon "edit" %}</button>
+      <form class="inline-form" hx-post="{% url 'projects:group_copy' project.pk group.group.pk %}" hx-target="#planning" hx-swap="outerHTML"><button class="icon-btn" type="submit" aria-label="{% translate 'Copy group' %}" title="{% if group.children %}{% translate 'Copy group with its subgroups' %}{% else %}{% translate 'Copy group' %}{% endif %}">{% icon "copy" %}</button></form>
+      <form class="inline-form" hx-post="{% url 'projects:group_delete' project.pk group.group.pk %}" hx-target="#planning" hx-swap="outerHTML"><button class="icon-btn" type="submit" aria-label="{% translate 'Delete group' %}" title="{% translate 'Delete group' %}" data-confirm="{{ group.delete_question }}">{% icon "trash" %}</button></form>
+    </span>
+    {% endif %}
+  </div>
+  {% if group.group.description %}<p class="group-desc">{{ group.group.description }}</p>{% endif %}
+  {% if group.children %}
+    {# PRJ-037: discount, flat price and subtotal concern the subgroups as well; they follow below them. #}
+    {% include "projects/_lines.html" with lines=group.lines group_id=group.group.pk %}
+  {% else %}
+  {% if can_see_prices and group.prices.cap_excess %}<p class="group-desc muted small">{% blocktranslate with amount=group.prices.cap_excess|money %}The maximum discount of a job function keeps {{ amount }} of the group’s discount from applying.{% endblocktranslate %}</p>{% endif %}
+  {% if group.prices.counts_toward_total %}{% translate "Subtotal" as subtotal_label %}{% else %}{% translate "Subtotal (not part of the project total)" as subtotal_label %}{% endif %}
+  {% if not group.prices.discount %}
+    {% include "projects/_lines.html" with lines=group.lines group_id=group.group.pk subtotal_amount=group.prices.subtotal %}
+  {% elif group.group.flat_price is not None %}
+    {% translate "Flat price; the lines add up to more by" as discount_label %}
+    {% include "projects/_lines.html" with lines=group.lines group_id=group.group.pk subtotal_amount=group.prices.subtotal discount_amount=group.prices.discount %}
+  {% else %}
+    {% translate "Group discount" as discount_label %}
+    {% include "projects/_lines.html" with lines=group.lines group_id=group.group.pk subtotal_amount=group.prices.subtotal discount_amount=group.prices.discount %}
+  {% endif %}
+  {% endif %}
+  {% if can_edit %}{% include "projects/_line_add.html" with group_id=group.group.pk %}{% endif %}
+</section>

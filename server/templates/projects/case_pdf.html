@@ -1,0 +1,64 @@
+{% load i18n rentalars %}<!doctype html>
+{% get_current_language as LANGUAGE_CODE %}<html lang="{% if LANGUAGE_CODE == 'en' %}en-GB{% else %}{{ LANGUAGE_CODE }}{% endif %}">
+<head>
+<meta charset="utf-8">
+<title>{% translate "Service case" %} {{ case.number }}</title>
+<style>
+  /* PRJ-131: a service case for the customer – the overview and the open messages of the correspondence. */
+  @font-face { font-family: "Barlow"; font-weight: 400; src: url("{{ fonts.regular }}"); }
+  @font-face { font-family: "Barlow"; font-weight: 600; src: url("{{ fonts.semibold }}"); }
+  @font-face { font-family: "Barlow Condensed"; font-weight: 600; src: url("{{ fonts.condensed }}"); }
+  @page { size: A4; margin: 18mm 16mm 18mm;
+    @bottom-right { content: "{% translate 'Page' %} " counter(page) " / " counter(pages); font: 8pt "Barlow"; color: #555; } }
+  body { font-family: "Barlow", sans-serif; font-size: 10pt; color: #111; line-height: 1.4; }
+  h1 { font-family: "Barlow Condensed", sans-serif; font-size: 22pt; margin: 0 0 1mm; }
+  h2 { font-family: "Barlow Condensed", sans-serif; font-size: 14pt; margin: 8mm 0 2mm; border-bottom: 0.6pt solid #111; padding-bottom: 1mm; }
+  .head { display: flex; justify-content: space-between; border-bottom: 1.5pt solid #111; padding-bottom: 4mm; margin-bottom: 6mm; }
+  .head img { max-height: 16mm; max-width: 50mm; display: block; margin-bottom: 2mm; }
+  .head .company { text-align: right; font-size: 9pt; color: #444; }
+  dl { display: grid; grid-template-columns: 38mm 1fr; gap: 1mm 4mm; margin: 0; }
+  dt { color: #555; }
+  dd { margin: 0; }
+  .description { white-space: pre-wrap; }
+  .message { border-bottom: 0.3pt solid #ccc; padding: 3mm 0; break-inside: avoid-page; }
+  .message-head { display: flex; justify-content: space-between; font-size: 9pt; color: #444; }
+  .message-subject { font-weight: 600; margin: 1mm 0; }
+  .message-text { white-space: pre-wrap; font-size: 9.5pt; }
+  .attachments { font-size: 8.5pt; color: #555; margin-top: 1.5mm; }
+  .note { margin-top: 8mm; font-size: 8.5pt; color: #555; }
+</style>
+</head>
+<body>
+<div class="head">
+  <div>{% if logo %}<img src="{{ logo }}" alt="">{% endif %}<h1>{% translate "Service case" %}</h1><div>{{ case.number }} · {{ case.name }}</div></div>
+  <div class="company">{% if company.name %}<strong>{{ company.name }}</strong><br>{% endif %}{% for line in company.address_lines %}{{ line }}<br>{% endfor %}{{ company.email }}</div>
+</div>
+
+<h2>{% translate "Overview" context "service case tab" %}</h2>
+<dl>
+  <dt>{% translate "Status" %}</dt><dd>{{ case.case_status_label }}</dd>
+  {% if case.customer_id and not case.is_internal %}<dt>{% translate "Customer" %}</dt><dd>{{ case.customer.name }}</dd>{% endif %}
+  {% if with_contacts %}
+  {% if case.contact_id %}<dt>{% translate "Contact" %}</dt><dd>{{ case.contact.name }}</dd>{% endif %}
+  {% if case.case_contact %}<dt>{% translate "Reported by" %}</dt><dd>{{ case.case_contact }}</dd>{% endif %}
+  {% endif %}
+  <dt>{% translate "Responsible" %}</dt><dd>{{ case.manager|default:"–" }}</dd>
+  <dt>{% translate "Created" %}</dt><dd>{{ case.created_at|date:"d.m.Y H:i" }}</dd>
+</dl>
+<h2>{% translate "Description" %}</h2>
+{% if case.notes %}<div class="description">{{ case.notes }}</div>{% else %}<p>{% translate "No description yet." %}</p>{% endif %}
+
+<h2>{% translate "Correspondence" %}</h2>
+{% for message in messages %}
+<div class="message">
+  <div class="message-head"><span>{% if message.is_sent %}{% translate "sent" %}{% if message.recipients %} · {% blocktranslate with to=message.recipients %}to {{ to }}{% endblocktranslate %}{% endif %}{% else %}{% translate "received" %}{% if message.sender %} · {{ message.sender }}{% endif %}{% endif %}</span><span>{{ message.date|date:"d.m.Y H:i" }}</span></div>
+  {% if message.subject %}<div class="message-subject">{{ message.subject }}</div>{% endif %}
+  <div class="message-text">{{ message.text }}{% if message.shortened %}
+
+[{% translate "shortened" %}]{% endif %}</div>
+  {% if message.attachments %}<div class="attachments">{% translate "Attachments:" %} {{ message.attachments|join:", " }}</div>{% endif %}
+</div>
+{% empty %}<p>{% translate "No messages." %}</p>{% endfor %}
+<p class="note">{% blocktranslate with when=made_at|date:"d.m.Y H:i" %}As of {{ when }}.{% endblocktranslate %}</p>
+</body>
+</html>

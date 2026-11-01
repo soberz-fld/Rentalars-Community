@@ -1,0 +1,55 @@
+{% load i18n rentalars maps %}
+{% comment %}
+  UIX-034: the map of a venue, customer, supplier, the company or a project (PRJ-097), fetched by "Show map".
+  The page script (static/js/app.js, block UIX-034) loads Leaflet from this server and draws the places with a
+  position; the map pictures come from the tile server of the configuration file. The list below the map works
+  without the map: every place with its route link (UIX-033) and – for whoever may – the correction of its
+  position by click, by dragging the marker or by typing the coordinates.
+{% endcomment %}
+<div class="map-frame" tabindex="-1" aria-label="{% blocktranslate with title=page.title %}Map: {{ title }}{% endblocktranslate %}" role="group">
+  {% if page.located or page.can_correct %}<div class="map-canvas" data-map="{{ data }}"></div>{% endif %}
+  {% for problem in page.problems %}<p class="map-problem small" role="status">{{ problem }}</p>{% endfor %}
+  {% if errors.form %}<p class="message error" role="alert">{{ errors.form }}</p>{% endif %}
+  {% if page.places %}
+  <ol class="map-places">
+  {% for place in page.places %}
+    <li class="map-place" data-key="{{ place.key }}">
+      <span class="map-number" aria-hidden="true">{{ forloop.counter }}</span>
+      <div class="map-place-text">
+        <div><strong>{{ place.label }}</strong>{% if place.note and place.note != place.label %} <span class="muted small">{{ place.note }}</span>{% endif %}</div>
+        {% if place.address != place.label %}<div>{{ place.address }}</div>{% endif %}
+        <div class="muted small">{% if place.source == "found" %}{% translate "Position from OpenStreetMap" %}{% elif place.source == "manual" %}{% translate "Position set by hand" %}{% elif place.source == "not_found" %}<strong>{% translate "Not found on the map." %}</strong>{% if page.can_correct %} {% translate "Set the position by hand." %}{% endif %}{% else %}{% translate "Position not looked up yet." %}{% endif %}</div>
+        <div>{% route_link place.address %}</div>
+        {% if page.can_correct %}
+        <details class="map-correct"{% if posted_key == place.key %} open{% endif %}>
+          <summary>{% translate "Correct the position" %}</summary>
+          <form method="post" action="{% url 'core:map_position' page.target page.pk %}" hx-post="{% url 'core:map_position' page.target page.pk %}" hx-target="closest .map-box" hx-swap="innerHTML" novalidate autocomplete="off">
+            {% csrf_token %}<input type="hidden" name="key" value="{{ place.key }}">
+            <p class="help">{% translate "Click into the map or drag the marker – or type the coordinates." %}</p>
+            <div class="form-row pair">
+              <div class="field{% if posted_key == place.key and errors.latitude %} has-error{% endif %}">
+                <label for="map-{{ prefix }}-{{ forloop.counter }}-lat">{% translate "Latitude" %}</label>
+                <input type="text" inputmode="decimal" id="map-{{ prefix }}-{{ forloop.counter }}-lat" name="latitude" value="{% if place.is_located %}{{ place.position.latitude|stringformat:'s' }}{% endif %}" data-map-latitude>
+                {% if posted_key == place.key and errors.latitude %}<ul class="errorlist"><li>{{ errors.latitude }}</li></ul>{% endif %}
+              </div>
+              <div class="field{% if posted_key == place.key and errors.longitude %} has-error{% endif %}">
+                <label for="map-{{ prefix }}-{{ forloop.counter }}-lon">{% translate "Longitude" %}</label>
+                <input type="text" inputmode="decimal" id="map-{{ prefix }}-{{ forloop.counter }}-lon" name="longitude" value="{% if place.is_located %}{{ place.position.longitude|stringformat:'s' }}{% endif %}" data-map-longitude>
+                {% if posted_key == place.key and errors.longitude %}<ul class="errorlist"><li>{{ errors.longitude }}</li></ul>{% endif %}
+              </div>
+            </div>
+            <div class="btn-row">
+              <button class="btn small" type="submit" name="action" value="save">{% translate "Save position" %}</button>
+              {% if place.position %}<button class="btn secondary small" type="submit" name="action" value="forget">{% translate "Look it up again" %}</button>{% endif %}
+            </div>
+          </form>
+        </details>
+        {% endif %}
+      </div>
+    </li>
+  {% endfor %}
+  </ol>
+  {% else %}
+  <div class="empty">{% translate "No address to show on the map yet." %}</div>
+  {% endif %}
+</div>

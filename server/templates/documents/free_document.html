@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{{ document.title }} {{ document.number }}{% endblock %}
+{% block content %}
+{% comment %}
+  Free outgoing documents: an issued document without a project – as stored (DOK-007), never changed. PDF and
+  XRechnung, sending by mail with the PDF attached, cancelling a free invoice by a cancellation, Lexware Office (DOK-011).
+{% endcomment %}
+<div class="page-head"><div>
+  <div class="breadcrumb"><a href="{% url 'documents:outgoing' %}">{% translate "Outgoing documents" %}</a></div>
+  <h1>{{ document.title }} {{ document.number }}{% if document.is_cancelled %} <span class="badge">{% translate "cancelled" %}</span>{% endif %}</h1>
+  <p class="lead">{% if document.customer_id %}<a href="{% url 'customers:detail' document.customer_id %}">{{ document.customer.name }}</a>{% endif %}{% if document.reference %} · {{ document.reference }}{% endif %} · {% translate "without project" %}</p>
+</div>
+<div class="actions">
+  <a class="btn secondary" href="{% url 'documents:file' document.pk %}" target="_blank" rel="noopener">{% icon "download" %}PDF</a>
+  {% if document.xml_file %}<a class="btn secondary" href="{% url 'documents:xml' document.pk %}">{% icon "download" %}{% if document.einvoice_syntax == "zugferd" %}ZUGFeRD (XML){% else %}XRechnung{% endif %}</a>{% endif %}
+  {% if show_payments %}<a class="btn secondary" href="{% url 'documents:payments' document.pk %}">{% icon "invoice" %}{% translate "Payments" %}</a>{% endif %}
+  {% if may_change %}<a class="btn" href="{% url 'documents:free_send' document.pk %}">{% icon "mail" %}{% translate "Send by e-mail" %}</a>{% endif %}
+</div></div>
+<div class="columns">
+<section class="panel">
+  <div class="panel-head"><h2>{% translate "Document" %}</h2></div>
+  <dl class="facts panel-body">
+    <dt>{% translate "Date" %}</dt><dd>{{ document.issued_on|date:"d.m.Y" }}</dd>
+    {% if document.due_on %}<dt>{% translate "Due on" %}</dt><dd>{{ document.due_on|date:"d.m.Y" }}</dd>{% endif %}
+    {% if document.valid_until %}<dt>{% translate "Valid until" %}</dt><dd>{{ document.valid_until|date:"d.m.Y" }}</dd>{% endif %}
+    {% if document.gross_total is not None %}<dt>{% translate "Net" %}</dt><dd>{{ document.net_total|money }}</dd><dt>{% translate "Gross" %}</dt><dd>{{ document.gross_total|money }}</dd>{% endif %}
+    <dt>{% translate "Sent" %}</dt><dd>{% if document.sent_at %}{{ document.sent_at|date:"d.m.Y H:i" }} · {{ document.sent_to }}{% else %}–{% endif %}</dd>
+    {% if document.cancels_id %}<dt>{% translate "Cancels" %}</dt><dd><a href="{% url 'documents:free_document' document.cancels_id %}">{{ document.cancels.number }}</a></dd>{% endif %}
+    {% if document.cancelled_by_id %}<dt>{% translate "Cancelled by" %}</dt><dd><a href="{% url 'documents:free_document' document.cancelled_by_id %}">{{ document.cancelled_by.number }}</a></dd>{% endif %}
+    {% if document.is_bookable and lexware_on %}<dt>{% translate "Lexware Office" %}</dt><dd>{% include "documents/_lexware_state.html" with transfer=document.accounting_transfer %}{% if may_transfer %} {% include "documents/_lexware_button.html" with transfer=document.accounting_transfer %}{% endif %}</dd>{% endif %}
+  </dl>
+  {% if may_change and invoices_on and document.kind == "invoice" and not document.is_cancelled %}
+  <form method="post" action="{% url 'documents:free_cancel' document.pk %}" class="panel-body">{% csrf_token %}<button class="btn secondary danger" type="submit" data-confirm="{% translate 'Cancel this invoice? A cancellation with the negated amounts is made; both stay in the list.' %}">{% translate "Cancel invoice" %}</button></form>
+  {% endif %}
+</section>
+{% if document.xml_file %}
+<section class="panel" aria-labelledby="check-title">
+  <div class="panel-head"><h2 id="check-title">{% translate "E-invoice" %}</h2><span class="badge accent">{% if document.einvoice_syntax == "zugferd" %}ZUGFeRD / Factur-X{% else %}XRechnung{% endif %}</span></div>
+  <div class="panel-body">{% include "documents/_einvoice_check.html" with next=request.path %}</div>
+</section>
+{% endif %}
+<section class="panel">
+  <div class="panel-head"><h2>{% translate "Positions" %}</h2></div>
+  {% if positions %}
+  <table class="table stack">
+    <thead><tr><th scope="col">{% translate "No." %}</th><th scope="col">{% translate "Description" %}</th><th scope="col" class="num">{% translate "Quantity" %}</th><th scope="col" class="num">{% translate "Net" %}</th></tr></thead>
+    <tbody>{% for position in positions %}
+      <tr><td data-label="{% translate 'No.' %}">{{ position.number }}</td><td><strong>{{ position.title }}</strong>{% if position.description %}<div class="muted small">{{ position.description|linebreaksbr }}</div>{% endif %}{% if position.details %}<div class="muted small">{{ position.details|linebreaksbr }}</div>{% endif %}</td>{% if position.is_text %}<td></td><td></td>{% else %}<td class="num" data-label="{% translate 'Quantity' %}">{{ position.quantity|number }}{% if position.unit %} {{ position.unit }}{% endif %}</td><td class="num" data-label="{% translate 'Net' %}">{{ position.amount|money }}</td>{% endif %}</tr>
+    {% endfor %}</tbody>
+  </table>
+  {% else %}<div class="empty"><strong>{% translate "No positions." %}</strong></div>{% endif %}
+</section>
+</div>
+{% endblock %}

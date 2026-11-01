@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Open invoices" %}{% endblock %}
+{% block content %}
+{% comment %}
+  DOK-048: Buchhaltung → Offene Posten. What customers still owe (outgoing invoices) and, for who may see purchase
+  prices, what is still to pay to suppliers (incoming invoices), the oldest due day first, with the sums and as CSV. The rest
+  of an invoice is worked out from its payments (documents/payments.py, incoming/payments.py).
+{% endcomment %}
+<div class="page-head"><div><h1>{% translate "Accounting" %}</h1></div>
+  <div class="actions"><a class="btn secondary" href="?side={{ side }}&format=csv">{% icon "download" %}CSV</a></div></div>
+{% include "documents/_accounting_tabs.html" %}
+<nav class="tabs" aria-label="{% translate 'Open invoices' %}">
+  {% if see_out %}<a href="?side=outgoing"{% if side == "outgoing" %} aria-current="page"{% endif %}>{% translate "Customers owe" %}</a>{% endif %}
+  {% if see_in %}<a href="?side=incoming"{% if side == "incoming" %} aria-current="page"{% endif %}>{% translate "To pay to suppliers" %}</a>{% endif %}
+  <a href="?side=credits"{% if side == "credits" %} aria-current="page"{% endif %}>{% translate "Credit balances" %}</a>
+</nav>
+{% if side == "credits" %}
+{# DOK-053: the other direction – overpaid invoices and credit notes of suppliers. #}
+<div class="panel">
+  <div class="panel-head"><h2>{% translate "Credit balances" %}</h2>
+    <span class="muted small">{% translate "We owe customers" %} {{ owed_to_customers|money }} · {% translate "Suppliers owe us" %} {{ owed_by_suppliers|money }}</span></div>
+  {% if credits %}
+  <table class="table stack" data-credits>
+    <thead><tr><th scope="col">{% translate "Direction" %}</th><th scope="col">{% translate "Number" %}</th><th scope="col">{% translate "Party" %}</th><th scope="col" class="num">{% translate "Gross" %}</th><th scope="col" class="num">{% translate "Paid" %}</th><th scope="col" class="num">{% translate "Credit" %}</th></tr></thead>
+    <tbody>{% for row in credits %}
+      <tr data-direction="{{ row.direction }}">
+        <td data-label="{% translate 'Direction' %}">{% if row.direction == "owe_customer" %}{% translate "we owe the customer" %}{% else %}{% translate "the supplier owes us" %}{% endif %}</td>
+        <td data-label="{% translate 'Number' %}">{% if row.direction == "owe_customer" %}<a href="{% url 'documents:payments' row.entry.pk %}">{{ row.number }}</a>{% else %}<a href="{% url 'incoming:payments' row.entry.pk %}">{{ row.number|default:row.entry.original_name }}</a>{% endif %}</td>
+        <td data-label="{% translate 'Party' %}">{{ row.party|default:"–" }}</td>
+        <td class="num" data-label="{% translate 'Gross' %}">{{ row.balance.payable|money }}</td>
+        <td class="num" data-label="{% translate 'Paid' %}">{{ row.balance.paid|money }}</td>
+        <td class="num" data-label="{% translate 'Credit' %}"><strong>{{ row.amount|money }}</strong></td>
+      </tr>
+    {% endfor %}</tbody>
+  </table>
+  {% else %}<div class="empty"><strong>{% translate "No credit balances." %}</strong></div>{% endif %}
+</div>
+<p class="muted small">{% translate "An overpaid or cancelled invoice means a refund to the customer; a credit note of a supplier that was not paid back, or an invoice paid too much, means money to claim. Enter the refund as a negative payment at the invoice." %}</p>
+{% else %}
+<div class="panel">
+  <div class="panel-head"><h2>{% if side == "outgoing" %}{% translate "Open outgoing invoices" %}{% else %}{% translate "Open incoming invoices" %}{% endif %}</h2>
+    <span class="muted small">{% blocktranslate count count=items|length %}{{ count }} invoice{% plural %}{{ count }} invoices{% endblocktranslate %} · {% translate "open" %} {{ total|money }}{% if overdue %} · <strong>{% translate "overdue" %} {{ overdue|money }}</strong>{% endif %}</span></div>
+  {% if items %}
+  <table class="table stack">
+    <thead><tr>
+      <th scope="col">{% translate "Number" %}</th><th scope="col">{% if side == "outgoing" %}{% translate "Customer" %}{% else %}{% translate "Supplier" %}{% endif %}</th>
+      <th scope="col">{% translate "Due on" %}</th><th scope="col" class="num">{% translate "Gross" %}</th><th scope="col" class="num">{% translate "Paid" %}</th><th scope="col" class="num">{% translate "Open" %}</th><th scope="col">{% translate "Status" %}</th>
+    </tr></thead>
+    <tbody>{% for entry, balance in items %}
+      <tr>
+        <td data-label="{% translate 'Number' %}">{% if side == "outgoing" %}<a href="{% url 'documents:payments' entry.pk %}">{{ entry.number }}</a>{% else %}<a href="{% url 'incoming:payments' entry.pk %}">{{ entry.invoice_number|default:entry.original_name }}</a>{% endif %}</td>
+        <td data-label="{% if side == 'outgoing' %}{% translate 'Customer' %}{% else %}{% translate 'Supplier' %}{% endif %}">{% if side == "outgoing" %}{{ entry.customer.name|default:"–" }}{% else %}{{ entry.supplier_label|default:"–" }}{% endif %}</td>
+        <td data-label="{% translate 'Due on' %}">{% if balance.due_on %}{{ balance.due_on|date:"d.m.Y" }}{% else %}–{% endif %}</td>
+        <td class="num" data-label="{% translate 'Gross' %}">{{ balance.payable|money }}</td>
+        <td class="num" data-label="{% translate 'Paid' %}">{{ balance.paid|money }}</td>
+        <td class="num" data-label="{% translate 'Open' %}"><strong>{{ balance.remaining|money }}</strong></td>
+        <td data-label="{% translate 'Status' %}"><span class="badge {% if balance.overdue %}red{% else %}yellow{% endif %}">{% if balance.overdue %}{% translate "overdue" %}{% else %}{{ balance.label }}{% endif %}</span></td>
+      </tr>
+    {% endfor %}</tbody>
+  </table>
+  {% else %}<div class="empty"><strong>{% translate "Nothing is open." %}</strong></div>{% endif %}
+</div>
+<p class="muted small">{% translate "Invoices of the old system that the import knew as paid are not listed. Invoices without any payment entered count as open." %}</p>
+{% endif %}
+{% endblock %}

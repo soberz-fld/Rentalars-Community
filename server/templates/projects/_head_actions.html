@@ -1,0 +1,49 @@
+{% load i18n rentalars %}
+{% comment %}
+  PRJ-078: the actions of a project, on every tab. "Projekt bearbeiten" first; the status as a list with one button;
+  the document that usually comes next, the others behind the arrow; then copies and subprojects.
+{% endcomment %}
+<div class="actions project-actions no-print">
+  {% if may_edit %}{% if project.is_service_case %}<a class="btn secondary" href="{% url 'projects:case_edit' project %}">{% icon "edit" %}{% translate "Edit service case" %}</a>{% else %}<a class="btn secondary" href="{% url 'projects:edit' project.pk %}">{% icon "edit" %}{% translate "Edit project" %}</a>{% endif %}{% endif %}
+  {% if statuses %}
+  <form method="post" action="{% url 'projects:set_status' project.pk %}" class="status-form" data-status-form>
+    {% csrf_token %}
+    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+    <label class="visually-hidden" for="status-choice">{% translate "Change status to" %}</label>
+    <select id="status-choice" name="status" data-cancel-confirm="{% if project.has_subprojects %}{% translate 'Cancel this project and all its subprojects? Their reservations are released.' %}{% else %}{% translate 'Cancel this project? Its reservations are released.' %}{% endif %}">
+      <option value="">{% translate "Change status to …" %}</option>
+      {% for value, label in statuses %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+    </select>
+    {# PRJ-044: the parts can follow the whole project. #}
+    {% if project.has_subprojects %}<label class="check small with-parts"><input type="checkbox" name="with_parts" value="1" checked> {% translate "subprojects too" %}</label>{% endif %}
+    <button class="btn secondary" type="submit">{% translate "Change status" %}</button>
+  </form>
+  {% endif %}
+  {% if suggested or other_kinds %}
+  <div class="split-button">
+    {% if suggested %}<a class="btn secondary" href="{% url 'documents:list' project.pk %}?kind={{ suggested }}#make-document">{% icon "file" %}{% blocktranslate with kind=suggested_label %}Make {{ kind }}{% endblocktranslate %}</a>{% endif %}
+    {% if other_kinds %}
+    <details class="menu">
+      <summary class="btn secondary{% if suggested %} only-icon{% endif %}" aria-label="{% translate 'Other documents' %}">{% if not suggested %}{% icon "file" %}{% translate "Make document" %} {% endif %}▾</summary>
+      <ul class="menu-list">{% for value, label in other_kinds %}<li><a href="{% url 'documents:list' project.pk %}?kind={{ value }}#make-document">{{ label|capfirst }}</a></li>{% endfor %}</ul>
+    </details>
+    {% endif %}
+  </div>
+  {% endif %}
+  {# PRJ-105: a follow-up; once set, the head shows it with "Change" and "Done". #}
+  {% if may_follow_up %}<a class="btn secondary" href="{% url 'projects:follow_up' project.pk %}?next={{ request.get_full_path|urlencode }}" hx-get="{% url 'projects:follow_up' project.pk %}?next={{ request.get_full_path|urlencode }}" hx-target="#dialog">{% icon "bell" %}{% translate "Follow-up" %}</a>{% endif %}
+  {% if may_copy %}<a class="btn secondary" href="{% url 'projects:duplicate' project.pk %}">{% icon "duplicate" %}{% translate "Duplicate" %}</a>
+  <a class="btn secondary" href="{% url 'projects:template_create' project.pk %}" hx-get="{% url 'projects:template_create' project.pk %}" hx-target="#dialog">{% icon "copy" %}{% translate "Save as template" %}</a>{% endif %}
+  {% if may_add_part %}
+  {# PRJ-050: behind the arrow, dividing the project – or turning more groups of the whole project into parts. #}
+  <div class="split-button">
+    <a class="btn secondary" href="{% url 'projects:subproject_create' project.pk %}">{% icon "plus" %}{% translate "Add subproject" %}</a>
+    <details class="menu">
+      <summary class="btn secondary only-icon" aria-label="{% translate 'More on subprojects' %}">▾</summary>
+      <ul class="menu-list"><li><a href="{% url 'projects:split' project %}">{% if project.has_subprojects %}{% translate "Turn groups into subprojects" %}{% else %}{% translate "Divide into subprojects" %}{% endif %}</a></li></ul>
+    </details>
+  </div>
+  {% endif %}
+  {# PRJ-090: a service case becomes a project with its periods. #}
+  {% if may_convert %}<a class="btn secondary" href="{% url 'projects:case_convert' project %}">{% icon "projects" %}{% translate "Turn into a project" %}</a>{% endif %}
+</div>

@@ -1,0 +1,69 @@
+# The Rentalars application server (NFA-031, NFA-036, NFA-042).
+#
+# gunicorn runs the application and listens on a local socket; NGINX passes
+# the requests of the browsers to it. Installed as
+# /etc/systemd/system/rentalars.service.
+
+[Unit]
+Description=Rentalars – Projekt- und Materialverwaltung
+Documentation=file:///opt/rentalars/app/docs/betrieb/betrieb.md
+# A database on another server needs the network first (NFA-066); a database
+# on this one needs MariaDB. Each line is harmless where it does not apply.
+After=network-online.target mariadb.service
+Wants=network-online.target mariadb.service
+# The mail fetch (EML-005) and the tasks in the background (NFA-041) run
+# while the application runs – also after an update by an older version of
+# the update script, which does not know the timers yet and therefore does
+# not switch them on by itself.
+Wants=rentalars-mail.timer rentalars-jobs.timer
+
+[Service]
+Type=notify
+User=rentalars
+Group=rentalars
+WorkingDirectory=/opt/rentalars/app
+Environment=RENTALARS_CONFIG=/etc/rentalars/rentalars.conf
+# systemd creates /run/rentalars for the socket and removes it on stop.
+RuntimeDirectory=rentalars
+RuntimeDirectoryMode=0750
+
+# Workers: 5 processes, each answering one request at a time, serve the two
+# to ten users the reference system is meant for (NFA-038, NFA-051) and use
+# about 450 MB. No threads on purpose: two requests in one process take
+# turns at Python's interpreter lock, and "add a line" then misses its half
+# second while another core sits idle (measured, see docs/dev/decisions.md).
+# NGINX in front buffers requests and answers, so slow clients do not hold a
+# worker. A request that runs longer than --timeout is ended and its
+# database changes are undone.
+# --preload: the application is loaded once, before the workers split off,
+# together with its URL table, language file and templates (see
+# rentalars/core/warmup.py). Otherwise the first request of every fresh
+# worker takes about half a second longer. After a change to
+# /etc/rentalars/rentalars.conf the service must be restarted, not reloaded.
+# Each worker is replaced after 2,000 requests, so that memory that a rare
+# large request (a PDF, an import) claimed is given back.
+ExecStart=/opt/rentalars/venv/bin/gunicorn rentalars.wsgi:application \
+    --bind unix:/run/rentalars/gunicorn.sock \
+    --umask 007 \
+    --workers 5 --preload \
+    --max-requests 2000 --max-requests-jitter 200 \
+    --timeout 120 \
+    --access-logfile - --error-logfile -
+ExecReload=/bin/kill -s HUP $MAINPID
+Restart=on-failure
+RestartSec=5
+
+# The service may write to its data directory and nowhere else.
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/var/lib/rentalars
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+
+[Install]
+WantedBy=multi-user.target

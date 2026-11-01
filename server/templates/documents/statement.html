@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Monthly statement" %} {{ statement.customer.name }} {{ month_label }}{% endblock %}
+{% block content %}
+{% comment %}
+  DOK-016: the statement of one customer's service cases of one month. Per case its activity text and its
+  positions – approved times by job function, expenses, free positions –, all editable while it is a draft; the
+  totals as a document calculates them. With "Rentalars als Buchhaltungsprogramm verwenden" on (DOK-014) it becomes an invoice
+  that belongs to the first case and bills all of them; off, the values are copied into the other program, as in the
+  price overview (PRJ-035), and the statement is marked as invoiced. One form: every button saves what was typed
+  before it does its part.
+{% endcomment %}
+<div class="page-head">
+  <div><h1>{% translate "Accounting" %}</h1></div>
+  <div class="actions"><a class="btn secondary" href="{% url 'documents:statements' %}?month={{ month_value }}">{% icon "back" %}{% translate "To the overview" %}</a></div>
+</div>
+{# DOK-019: a tab of "Buchhaltung". #}
+{% include "documents/_accounting_tabs.html" %}
+<section class="panel statement-head" aria-labelledby="statement-title">
+  <div class="panel-head">
+    <h2 id="statement-title">{% blocktranslate with customer=statement.customer.name month=month_label %}Monthly statement {{ customer }} – {{ month }}{% endblocktranslate %}</h2>
+    {% if statement.status == "invoiced" %}<span class="badge green">{% translate "invoiced" %}</span>{% elif statement.status == "marked" %}<span class="badge green">{% translate "marked as invoiced" %}</span>{% else %}<span class="badge yellow">{% translate "draft" %}</span>{% endif %}
+  </div>
+  <div class="panel-body">
+    {% if statement.status == "invoiced" and statement.invoice %}
+    <p class="note accent">{% blocktranslate with number=statement.invoice.number date=statement.invoice.issued_on|date:"d.m.Y" %}Invoice {{ number }} of {{ date }}.{% endblocktranslate %}
+      <a href="{% url 'documents:file' statement.invoice.pk %}" target="_blank" rel="noopener">{% translate "PDF" %}</a>{% if statement.invoice.xml_file %} · <a href="{% url 'documents:xml' statement.invoice.pk %}">XRechnung</a>{% endif %}
+      {% if first_case %}<br>{% blocktranslate with number=first_case.number %}It belongs to service case {{ number }} – the first of the statement – and bills all its cases: they count as invoiced. Cancelled there, the statement becomes a draft again.{% endblocktranslate %} <a href="{% url 'documents:list' first_case.pk %}">{% blocktranslate with number=first_case.number %}Documents of {{ number }}{% endblocktranslate %}</a>{% endif %}</p>
+    {% elif statement.status == "marked" %}
+    <div class="note accent">
+      <p>{% blocktranslate with date=statement.marked_at|date:"d.m.Y H:i" user=statement.marked_by|default:"–" %}Marked as invoiced on {{ date }} by {{ user }}: every case of the statement has “Invoice issued”.{% endblocktranslate %}</p>
+    </div>
+    {% elif invoices_on %}
+    <p class="note">{% translate "Check and change the draft, look at the PDF, then make the invoice." %}{% if first_case %} {% blocktranslate with number=first_case.number %}It will belong to service case {{ number }} (the lowest number) and bill all cases of the statement.{% endblocktranslate %}{% endif %}</p>
+    {% else %}
+    <p class="note">{% translate "Rentalars makes no invoices: the setting “Use Rentalars as accounting software” is off. Copy the values below into your accounting program – a click copies a value –, then mark the statement as invoiced." %}</p>
+    {% endif %}
+    {% for cancelled in cancelled_invoices %}<p class="muted small">{% blocktranslate with number=cancelled.number cancellation=cancelled.cancellation %}Invoice {{ number }} of this statement was cancelled by {{ cancellation }}.{% endblocktranslate %}</p>{% endfor %}
+    {% if statement.status == "marked" and may_unmark %}
+    <form method="post" action="{% url 'documents:statement' statement.pk %}" class="inline-form">{% csrf_token %}<button class="btn secondary small" type="submit" name="action" value="unmark" data-confirm="{% translate 'Take the mark back? The cases are open again – those ticked by this statement.' %}">{% translate "Take the mark back" %}</button></form>
+    {% endif %}
+  </div>
+</section>
+
+{% if editable %}<form method="post" action="{% url 'documents:statement' statement.pk %}" class="statement-form" novalidate>{% csrf_token %}
+{# Enter in a field saves – the first button of a form is the one Enter presses. #}
+<button type="submit" name="action" value="save" class="visually-hidden" tabindex="-1" aria-hidden="true">{% translate "Save" %}</button>
+{% endif %}
+{% if invoices_on %}
+<section class="panel" aria-labelledby="statement-introduction">
+  <div class="panel-head"><h2 id="statement-introduction">{% translate "Introduction of the invoice" %}</h2></div>
+  <div class="panel-body">{% if editable %}<div class="field"><label class="visually-hidden" for="id_introduction">{% translate "Introduction of the invoice" %}</label><textarea id="id_introduction" name="introduction" rows="2">{{ statement.content.introduction }}</textarea></div>{% else %}<p>{{ statement.content.introduction }}</p>{% endif %}</div>
+</section>
+{% endif %}
+
+{% for case in cases %}
+<section class="panel statement-case" id="case-{{ case.case }}" aria-labelledby="case-{{ case.case }}-title">
+  <div class="panel-head"><h2 id="case-{{ case.case }}-title">{% translate "Service case" %} <a href="{% url 'projects:case_detail' case.case %}">{{ case.number }}</a> – {{ case.title }}</h2><strong class="num">{{ case.total|money }}</strong></div>
+  <div class="panel-body">
+    {% for hint in case.hints %}<p class="note small">{{ hint }}</p>{% endfor %}
+    <div class="field">
+      <label for="activity-{{ case.case }}">{% translate "Activity" %}{% if case.activity_source == "ai" %} <span class="badge accent">{% translate "made by AI" %}</span>{% if case.ai_model %} <span class="muted small">{{ case.ai_model }}</span>{% endif %}{% endif %}</label>
+      {% if editable %}<textarea id="activity-{{ case.case }}" name="activity-{{ case.case }}" rows="4" aria-describedby="activity-{{ case.case }}-help">{{ case.activity }}</textarea>
+      <div class="help" id="activity-{{ case.case }}-help">{% translate "Stands under the case on the invoice. Proposed from title, description, the notes of the times and the correspondence of the month – change it as you like." %}</div>
+      {% else %}<p id="activity-{{ case.case }}">{{ case.activity|linebreaksbr }}</p>{% endif %}
+    </div>
+    {% if job and job.params.case == case.case %}{% include "documents/_statement_job.html" %}{% endif %}
+    {% if editable and ai_on %}<button class="btn secondary small" type="submit" name="action" value="ai:{{ case.case }}">{% icon "list" %}{% if ai_local %}{% translate "Summarise with the local AI" %}{% else %}{% translate "Summarise with AI" %}{% endif %}</button>{% endif %}
+  </div>
+  <div class="table-scroll">
+  <table class="table stack statement-positions">
+    <thead><tr><th scope="col">{% translate "Pos." %}</th><th scope="col">{% translate "Title" %}</th><th scope="col" class="num">{% translate "Quantity" %}</th><th scope="col">{% translate "Unit" %}</th><th scope="col" class="num">{% translate "Unit price" %}</th><th scope="col">{% translate "Tax rate" %}</th><th scope="col" class="num">{% translate "Amount" %}</th>{% if editable %}<th scope="col"><span class="visually-hidden">{% translate "Actions" %}</span></th>{% endif %}</tr></thead>
+    <tbody>
+    {% for position in case.positions %}
+      <tr>
+        <td class="pos">{{ position.pos }}</td>
+        <td>{% if editable %}<label class="visually-hidden" for="pos-{{ case.case }}-{{ position.key }}-title">{% translate "Title" %}</label><input type="text" id="pos-{{ case.case }}-{{ position.key }}-title" name="pos-{{ case.case }}-{{ position.key }}-title" value="{{ position.title }}" maxlength="200">{% else %}{{ position.title }}{% endif %}
+          <div class="muted small">{% if position.article_number %}{{ position.article_number }} · {% endif %}{{ position.details }}{% if position.edited %} <span class="badge">{% translate "changed" %}</span>{% endif %}</div>
+          {% if position.hint %}<div class="small statement-hint">{% icon "alert" %}{{ position.hint }}</div>{% endif %}</td>
+        <td class="num" data-label="{% translate 'Quantity' %}">{% if editable %}<label class="visually-hidden" for="pos-{{ case.case }}-{{ position.key }}-quantity">{% translate "Quantity" %}</label><input type="text" inputmode="decimal" class="num" id="pos-{{ case.case }}-{{ position.key }}-quantity" name="pos-{{ case.case }}-{{ position.key }}-quantity" value="{{ position.quantity_value|number }}">{% else %}{{ position.quantity_value|number }}{% endif %}</td>
+        <td data-label="{% translate 'Unit' %}">{% if editable %}<label class="visually-hidden" for="pos-{{ case.case }}-{{ position.key }}-unit">{% translate "Unit" %}</label><input type="text" id="pos-{{ case.case }}-{{ position.key }}-unit" name="pos-{{ case.case }}-{{ position.key }}-unit" value="{{ position.unit }}" maxlength="20">{% else %}{{ position.unit }}{% endif %}</td>
+        <td class="num" data-label="{% translate 'Unit price' %}">{% if editable %}<label class="visually-hidden" for="pos-{{ case.case }}-{{ position.key }}-unit_price">{% translate "Unit price" %}</label><input type="text" inputmode="decimal" class="num" id="pos-{{ case.case }}-{{ position.key }}-unit_price" name="pos-{{ case.case }}-{{ position.key }}-unit_price" value="{{ position.unit_price_value|money_plain }}">{% else %}{{ position.unit_price_value|money }}{% endif %}</td>
+        <td data-label="{% translate 'Tax rate' %}">{% if editable %}<label class="visually-hidden" for="pos-{{ case.case }}-{{ position.key }}-tax_rate">{% translate "Tax rate" %}</label><select id="pos-{{ case.case }}-{{ position.key }}-tax_rate" name="pos-{{ case.case }}-{{ position.key }}-tax_rate">{% if position.tax_rate is None %}<option value="" selected>{% translate "– choose –" %}</option>{% endif %}{% for rate in tax_rates %}<option value="{{ rate.pk }}"{% if rate.pk == position.tax_rate %} selected{% endif %}>{{ rate.name }}</option>{% endfor %}</select>{% else %}{{ position.tax_name }}{% endif %}</td>
+        <td class="num" data-label="{% translate 'Amount' %}">{{ position.amount|money }}</td>
+        {% if editable %}<td class="actions"><button class="icon-btn" type="submit" name="action" value="remove:{{ case.case }}:{{ position.key }}" aria-label="{% blocktranslate with title=position.title %}Remove position “{{ title }}”{% endblocktranslate %}" title="{% translate 'Remove' %}">{% icon "trash" %}</button></td>{% endif %}
+      </tr>
+    {% empty %}
+      <tr><td colspan="{% if editable %}8{% else %}7{% endif %}" class="muted">{% translate "No positions – add material or a trip below." %}</td></tr>
+    {% endfor %}
+    </tbody>
+    <tfoot><tr><td></td><td colspan="5">{% blocktranslate with number=case.number %}Subtotal {{ number }}{% endblocktranslate %}</td><td class="num"><strong>{{ case.total|money }}</strong></td>{% if editable %}<td></td>{% endif %}</tr></tfoot>
+  </table>
+  </div>
+  {% if case.removed_positions %}
+  <details class="panel-body statement-removed">
+    <summary>{% blocktranslate count count=case.removed_positions|length %}{{ count }} position removed – not billed{% plural %}{{ count }} positions removed – not billed{% endblocktranslate %}</summary>
+    <ul>{% for position in case.removed_positions %}<li>{{ position.title }} · {{ position.quantity_value|number }} {{ position.unit }}{% if editable %} <button class="link-btn small" type="submit" name="action" value="restore:{{ case.case }}:{{ position.key }}">{% translate "Take it back in" %}</button>{% endif %}</li>{% endfor %}</ul>
+  </details>
+  {% endif %}
+  {% if editable %}
+  <fieldset class="panel-body statement-add">
+    <legend>{% translate "Add a position – material used or sold, a trip …" %}</legend>
+    <div class="statement-add-fields">
+      <div class="field"><label for="new-{{ case.case }}-article_number">{% translate "Article no." %}</label><input type="text" id="new-{{ case.case }}-article_number" name="new-{{ case.case }}-article_number" aria-describedby="new-{{ case.case }}-help"></div>
+      <div class="field grow"><label for="new-{{ case.case }}-title">{% translate "Title" %}</label><input type="text" id="new-{{ case.case }}-title" name="new-{{ case.case }}-title" maxlength="200"></div>
+      <div class="field"><label for="new-{{ case.case }}-quantity">{% translate "Quantity" %}</label><input type="text" inputmode="decimal" class="num" id="new-{{ case.case }}-quantity" name="new-{{ case.case }}-quantity" placeholder="1"></div>
+      <div class="field"><label for="new-{{ case.case }}-unit">{% translate "Unit" %}</label><input type="text" id="new-{{ case.case }}-unit" name="new-{{ case.case }}-unit" maxlength="20"></div>
+      <div class="field"><label for="new-{{ case.case }}-unit_price">{% translate "Unit price" %}</label><input type="text" inputmode="decimal" class="num" id="new-{{ case.case }}-unit_price" name="new-{{ case.case }}-unit_price"></div>
+      <div class="field"><label for="new-{{ case.case }}-tax_rate">{% translate "Tax rate" %}</label><select id="new-{{ case.case }}-tax_rate" name="new-{{ case.case }}-tax_rate"><option value="">{% translate "as the product, else the default" %}</option>{% for rate in tax_rates %}<option value="{{ rate.pk }}">{{ rate.name }}</option>{% endfor %}</select></div>
+    </div>
+    <p class="help" id="new-{{ case.case }}-help">{% translate "With an article number, title, unit, price and tax rate come from the product where you leave them empty – for a product for sale its sale price." %}</p>
+    <div class="btn-row">
+      <button class="btn secondary small" type="submit" name="action" value="add:{{ case.case }}">{% icon "plus" %}{% translate "Add position" %}</button>
+      <button class="link-btn danger small" type="submit" name="action" value="remove_case:{{ case.case }}" data-confirm="{% blocktranslate with number=case.number %}Take service case {{ number }} out of the statement? Its times and expenses are free again for another statement.{% endblocktranslate %}">{% translate "Take the case out of the statement" %}</button>
+    </div>
+  </fieldset>
+  {% endif %}
+</section>
+{% empty %}
+<section class="panel"><div class="empty"><strong>{% translate "The statement has no service cases." %}</strong>{% translate "“Collect again” takes the cases of the month that are not billed yet." %}</div></section>
+{% endfor %}
+
+<section class="panel statement-totals" aria-labelledby="statement-totals">
+  <div class="panel-head"><h2 id="statement-totals">{% translate "Totals" %}</h2></div>
+  <table class="table price-totals">
+    <tbody>
+    <tr><td>{% translate "Total net" %}</td><td class="num">{{ totals.net|money }}</td></tr>
+    {% for tax in totals.taxes %}<tr><td>{% blocktranslate with name=tax.name net=tax.net|money %}Tax {{ name }} on {{ net }}{% endblocktranslate %}</td><td class="num">{{ tax.tax|money }}</td></tr>{% endfor %}
+    <tr class="grand"><td>{% translate "Total gross" %}</td><td class="num">{{ totals.gross|money }}</td></tr>
+    </tbody>
+  </table>
+</section>
+
+{% if editable %}
+<div class="btn-row statement-actions">
+  <button class="btn secondary" type="submit" name="action" value="save">{% icon "check" %}{% translate "Save" %}</button>
+  <button class="btn secondary" type="submit" name="action" value="refresh" title="{% translate 'New times, expenses and cases of the month; activity texts, free positions and your changes stay.' %}">{% icon "refresh" %}{% translate "Collect again" %}</button>
+  {% if invoices_on %}
+  <button class="btn secondary" type="submit" name="action" value="preview" formtarget="_blank">{% icon "print" %}{% translate "Draft as PDF" %}</button>
+  <button class="btn" type="submit" name="action" value="invoice" data-confirm="{% translate 'Make the invoice now? It gets its number and is stored for good; the service cases count as invoiced.' %}">{% icon "invoice" %}{% translate "Make invoice" %}</button>
+  {% else %}
+  <button class="btn" type="submit" name="action" value="mark" data-confirm="{% translate 'Mark the statement as invoiced? Every service case of it gets “Invoice issued”.' %}">{% icon "check" %}{% translate "Mark as invoiced" %}</button>
+  {% endif %}
+</div>
+</form>
+{% endif %}
+{% if may_delete %}
+<form method="post" action="{% url 'documents:statement_delete' statement.pk %}" class="inline-form statement-delete">{% csrf_token %}<button class="link-btn danger" type="submit" data-confirm="{% translate 'Delete the draft? Its service cases, times and expenses are free again.' %}">{% icon "trash" %}{% translate "Delete draft" %}</button></form>
+{% endif %}
+
+{% if copy_rows %}
+{# DOK-014 off: the values for the other program – each copied by a click, as in the price overview (PRJ-035). #}
+<section class="panel statement-copy" aria-labelledby="statement-copy" data-copy-scope>
+  <div class="panel-head"><h2 id="statement-copy">{% translate "To copy into your accounting program" %}</h2><span class="muted small">{% translate "Click a value to copy it. Amounts are net." %}</span></div>
+  <div class="panel-body">
+    <dl class="facts">
+      <dt>{% translate "Customer" %}</dt><dd><span class="copy" data-copy="{{ statement.customer.name }}">{{ statement.customer.name }}</span> · <span class="copy" data-copy="{{ statement.customer.number }}">{{ statement.customer.number }}</span></dd>
+      <dt>{% translate "Month" %}</dt><dd><span class="copy" data-copy="{{ month_label }}">{{ month_label }}</span></dd>
+    </dl>
+    {% for case in cases %}
+    <h3><span class="copy" data-copy="{% blocktranslate with number=case.number title=case.title %}Service case {{ number }} – {{ title }}{% endblocktranslate %}">{% blocktranslate with number=case.number title=case.title %}Service case {{ number }} – {{ title }}{% endblocktranslate %}</span></h3>
+    {% if case.activity %}<p><span class="copy" data-copy="{{ case.activity }}">{{ case.activity|linebreaksbr }}</span></p>{% endif %}
+    <table class="table stack">
+      <thead><tr><th scope="col">{% translate "Title" %}</th><th scope="col" class="num">{% translate "Quantity" %}</th><th scope="col">{% translate "Unit" %}</th><th scope="col" class="num">{% translate "Unit price" %}</th><th scope="col">{% translate "Tax rate" %}</th><th scope="col" class="num">{% translate "Amount" %}</th></tr></thead>
+      <tbody>
+      {% for position in case.positions %}
+        <tr>
+          <td><span class="copy" data-copy="{{ position.title }}">{{ position.title }}</span>{% if position.details %}<div class="muted small"><span class="copy" data-copy="{{ position.details }}">{{ position.details }}</span></div>{% endif %}</td>
+          <td class="num" data-label="{% translate 'Quantity' %}"><span class="copy" data-copy="{{ position.quantity_value|number }}">{{ position.quantity_value|number }}</span></td>
+          <td data-label="{% translate 'Unit' %}"><span class="copy" data-copy="{{ position.unit }}">{{ position.unit }}</span></td>
+          <td class="num" data-label="{% translate 'Unit price' %}"><span class="copy" data-copy="{{ position.unit_price_value|money_plain }}">{{ position.unit_price_value|money }}</span></td>
+          <td data-label="{% translate 'Tax rate' %}"><span class="copy" data-copy="{{ position.tax_percent_value|number }}">{{ position.tax_name }}</span></td>
+          <td class="num" data-label="{% translate 'Amount' %}"><span class="copy" data-copy="{{ position.amount|money_plain }}">{{ position.amount|money }}</span></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% endfor %}
+    <table class="table price-totals">
+      <tbody>
+      <tr><td>{% translate "Total net" %}</td><td class="num"><span class="copy" data-copy="{{ totals.net|money_plain }}">{{ totals.net|money }}</span></td></tr>
+      {% for tax in totals.taxes %}<tr><td>{% blocktranslate with name=tax.name net=tax.net|money %}Tax {{ name }} on {{ net }}{% endblocktranslate %}</td><td class="num"><span class="copy" data-copy="{{ tax.tax|money_plain }}">{{ tax.tax|money }}</span></td></tr>{% endfor %}
+      <tr class="grand"><td>{% translate "Total gross" %}</td><td class="num"><span class="copy" data-copy="{{ totals.gross|money_plain }}">{{ totals.gross|money }}</span></td></tr>
+      </tbody>
+    </table>
+    <div class="btn-row">
+      <button class="btn secondary" type="button" data-copy-block="{{ copy_text }}" data-copied-text="{% translate 'Copied' %}" data-failed-text="{% translate 'Copying did not work.' %}">{% icon "copy" %}{% translate "Copy all positions as a table" %}</button>
+      <span class="visually-hidden" role="status" data-copy-status></span>
+    </div>
+    <div class="field">
+      <label for="statement-copy-table">{% translate "All positions, separated by tabs – for a spreadsheet or an import" %}</label>
+      <textarea id="statement-copy-table" rows="6" readonly>{{ copy_text }}</textarea>
+    </div>
+  </div>
+</section>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,4 @@
+{% if show %}{% if offer %}<div id="suggestions-offer" class="no-print" hx-get="{% url 'products:suggestions_panel' project.pk %}?offer=1" hx-trigger="load" hx-target="this" hx-swap="innerHTML"></div>
+{% else %}{# (R3-6) The panel is asked for 600 ms after the last change of the planning, one request at a time (a change that comes while one runs is asked for afterwards, once). It is no live region itself – it is swapped on every change; the status line below is, and the page script writes into it only when the number of suggestions changes. #}
+<div id="suggestions" class="no-print" hx-get="{% url 'products:suggestions_panel' project.pk %}" hx-trigger="load, planningChanged from:body delay:600ms" hx-sync="this:queue last" hx-target="this" hx-swap="innerHTML" hx-disinherit="hx-target hx-swap"></div>
+<p class="visually-hidden" role="status" aria-live="polite" data-suggestion-status></p>{% endif %}{% endif %}

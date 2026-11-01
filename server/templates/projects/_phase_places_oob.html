@@ -1,0 +1,7 @@
+{% comment %}
+  PRJ-120: a phase created with places in the dialog "Neue Phase …" over the planning – its open places
+  show at once. Out of band: the crew lines (not the crew add form, which keeps what was typed) and the totals, as the
+  patch after a crew change sends them (_planning_patch.html). Expects the context of the planning block.
+{% endcomment %}
+{% include "projects/_planning_crew_lines.html" with lines_oob=True %}
+{% include "projects/_planning_totals.html" with oob=True %}

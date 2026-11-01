@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% if address.pk %}{{ address }}{% else %}{% translate "New address" %}{% endif %}{% endblock %}
+{% block content %}
+<div class="page-head"><div><div class="breadcrumb"><a href="{% url 'customers:detail' customer.pk %}">{{ customer.name }}</a></div><h1>{% if address.pk %}{{ address }}{% else %}{% translate "New address" %}{% endif %}</h1>
+<p class="lead">{% translate "The address on the customer stays the main billing address. A project can name one of these instead." %}</p></div></div>
+<div class="panel"><div class="panel-body">
+  <form method="post" class="form wide" novalidate>
+    {% csrf_token %}
+    {% include "core/_form_errors.html" %}
+    <div class="form-grid">{% for field in form %}{% include "core/_field.html" %}{% endfor %}</div>
+    <div class="btn-row"><button class="btn" type="submit">{% translate "Save address" %}</button><a class="btn secondary" href="{% url 'customers:detail' customer.pk %}">{% translate "Cancel" %}</a></div>
+  </form>
+</div></div>
+{% if address.pk %}
+<form method="post" action="{% url 'customers:address_delete' customer.pk address.pk %}" class="section">{% csrf_token %}<button class="btn danger" type="submit" data-confirm="{% translate 'Delete this address?' %}">{% icon "trash" %}{% translate "Delete address" %}</button></form>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}{% translate "Duplicate project" %} {{ project.number }}{% endblock %}
+{% block content %}
+<div class="page-head"><div><div class="breadcrumb"><a href="{% url 'projects:detail' project.pk %}">{{ project.number }} {{ project.name }}</a></div><h1>{% translate "Duplicate project" %}</h1>
+<p class="lead">{% translate "A new project with customer, venue, notes and phases of this one, moved to the new period. The copy starts as an inquiry." %}</p></div></div>
+<div class="panel"><div class="panel-body">
+  <form method="post" class="form wide" novalidate>
+    {% csrf_token %}
+    {% include "core/_form_errors.html" %}
+    {% include "core/_field.html" with field=form.name %}
+    <div class="form-grid">
+      {% include "core/_field.html" with field=form.start %}
+      {% include "core/_field.html" with field=form.end %}
+    </div>
+    {% include "core/_field.html" with field=form.with_material %}
+    {% include "core/_field.html" with field=form.with_crew %}
+    {% include "core/_field.html" with field=form.with_logistics %}
+    {# PRJ-029, PRJ-044: a whole project comes with its parts; a part becomes a new part or a project of its own. #}
+    {% if "with_subprojects" in form.fields %}{% include "core/_field.html" with field=form.with_subprojects %}{% endif %}
+    {% if "as_subproject" in form.fields %}{% include "core/_field.html" with field=form.as_subproject %}
+    {% elif project.parent_id %}<p class="note">{% translate "The copy becomes a project of its own: you may not add subprojects to the whole project. Material taken over from other subprojects is planned as normal lines." %}</p>{% endif %}
+    <p class="muted small">{% translate "Lines with a period of their own keep their place relative to the start. People are not copied: who has time on the new dates is a new question." %}</p>
+    <div class="btn-row"><button class="btn" type="submit">{% translate "Create the copy" %}</button><a class="btn secondary" href="{% url 'projects:detail' project.pk %}">{% translate "Cancel" %}</a></div>
+  </form>
+</div></div>
+{% endblock %}

@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Material" %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>{% translate "Material management" %}</h1></div>
+  <div class="actions">{% include "material/_item_jump.html" %}{% if can.write.material %}<a class="btn" href="{% url 'material:model_create' %}">{% icon "plus" %}{% translate "New material model" %}</a><a class="btn secondary" href="{% url 'material:purchase' %}">{% icon "invoice" %}{% translate "Enter a purchase" %}</a>{% endif %}</div>
+</div>
+{# MAT-070: the items without product are the sub-tab "Material ohne Produkt" of "Offene Punkte". #}
+{% if open_points %}{% include "material/_tabs.html" with tab="open_points" %}{% include "material/_open_points_tabs.html" %}{% else %}{% include "material/_tabs.html" with tab="items" %}{% endif %}
+{% if open_points %}
+<p class="note">{% translate "Material without product cannot be planned in projects. Assign a product to the model, or to single items." %}</p>
+{% elif without_product_count %}
+<p class="note">{% blocktranslate count count=without_product_count %}{{ count }} item has no product and cannot be planned.{% plural %}{{ count }} items have no product and cannot be planned.{% endblocktranslate %} <a href="{% url 'material:open_without_product' %}">{% translate "Show them" %}</a></p>
+{% endif %}
+<div class="panel">
+  <form method="get" class="filters">
+    {% if request.GET.without_product and not open_points %}<input type="hidden" name="without_product" value="{{ request.GET.without_product }}">{% endif %}
+    <div class="field grow"><label for="f-q">{% translate "Name, ID or serial number" %}</label><input type="search" id="f-q" name="q" value="{{ request.GET.q }}"></div>
+    {% filterpanel "material-items" %}
+    <div class="field"><label for="f-category">{% translate "Category" %}</label>
+      <select id="f-category" name="category" data-autosubmit><option value="">{% translate "All" %}</option>{% for category in categories %}<option value="{{ category.pk }}"{% if request.GET.category == category.pk|stringformat:"s" %} selected{% endif %}>{{ category.path }}</option>{% endfor %}</select></div>
+    <div class="field"><label for="f-status">{% translate "Status" %}</label>
+      <select id="f-status" name="status" data-autosubmit><option value="">{% translate "All in use" %}</option>{% for value, label in statuses %}<option value="{{ value }}"{% if value in selected_statuses %} selected{% endif %}>{{ label|capfirst }}</option>{% endfor %}</select></div>
+    <div class="field"><label for="f-supplier">{% translate "Bought from" %}</label>
+      <select id="f-supplier" name="supplier" data-autosubmit><option value="">{% translate "All" %}</option>{% for supplier in suppliers %}<option value="{{ supplier.pk }}"{% if request.GET.supplier == supplier.pk|stringformat:"s" %} selected{% endif %}>{{ supplier }}</option>{% endfor %}</select></div>
+    {% if locations %}
+    <div class="field"><label for="f-location">{% translate "Storage location" %}</label>
+      <select id="f-location" name="storage_location" data-autosubmit><option value="">{% translate "All" %}</option>{% for location in locations %}<option value="{{ location.pk }}"{% if request.GET.storage_location == location.pk|stringformat:"s" %} selected{% endif %}>{{ location.path }}</option>{% endfor %}</select></div>
+    {% endif %}
+    {% include "customfields/_item_filters.html" %}{# MAT-073 #}
+    <button class="btn secondary" type="submit">{% translate "Filter" %}</button>
+    {% endfilterpanel %}
+  </form>
+  {% include "core/_table_tools.html" %}
+  {% if page.object_list %}
+  {% if bulk_form %}{% include "core/_table.html" with dense=True select="items" select_form="bulk-form" %}{% else %}{% include "core/_table.html" with dense=True %}{% endif %}
+  {% if bulk_form and page.object_list %}
+  {# MAT-029, MAT-026: tick items in the list, then change them together or print their labels. #}
+  {# UIX-048: after the list, shown only while items are ticked; it docks at the lower edge while scrolling. #}
+  <form method="post" action="{% url 'material:item_bulk_update' %}" id="bulk-form" class="bulk-bar no-print" autocomplete="off" data-bulk-bar="items" aria-label="{% translate 'Chosen items' %}" hidden>
+    {% csrf_token %}
+    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+    <span class="count"><span data-chosen-count="items">0</span> {% translate "chosen" %}</span>
+    <div class="field"><label for="{{ bulk_form.status.id_for_label }}">{{ bulk_form.status.label }}{% include "core/_required_mark.html" with field=bulk_form.status %}</label>{{ bulk_form.status }}</div>
+    <div class="field"><label for="{{ bulk_form.reason.id_for_label }}">{{ bulk_form.reason.label }}{% include "core/_required_mark.html" with field=bulk_form.reason %}</label>{{ bulk_form.reason }}</div>
+    <div class="field"><label for="{{ bulk_form.storage_location.id_for_label }}">{{ bulk_form.storage_location.label }}{% include "core/_required_mark.html" with field=bulk_form.storage_location %}</label>{{ bulk_form.storage_location }}</div>
+    <div class="field"><label for="{{ bulk_form.storage_spot.id_for_label }}">{{ bulk_form.storage_spot.label }}{% include "core/_required_mark.html" with field=bulk_form.storage_spot %}</label>{{ bulk_form.storage_spot }}</div>
+    <div class="field"><label for="{{ bulk_form.product.id_for_label }}">{{ bulk_form.product.label }}{% include "core/_required_mark.html" with field=bulk_form.product %}</label>{{ bulk_form.product }}</div>
+    {% include "core/_required_note.html" with form=bulk_form %}
+    <span class="bulk-buttons">
+      <button class="btn small" type="submit" name="action" value="change">{% translate "Change chosen items" %}</button>
+      <button class="btn secondary small" type="submit" name="action" value="labels" formnovalidate>{% icon "tag" %}{% translate "Labels" %}</button>
+      <button class="btn secondary small" type="button" data-bulk-clear="items">{% translate "Clear choice" %}</button>
+    </span>
+  </form>
+  {% endif %}
+  {% else %}
+  <div class="empty"><strong>{% translate "No material matches." %}</strong>{% translate "Change the filters, create a material model, or import your existing list." %}</div>
+  {% endif %}
+  {% include "core/_pagination.html" %}
+</div>
+{% endblock %}

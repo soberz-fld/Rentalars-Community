@@ -1,0 +1,4 @@
+{# The day columns of a timeline: weekday and date, weekends and today marked. Expects: days. #}
+<div class="tl-head" style="grid-template-columns: repeat({{ days|length }}, minmax(28px, 1fr))">
+  {% for day in days %}<div class="tl-day{% if day.weekday >= 5 %} weekend{% endif %}{% if day == today %} today{% endif %}"><span>{{ day|date:"D" }}</span>{{ day|date:"j.n." }}</div>{% endfor %}
+</div>

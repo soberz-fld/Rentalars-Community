@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}{% translate "New outgoing document" %}{% endblock %}
+{% block content %}
+{% comment %}The dialog "Neuer Ausgangsbeleg" on a page of its own – for browsers without the page script.{% endcomment %}
+<div class="page-head"><div>
+  <div class="breadcrumb"><a href="{% url 'documents:outgoing' %}">{% translate "Outgoing documents" %}</a></div>
+  <h1>{% translate "New outgoing document" %}</h1>
+  <p class="lead">{% translate "An offer, order confirmation or invoice for a customer without a project or service case. It is made as a draft first: you add the lines on the next page." %}</p>
+</div></div>
+<form method="post" class="form wide" novalidate>
+  {% csrf_token %}
+  {% include "core/_form_errors.html" %}
+  <div class="panel"><div class="panel-body">{% include "documents/_free_new_fields.html" %}</div></div>
+  <div class="btn-row"><button class="btn" type="submit">{% translate "Create draft" %}</button><a class="btn secondary" href="{% url 'documents:outgoing' %}">{% translate "Cancel" %}</a></div>
+</form>
+{% endblock %}

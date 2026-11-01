@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}{{ item.display_id }} {% translate "edit" %}{% endblock %}
+{% block content %}
+<div class="page-head"><div><div class="breadcrumb"><a href="{% url 'material:item_detail' item.pk %}">{{ item.display_id }} {{ item.material_model.name }}</a></div><h1><span class="tape">{{ item.display_id }}</span> {% translate "Edit item" %}</h1></div></div>
+<form method="post" class="form wide" novalidate>
+  {% csrf_token %}
+  {% include "core/_form_errors.html" %}
+  {# A serial number changed to one that exists already is confirmed with "Save anyway" #}
+  {% translate "Save anyway" as confirm_label %}{% include "material/_serial_warnings.html" %}
+  <div class="panel"><div class="panel-body">
+    <div class="form-grid">
+      {% include "core/_field.html" with field=form.serial_number %}
+      {% include "core/_field.html" with field=form.storage_location %}
+      {% include "core/_field.html" with field=form.storage_spot %}
+      {% if form.quantity %}{% include "core/_field.html" with field=form.quantity %}{% endif %}
+      {% include "core/_field.html" with field=form.product_override %}
+    </div>
+    {% include "core/_field.html" with field=form.note %}
+  </div></div>
+  {# MAT-013: what this item has different from its model. Shown so that saving keeps it. #}
+  <div class="panel">
+    <div class="panel-head"><h2>{% translate "Different from the model" %}</h2></div>
+    <div class="panel-body">
+      {% include "core/_field.html" with field=form.specification_override %}
+      {% if form.override_bound_fields %}<div class="form-grid">{% for field in form.override_bound_fields %}{% include "core/_field.html" %}{% endfor %}</div>{% endif %}
+      {% include "core/_field.html" with field=form.protection_class_override %}{# MAT-077 #}
+    </div>
+  </div>
+  <div class="panel">
+    <div class="panel-head"><h2>{% translate "Installed in" %}</h2></div>
+    <div class="panel-body form-grid">
+      <div class="field{% if form.installed_in_number.errors %} has-error{% endif %}">
+        <label for="{{ form.installed_in_number.id_for_label }}">{{ form.installed_in_number.label }}{% include "core/_required_mark.html" with field=form.installed_in_number %}</label>
+        <div class="typeahead" data-typeahead data-typeahead-free data-url="{% url 'material:item_suggest' %}">
+          <input type="search" data-typeahead-input id="{{ form.installed_in_number.id_for_label }}" value="{{ form.installed_in_number.value|default:'' }}" autocomplete="off" placeholder="{% translate 'Search by ID or name' %}">
+          <input type="hidden" name="{{ form.installed_in_number.html_name }}" data-typeahead-value value="{{ form.installed_in_number.value|default:'' }}">
+        </div>
+        <div class="help">{{ form.installed_in_number.help_text }}</div>
+        {{ form.installed_in_number.errors }}
+      </div>
+      {% include "core/_field.html" with field=form.connection_type %}
+      {% include "core/_field.html" with field=form.individually_rentable %}
+    </div>
+  </div>
+  <div class="panel">
+    <div class="panel-head"><h2>{% translate "Purchase" %}</h2></div>
+    <div class="panel-body form-grid">
+      {# MAT-050: the supplier typed with suggestions; invoice number and invoice date. MAT-060: "new supplier" opens a dialog. #}
+      {% url 'material:supplier_suggest' as supplier_url %}{% translate "Search or type a new name" as supplier_placeholder %}{% include "material/_name_typeahead.html" with field=form.supplier_name url=supplier_url placeholder=supplier_placeholder %}
+      {% include "core/_field.html" with field=form.supplier_article_number %}
+      {% include "core/_field.html" with field=form.invoice_number %}
+      {% include "core/_field.html" with field=form.purchase_date %}
+      {% include "material/_purchase_price.html" %}
+      {# MAT-054: bought as a set – the price is noted at another item, typed by its ID with suggestions; only with the right to see purchase prices. #}
+      {% if form.purchase_price_in_number %}
+      <div class="field{% if form.purchase_price_in_number.errors %} has-error{% endif %}">
+        <label for="{{ form.purchase_price_in_number.id_for_label }}">{{ form.purchase_price_in_number.label }}{% include "core/_required_mark.html" with field=form.purchase_price_in_number %}</label>
+        <div class="typeahead" data-typeahead data-typeahead-free data-url="{% url 'material:item_suggest' %}">
+          <input type="search" data-typeahead-input id="{{ form.purchase_price_in_number.id_for_label }}" value="{{ form.purchase_price_in_number.value|default:'' }}" autocomplete="off" placeholder="{% translate 'Search by ID or name' %}">
+          <input type="hidden" name="{{ form.purchase_price_in_number.html_name }}" data-typeahead-value value="{{ form.purchase_price_in_number.value|default:'' }}">
+        </div>
+        <div class="help">{{ form.purchase_price_in_number.help_text }}</div>
+        {{ form.purchase_price_in_number.errors }}
+      </div>
+      {% endif %}
+      {% include "core/_field.html" with field=form.purchase_note %}
+    </div>
+  </div>
+  {# MAT-073: the values of the fields of the model's fieldset #}
+  {% include "customfields/_value_fields.html" %}
+  <div class="btn-row"><button class="btn" type="submit">{% translate "Save item" %}</button><a class="btn secondary" href="{% if back %}{{ back }}{% else %}{% url 'material:item_detail' item.pk %}{% endif %}">{% translate "Cancel" %}</a></div>{# MAT-079: back where the form was opened from, e.g. the audit mode #}
+</form>
+{% endblock %}

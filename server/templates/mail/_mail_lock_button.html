@@ -1,0 +1,3 @@
+{% load i18n rentalars %}{% comment %}
+  EML-055: the button on the page of one message that puts the lock on or takes it away. Expects: mail.
+{% endcomment %}<form method="post" action="{% url 'mail:lock' mail.project_id mail.pk %}" class="inline-form no-print">{% csrf_token %}<input type="hidden" name="locked" value="{% if mail.locked %}0{% else %}1{% endif %}"><button class="btn secondary small" type="submit">{% icon "lock" %}{% if mail.locked %}{% translate "Take the lock off" %}{% else %}{% translate "Put a lock on" %}{% endif %}</button></form>

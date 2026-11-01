@@ -1,0 +1,7 @@
+{% load i18n %}{# MAT-072: the fieldset in the form of a material model. Expects: fieldset_form. #}
+{% if fieldset_form and fieldset_form.offered %}
+<section class="panel" aria-labelledby="fieldset-choice-head">
+  <div class="panel-head"><h2 id="fieldset-choice-head">{% translate "Custom fields of the items" %}</h2></div>
+  <div class="panel-body">{% include "core/_field.html" with field=fieldset_form.fieldset %}</div>
+</section>
+{% endif %}

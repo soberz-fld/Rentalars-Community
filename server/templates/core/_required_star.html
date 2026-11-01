@@ -1,0 +1,5 @@
+{% comment %}
+  UIX-051 (UIX-035): the asterisk behind the label of a field written by hand in a template – a field
+  whose input carries "required" itself. Hidden from screen readers, which hear "required" at the field. A field of a
+  Django form uses core/_required_mark.html instead, which asks the form.
+{% endcomment %} <span class="required" aria-hidden="true">*</span>

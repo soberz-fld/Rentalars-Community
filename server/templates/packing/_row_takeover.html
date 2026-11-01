@@ -1,0 +1,27 @@
+{% load i18n rentalars %}
+{% comment %}
+  PRJ-060: material that goes straight from one subproject to the next. Included in every packlist row.
+  A takeover row (line T of part B) names where its pieces come from, how many arrived, and books the
+  handover; a row whose pieces go on (line S of part A) names where they go and how many went.
+{% endcomment %}
+{% if row.takeover_from %}
+<div class="meta takeover"><span class="badge accent">{% blocktranslate with number=row.takeover_from.project.number name=row.takeover_from.project.name %}Taken over from {{ number }} {{ name }}{% endblocktranslate %}</span><span>{% translate "not from the warehouse" %}</span>{% if row.awaiting_handover %}<span>{% blocktranslate with handed=row.issued|number total=row.required|number %}{{ handed }} of {{ total }} handed over{% endblocktranslate %}</span>{% else %}<span class="badge green">{% translate "handed over" context "packlist" %}</span>{% endif %}</div>
+{% endif %}
+{% if row.handovers %}
+<ul class="handover-bookings">
+  {% for booking in row.handovers %}
+  <li>{% blocktranslate with count=booking.quantity|number number=booking.from_project.number date=booking.at|date:"d.m. H:i" %}{{ count }} from {{ number }} arrived on {{ date }}{% endblocktranslate %}{% if booking.by %} · {{ booking.by }}{% endif %}
+    {% if forloop.last and can_pack and packlist.status != "returned" %}<form class="inline-form no-print" hx-post="{{ base }}undo-handover/" hx-target="#packlist" hx-swap="outerHTML"><input type="hidden" name="handover" value="{{ booking.handover_id }}"><input type="hidden" name="view_mode" value="{{ mode }}"><button class="link-btn" type="submit" data-confirm="{% translate 'Take back this handover? The pieces then count as still with the other subproject.' %}">{% translate "take back" %}</button></form>{% endif %}</li>
+  {% endfor %}
+</ul>
+{% endif %}
+{% if row.takeover_from and row.awaiting_handover and can_pack and packlist.status != "returned" %}
+<form class="handover-form no-print" hx-post="{{ base }}handover/" hx-target="#packlist" hx-swap="outerHTML" autocomplete="off">
+  <input type="hidden" name="line" value="{{ row.line.pk }}"><input type="hidden" name="product" value="{{ row.product.pk }}"><input type="hidden" name="view_mode" value="{{ mode }}">
+  <label>{% translate "Arrived" %} <input type="number" name="quantity" value="{{ row.awaiting_handover|floatformat:'0' }}" min="1" max="{{ row.awaiting_handover|floatformat:'0' }}"></label>
+  <button class="btn secondary small" type="submit">{% icon "box-in" %}{% translate "Book the handover" %}</button>
+</form>
+{% endif %}
+{% for passing in row.passes_on %}
+<div class="meta passes-on"><span class="badge accent">{% blocktranslate with quantity=passing.planned|number number=passing.project.number name=passing.project.name %}{{ quantity }} go on to {{ number }} {{ name }}{% endblocktranslate %}</span>{% if passing.handed %}<span>{% blocktranslate with count=passing.handed|number %}{{ count }} handed over{% endblocktranslate %}</span>{% elif packlist.is_issued %}<span>{% translate "handover not booked yet" %}</span>{% endif %}</div>
+{% endfor %}

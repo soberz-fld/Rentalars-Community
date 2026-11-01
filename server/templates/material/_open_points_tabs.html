@@ -1,0 +1,10 @@
+{% load i18n %}
+{% comment %}
+  MAT-070: the sub-tabs of Materialverwaltung → Offene Punkte, each with
+  the number of its entries. Expects: sub_tab, open_counts (material.audits.open_point_counts).
+{% endcomment %}
+<nav class="tabs sub" aria-label="{% translate 'Open points' %}">
+  <a href="{% url 'material:open_without_product' %}"{% if sub_tab == "without_product" %} aria-current="page"{% endif %}>{% translate "Material without product" %}{% if open_counts.without_product %} <span class="badge accent">{{ open_counts.without_product }}</span>{% endif %}</a>
+  <a href="{% url 'material:open_todos' %}"{% if sub_tab == "todos" %} aria-current="page"{% endif %}>{% translate "Material with to-do" %}{% if open_counts.todos %} <span class="badge accent">{{ open_counts.todos }}</span>{% endif %}</a>
+  <a href="{% url 'material:open_audits' %}"{% if sub_tab == "audits" %} aria-current="page"{% endif %}>{% translate "Audit due" %}{% if open_counts.audits %} <span class="badge accent">{{ open_counts.audits }}</span>{% endif %}</a>
+</nav>

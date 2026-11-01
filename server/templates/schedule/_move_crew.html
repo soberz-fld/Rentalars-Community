@@ -1,0 +1,9 @@
+{% load i18n %}
+{# VFG-026: the crew lines a move takes along – before and after, who is asked again (PER-034), warnings (PRJ-022). Expects: crew. #}
+<ul class="move-list move-crew">
+  {% for change in crew %}
+  <li>{% blocktranslate trimmed with who=change.who function=change.line.job_function old=change.before new=change.after %}{{ who }} ({{ function }}): before {{ old }}, now {{ new }}{% endblocktranslate %}{% if change.asked_again is not None %} – <strong>{% translate "is asked again" %}</strong>{% endif %}
+    {% for warning in change.warnings %}<div class="move-warning">{{ warning }}</div>{% endfor %}
+  </li>
+  {% endfor %}
+</ul>

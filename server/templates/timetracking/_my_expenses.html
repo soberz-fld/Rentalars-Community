@@ -1,0 +1,46 @@
+{% load i18n rentalars %}
+{# ZEI-019: the own expenses of one month. Fetches itself again whenever an expense was recorded or changed in a dialog. #}
+<div id="my-expenses" hx-get="{% url 'timetracking:my_expenses' %}?month={{ month|date:'Y-m' }}{% for name, value in table.kept_parameters %}{% if name != "month" %}&amp;{{ name|urlencode }}={{ value|urlencode }}{% endif %}{% endfor %}{% if table.group %}&amp;{{ table.group_param }}={{ table.group.key }}{% endif %}" hx-trigger="expensesChanged from:body" hx-target="this" hx-swap="outerHTML">
+{% if not person %}
+  <div class="panel"><div class="empty"><strong>{% translate "Your user account is not linked to a person." %}</strong>{% translate "Expenses are recorded for people. Ask personnel planning to link your account in the personnel data." %}</div></div>
+{% else %}
+  {% if open_expenses %}
+  <div class="panel">
+    <div class="panel-head"><h2>{% translate "Not handed in yet" %}</h2>
+      {% if can_record %}<form method="post" action="{% url 'timetracking:expense_submit' %}">{% csrf_token %}<button class="btn small" type="submit">{% translate "Hand in all" %}</button></form>{% endif %}
+    </div>
+    <table class="table stack">
+      <tbody>
+      {% for expense in open_expenses %}
+        <tr>
+          <td>{{ expense.date|date:"D d.m.Y" }}<div class="muted small">{{ expense.get_kind_display }}</div></td>
+          <td>{{ expense.project }}{% if expense.note %}<div class="muted small">{{ expense.note }}</div>{% endif %}{% if expense.status == "rejected" %}<div class="sub wish-warning">{% translate "Sent back" %}: {{ expense.rejection_reason }}</div>{% endif %}</td>
+          <td class="num">{{ expense.amount|money }}</td>
+          <td class="actions">{% if can_record %}<button class="icon-btn" type="button" hx-get="{% url 'timetracking:expense_edit' expense.pk %}" hx-target="#dialog" aria-label="{% translate 'Edit expense' %}" title="{% translate 'Edit expense' %}">{% icon "edit" %}</button>{% endif %}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  <div class="panel">
+    <div class="panel-head">
+      <h2>{% blocktranslate with month=month|date:"F Y" %}Expenses in {{ month }}{% endblocktranslate %}</h2>
+      <span class="btn-row no-print">
+        <a class="btn secondary small" href="?month={{ previous_month|date:'Y-m' }}">‹ {% translate "earlier" %}</a>
+        {% if not is_current_month %}<a class="btn secondary small" href="{% url 'timetracking:my_expenses' %}">{% translate "This month" %}</a>{% endif %}
+        <a class="btn secondary small" href="?month={{ next_month|date:'Y-m' }}">{% translate "later" %} ›</a>
+      </span>
+    </div>
+    {% if report.expenses %}
+    {# UIX-040: a table of core/tables.py (timetracking/expense_list_tables.py): columns, sorting, groups, CSV. #}
+    {% include "core/_table_tools.html" %}
+    {% include "core/_table.html" with stack=True %}
+    <p class="panel-body expense-month-sum"><strong>{% translate "Sum of the month" %}: {{ report.total|money }}</strong>{% if report.reimbursed %} <span class="muted small">{% blocktranslate with amount=report.reimbursed|money %}{{ amount }} reimbursed{% endblocktranslate %}</span>{% endif %}</p>
+    {% else %}
+    <div class="empty"><strong>{% translate "No expenses in this month." %}</strong>{% if can_record %}{% translate "Meals, trips, nights and parking are recorded with “Record expenses”, also on the phone with a photo of the receipt." %}{% endif %}</div>
+    {% endif %}
+  </div>
+{% endif %}
+</div>

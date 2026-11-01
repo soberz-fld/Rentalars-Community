@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}{% translate "Follow-up" %} – {{ case.number }}{% endblock %}
+{% block content %}
+{# PRJ-112: the follow-up dialog of a status as a page of its own, without the page script. #}
+<div class="page-head"><div><div class="breadcrumb"><a href="{% url 'projects:case_detail' case %}">{{ case.number }} {{ case.name }}</a></div><h1>{% translate "Follow-up" %}</h1></div></div>
+<div class="panel dialog-page">{% include "projects/_case_status_form.html" %}</div>
+{% endblock %}

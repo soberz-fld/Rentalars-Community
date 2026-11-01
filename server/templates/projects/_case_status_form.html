@@ -1,0 +1,29 @@
+{% load i18n rentalars %}
+{% comment %}
+  PRJ-112: a status of a service case that needs a follow-up – the follow-up dialog ("Wiedervorlage", PRJ-105) with
+  the status. "Waiting" asks what the case waits for, "Waiting to close" the time as well. The status is saved only
+  together with the follow-up.
+{% endcomment %}
+<form method="post" action="{% url 'projects:case_status' case %}" hx-post="{% url 'projects:case_status' case %}" hx-target="#dialog" novalidate class="case-status-dialog">
+  {% csrf_token %}<input type="hidden" name="with_follow_up" value="1">{{ form.case_status }}
+  <div class="dialog-head"><h2>{% translate "Follow-up" %}</h2><button type="button" class="icon-btn" data-close-dialog aria-label="{% translate 'Close' %}">{% icon "close" %}</button></div>
+  <div class="dialog-body form">
+    <p class="case-status-intro">
+      {% if status == "waiting" %}{% translate "The service case waits. On the day of the follow-up the person gets a notification." %}
+      {% elif status == "closing" %}{% translate "The service case is closed at the day and time below if nothing happens in it until then. A new mail or chat message sets it to “Open” again." %}
+      {% else %}{% translate "Until the follow-up is due, the service case shows only under Projects → Service cases – not on the start page, under My area or Planning → Follow-ups. Then it is open again." %}{% endif %}
+    </p>
+    {% include "core/_form_errors.html" %}
+    {% if form.case_waiting_for %}{% include "core/_field.html" with field=form.case_waiting_for %}{% endif %}
+    <div class="form-grid">
+      {% include "core/_field.html" with field=form.follow_up_on %}
+      {% include "core/_field.html" with field=form.follow_up_at %}
+      {% include "core/_field.html" with field=form.follow_up_user %}
+    </div>
+    {% include "core/_field.html" with field=form.follow_up_note %}
+  </div>
+  <div class="dialog-foot">
+    <button type="button" class="btn secondary" data-close-dialog data-href="{% url 'projects:case_detail' case %}">{% translate "Cancel" %}</button>
+    <button type="submit" class="btn">{% if status == "waiting" %}{% translate "Set to waiting" %}{% elif status == "closing" %}{% translate "Set to waiting to close" %}{% else %}{% translate "Move to the backlog" %}{% endif %}</button>
+  </div>
+</form>

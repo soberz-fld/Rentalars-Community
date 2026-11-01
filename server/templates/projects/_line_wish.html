@@ -1,0 +1,4 @@
+{% load i18n %}{% comment %}
+  The wish of a line for a model or an item, with its warnings (PRJ-064). Expects: planned, t_wish. Shown by _lines.html, and
+  by _planning_stock.html when the stock changed under an open planning page (stock refresh; UIX-056): the warnings depend on it.
+{% endcomment %}{% if planned.wish %}<div class="sub wish">{{ t_wish }}: {{ planned.wish.label }}{% if planned.wish.share %} – {{ planned.wish.share }}{% endif %}</div>{% for warning in planned.wish.warnings %}<div class="sub wish-warning">{{ warning }}</div>{% endfor %}{% endif %}

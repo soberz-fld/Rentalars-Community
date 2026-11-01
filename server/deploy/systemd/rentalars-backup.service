@@ -1,0 +1,17 @@
+# Writes one backup of database and files (NFA-015). Started every night by
+# rentalars-backup.timer; can also be started by hand:
+#   sudo systemctl start rentalars-backup
+
+[Unit]
+Description=Rentalars – Sicherung von Datenbank und Dateien
+# The database may also be on another server (NFA-066); then there is no
+# mariadb.service here, and "Wants" simply finds nothing to start.
+After=network-online.target mariadb.service
+Wants=network-online.target mariadb.service
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash /opt/rentalars/app/deploy/backup.sh
+# A backup must not slow down people who are working.
+Nice=10
+IOSchedulingClass=idle

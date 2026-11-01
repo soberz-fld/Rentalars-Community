@@ -1,0 +1,112 @@
+{% load i18n rentalars discount_tags %}
+{% comment %}
+  The blocks of one project in the price overview (PRJ-035, PRJ-036): its groups, the lines without group, the
+  personnel and the surcharges. Expects: planning, with_lines, heading_base (2 on a project of its own; 3 inside the
+  block of a whole project's own lines or of a subproject, PRJ-046); crew_by_phase and show_personnel_costs for the
+  personnel by phase and job function (PRJ-088).
+{% endcomment %}
+{# PRJ-037: top-level groups; each brings its subgroups along inside its panel. #}
+{% for group in planning.root_groups %}{% include "projects/_price_group.html" %}{% endfor %}
+
+{% if planning.ungrouped %}
+<section class="panel">
+  <div class="panel-head"><h{{ heading_base }}>{% translate "Without group" %}</h{{ heading_base }}><strong class="num"><span class="copy" data-copy="{{ planning.prices.ungrouped_total|money_plain }}">{{ planning.prices.ungrouped_total|money }}</span></strong></div>
+  {% if with_lines %}{% include "projects/_price_lines.html" with lines=planning.ungrouped %}{% else %}{% include "projects/_price_summary.html" with summary=planning.ungrouped_summary %}{% endif %}
+</section>
+{% endif %}
+
+{% if planning.prices.crew %}
+{# PRJ-038: personnel is a block of its own. Only what the customer pays – no hourly rate of anybody (AUT-019). #}
+<section class="panel">
+  <div class="panel-head"><h{{ heading_base }}>{% translate "Personnel" %}</h{{ heading_base }}><strong class="num"><span class="copy" data-copy="{{ planning.prices.personnel_total|money_plain }}">{{ planning.prices.personnel_total|money }}</span></strong></div>
+  {% if crew_by_phase %}
+  {# PRJ-088: per phase one row per job function and a subtotal; the lines without phase last. Costs need their right (AUT-019). #}
+  <table class="table stack price-lines crew-by-phase">
+    <thead><tr><th>{% translate "Job function" %}</th><th class="num">{% translate "Places" %}</th><th class="num">{% translate "Hours or days" %}</th><th class="num">{% translate "Amount" %}</th>{% if show_personnel_costs %}<th class="num">{% translate "Costs" %}</th><th class="num">{% translate "Profit" %}</th>{% endif %}</tr></thead>
+    {% for block in planning.crew_by_phase %}
+    <tbody data-crew-phase="{% if block.phase %}{{ block.phase.pk }}{% else %}none{% endif %}">
+      <tr class="crew-phase-head"><th colspan="{% if show_personnel_costs %}6{% else %}4{% endif %}"><span class="copy" data-copy="{{ block.label }}">{{ block.label }}</span>{% if block.phase %} <span class="muted small">{{ block.phase.start|date:"D d.m. H:i" }} – {{ block.phase.end|date:"D d.m. H:i" }}</span>{% endif %}</th></tr>
+      {% for row in block.functions %}
+      <tr>
+        <td><span class="copy" data-copy="{{ row.job_function.name }}">{{ row.job_function.name }}</span></td>
+        <td class="num" data-label="{% translate 'Places' %}">{{ row.places }}</td>
+        <td class="num" data-label="{% translate 'Hours or days' %}"><span class="copy" data-copy="{{ row.scope }}">{{ row.scope }}</span></td>
+        <td class="num" data-label="{% translate 'Amount' %}"><span class="copy" data-copy="{{ row.amount|money_plain }}">{{ row.amount|money }}</span></td>
+        {% if show_personnel_costs %}<td class="num" data-label="{% translate 'Costs' %}">{{ row.cost|money }}</td><td class="num" data-label="{% translate 'Profit' %}">{{ row.margin|money }}</td>{% endif %}
+      </tr>
+      {% endfor %}
+      <tr class="subtotal-row">
+        <td>{% blocktranslate with phase=block.label %}Subtotal {{ phase }}{% endblocktranslate %}</td>
+        <td class="num" data-label="{% translate 'Places' %}">{{ block.places }}</td>
+        <td></td>
+        <td class="num" data-label="{% translate 'Amount' %}"><span class="copy" data-copy="{{ block.amount|money_plain }}">{{ block.amount|money }}</span></td>
+        {% if show_personnel_costs %}<td class="num" data-label="{% translate 'Costs' %}">{{ block.cost|money }}</td><td class="num" data-label="{% translate 'Profit' %}">{{ block.margin|money }}</td>{% endif %}
+      </tr>
+    </tbody>
+    {% endfor %}
+  </table>
+  {% elif with_lines %}
+  <table class="table stack price-lines">
+    <colgroup><col class="p-art"><col><col class="p-qty"><col class="p-unit"><col class="p-price"><col class="p-disc"><col class="p-amount"></colgroup>
+    <thead><tr><th>{% translate "Article no." %}</th><th>{% translate "Name" %}</th><th class="num">{% translate "Quantity" %}</th><th>{% translate "Unit" %}</th><th class="num">{% translate "Unit price" %}</th><th class="num">{% translate "Discount" %}</th><th class="num">{% translate "Amount" %}</th></tr></thead>
+    <tbody>
+    {% for price in planning.prices.crew %}{% with line=price.line %}
+      <tr>
+        <td data-label="{% translate 'Article no.' %}">{% if line.service_product %}<span class="copy" data-copy="{{ line.service_product.article_number }}">{{ line.service_product.article_number }}</span>{% endif %}</td>
+        <td><span class="copy" data-copy="{{ line.title }}">{{ line.title }}</span>{% if price.is_estimate %} <span class="badge yellow">{% translate "estimate" %}</span>{% endif %}<div class="muted small">{{ line.start|date:"D d.m. H:i" }} – {{ line.end|date:"D d.m. H:i" }}</div></td>
+        <td class="num" data-label="{% translate 'Quantity' %}"><span class="copy" data-copy="{{ price.quantity|number }}">{{ price.quantity|number }}</span></td>
+        <td data-label="{% translate 'Unit' %}">{% if price.unit_kind == "flat" %}{% translate "flat" %}{% elif price.unit_kind == "day" %}{% translate "day" %}{% else %}{% translate "h" %}{% endif %}</td>
+        <td class="num" data-label="{% translate 'Unit price' %}"><span class="copy" data-copy="{{ line.unit_price|money_plain }}">{{ line.unit_price|money }}</span>{% if price.has_hours_above_limit %}<div class="muted small hour-tier">{% blocktranslate with hours=price.hours_above_limit|number limit=price.hours_limit|number price=price.unit_price_above_limit|money %}{{ hours }} h beyond {{ limit }} h a day at {{ price }}{% endblocktranslate %}</div>{% endif %}{% if price.has_time_surcharges %}<div class="muted small">{% include "projects/_time_surcharges.html" with parts=price.time_surcharges amount=price.time_surcharge_amount %}</div>{% endif %}</td>
+        <td class="num" data-label="{% translate 'Discount' %}">{% if price.discount_percent %}{{ price.discount_percent|number }} %{% endif %}{% if price.discount_is_capped %}<div class="muted small">{% blocktranslate with percent=price.max_discount_percent|number %}at most {{ percent }} % (job function){% endblocktranslate %}</div>{% endif %}</td>
+        <td class="num" data-label="{% translate 'Amount' %}"><span class="copy" data-copy="{{ price.amount|money_plain }}">{{ price.amount|money }}</span></td>
+      </tr>
+    {% endwith %}{% endfor %}
+    </tbody>
+  </table>
+  {% else %}{% include "projects/_price_summary.html" with summary=planning.crew_summary %}
+  {% endif %}
+  {# PER-009: the surcharges for night, Sunday and holidays in the personnel, before discounts. #}
+  {% if planning.prices.personnel_time_surcharges %}<div class="panel-body muted small" data-personnel-time-surcharges>{% blocktranslate with amount=planning.prices.personnel_time_surcharges|money %}Included: surcharges for night, Sunday and holidays of {{ amount }} (before discounts).{% endblocktranslate %}</div>{% endif %}
+</section>
+{% endif %}
+
+{% if planning.prices.logistics %}
+{# LOG-009: the logistics as a block of its own after material and personnel – what the customer pays. #}
+<section class="panel" data-price-logistics>
+  <div class="panel-head"><h{{ heading_base }}>{% translate "Logistics" %}</h{{ heading_base }}><strong class="num"><span class="copy" data-copy="{{ planning.prices.logistics_total|money_plain }}">{{ planning.prices.logistics_total|money }}</span></strong></div>
+  {% if with_lines %}
+  <table class="table stack price-lines">
+    <colgroup><col class="p-art"><col><col class="p-qty"><col class="p-unit"><col class="p-price"><col class="p-disc"><col class="p-amount"></colgroup>
+    <thead><tr><th>{% translate "Article no." %}</th><th>{% translate "Name" %}</th><th class="num">{% translate "Quantity" %}</th><th>{% translate "Unit" %}</th><th class="num">{% translate "Unit price" %}</th><th class="num">{% translate "Discount" %}</th><th class="num">{% translate "Amount" %}</th></tr></thead>
+    <tbody>
+    {% for price in planning.prices.logistics %}{% with line=price.line %}
+      <tr>
+        <td data-label="{% translate 'Article no.' %}"><span class="copy" data-copy="{{ line.product.article_number }}">{{ line.product.article_number }}</span></td>
+        <td><span class="copy" data-copy="{{ line.label }}">{{ line.label }}</span>{% if price.is_estimate %} <span class="badge yellow">{% translate "estimate" %}</span>{% endif %}<div class="muted small">{{ line.start|date:"D d.m. H:i" }} – {{ line.end|date:"D d.m. H:i" }}{% if price.surcharge_total %} · {% blocktranslate with amount=price.surcharge_total|money %}of which trailer surcharge {{ amount }}{% endblocktranslate %}{% endif %}</div></td>
+        <td class="num" data-label="{% translate 'Quantity' %}"><span class="copy" data-copy="{{ price.quantity|number }}">{{ price.quantity|number }}</span></td>
+        <td data-label="{% translate 'Unit' %}">{% if price.unit_kind == "day" %}{% translate "day" %}{% elif price.unit_kind == "km" %}km{% else %}{% translate "flat" %}{% endif %}</td>
+        <td class="num" data-label="{% translate 'Unit price' %}">{% if price.unit_price is None %}<span class="muted">{% translate "several rates" %}</span>{% else %}<span class="copy" data-copy="{{ price.unit_price|money_plain }}">{{ price.unit_price|money }}</span>{% endif %}{% if price.scale_factor and price.scale_factor != 1 %}<div class="muted small">{% translate "factor" %} {{ price.scale_factor|number }}</div>{% endif %}</td>
+        <td class="num" data-label="{% translate 'Discount' %}">{% if price.discount_percent %}{{ price.discount_percent|number }} %{% endif %}{% if price.discount_is_capped %}<div class="muted small">{% blocktranslate with percent=price.max_discount_percent|number %}at most {{ percent }} % (product){% endblocktranslate %}</div>{% endif %}</td>
+        <td class="num" data-label="{% translate 'Amount' %}"><span class="copy" data-copy="{{ price.amount|money_plain }}">{{ price.amount|money }}</span></td>
+      </tr>
+    {% endwith %}{% endfor %}
+    </tbody>
+  </table>
+  {% else %}{% include "projects/_price_summary.html" with summary=planning.logistics_summary %}
+  {% endif %}
+</section>
+{% endif %}
+
+{% if planning.surcharges %}
+<section class="panel">
+  <div class="panel-head"><h{{ heading_base }}>{% translate "Surcharges" %}</h{{ heading_base }}><strong class="num"><span class="copy" data-copy="{{ planning.prices.surcharges_total|money_plain }}">{{ planning.prices.surcharges_total|money }}</span></strong></div>
+  {% if with_lines %}{% include "projects/_price_lines.html" with lines=planning.surcharges %}{% else %}{% include "projects/_price_summary.html" with summary=planning.surcharges_summary %}{% endif %}
+</section>
+{% endif %}
+
+{# PRJ-123: the overall discount of the project, taken off the sum of everything above. #}
+{% if planning.prices.overall_discount %}
+<section class="panel">
+  <div class="panel-head"><h{{ heading_base }}>{% translate "Overall discount" %}{% if planning.prices.project.overall_discount_percent %} {{ planning.prices.project.overall_discount_percent|percent_places }} %{% endif %}</h{{ heading_base }}><strong class="num"><span class="copy" data-copy="-{{ planning.prices.overall_discount|money_plain }}">− {{ planning.prices.overall_discount|money }}</span></strong></div>
+</section>
+{% endif %}

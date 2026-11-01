@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Security log" %}{% endblock %}
+{% block content %}
+<div class="page-head"><div><div class="breadcrumb"><a href="{% url 'core:administration' %}">{% translate "Settings" %}</a></div><h1>{% translate "Security log" %}</h1>
+<p class="lead">{% translate "Logins, failed logins, second factor and sessions; below, the changes to users, roles and tokens." %}</p></div></div>
+<div class="panel">
+  <form method="get" class="filters">
+    <div class="field grow"><label for="f-q">{% translate "Name or IP address" %}</label><input type="search" id="f-q" name="q" value="{{ q }}"></div>
+    {% filterpanel "security-log" %}
+    <div class="field"><label for="f-kind">{% translate "Event" %}</label><select id="f-kind" name="kind" data-autosubmit><option value="">{% translate "all" %}</option>{% for value, label in kinds %}<option value="{{ value }}"{% if value == kind %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+    <button class="btn secondary" type="submit">{% translate "Filter" %}</button>
+    {% endfilterpanel %}
+  </form>
+  {# UIX-040: a table of core/tables.py (accounts/tables.py). #}
+  {% include "core/_table_tools.html" %}
+  {% if rows %}
+  {% include "core/_table.html" with stack=True %}
+  {% else %}<div class="empty">{% translate "No entries." %}</div>{% endif %}
+  {% include "core/_pagination.html" %}
+</div>
+<section class="panel">
+  <div class="panel-head"><h2>{% translate "Changes to users, roles and tokens" %}</h2><a class="btn secondary small" href="{% url 'core:audit_log' %}">{% translate "Change log" %}</a></div>
+  <div class="panel-body">{% include "core/_history.html" with history=changes %}</div>
+</section>
+{% endblock %}

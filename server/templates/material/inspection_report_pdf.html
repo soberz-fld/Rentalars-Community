@@ -1,0 +1,91 @@
+{% load i18n rentalars %}<!doctype html>
+{% get_current_language as LANGUAGE_CODE %}<html lang="{% if LANGUAGE_CODE == 'en' %}en-GB{% else %}{{ LANGUAGE_CODE }}{% endif %}">
+<head>
+<meta charset="utf-8">
+<title>{% translate "Test report" %} {{ item.display_id }}</title>
+<style>
+  /* The protocol of an electrical inspection (MAT-078). Rendered to PDF by WeasyPrint. */
+  @font-face { font-family: "Barlow"; font-weight: 400; src: url("{{ fonts.regular }}"); }
+  @font-face { font-family: "Barlow"; font-weight: 600; src: url("{{ fonts.semibold }}"); }
+  @font-face { font-family: "Barlow Condensed"; font-weight: 600; src: url("{{ fonts.condensed }}"); }
+  @page {
+    size: A4; margin: 16mm 16mm 18mm;
+    @bottom-left { content: "{% translate 'Test report' %} {{ item.display_id }} – {{ inspection.date|date:'d.m.Y' }}"; font: 8pt "Barlow"; color: #555; }
+    @bottom-right { content: "{% translate 'Printed' %} {{ printed_at|date:'d.m.Y H:i' }}"; font: 8pt "Barlow"; color: #555; }
+  }
+  body { font-family: "Barlow", sans-serif; font-size: 10pt; color: #111; line-height: 1.35; }
+  h1 { font-family: "Barlow Condensed", sans-serif; font-size: 22pt; margin: 0; line-height: 1.05; }
+  h2 { font-family: "Barlow Condensed", sans-serif; font-size: 13pt; margin: 6mm 0 1.5mm; border-bottom: 0.5pt solid #999; padding-bottom: 0.5mm; }
+  .head { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1.5pt solid #111; padding-bottom: 4mm; margin-bottom: 4mm; }
+  .head .company { text-align: right; font-size: 9pt; color: #444; }
+  .head .company img { max-height: 16mm; max-width: 50mm; display: block; margin: 0 0 2mm auto; }
+  .standard { color: #444; font-size: 9pt; margin-top: 1mm; }
+  .facts { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5mm 8mm; }
+  .facts div span { color: #555; display: inline-block; min-width: 30mm; }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; font-size: 8pt; font-weight: 600; color: #555; padding: 1mm 1.5mm; border-bottom: 0.5pt solid #999; }
+  td { padding: 1.6mm 1.5mm; border-bottom: 0.3pt solid #ccc; vertical-align: top; }
+  td.num { text-align: right; white-space: nowrap; }
+  .muted { color: #666; }
+  .bad { font-weight: 600; }
+  .result { margin-top: 6mm; padding: 3mm 4mm; border: 1pt solid #111; font-size: 12pt; }
+  .result strong { font-family: "Barlow Condensed", sans-serif; font-size: 15pt; }
+  .findings { margin-top: 2mm; font-size: 9.5pt; color: #444; }
+  .reasons { margin: 0.5mm 0 0; padding-left: 5mm; font-size: 9.5pt; }
+  .note { margin-top: 4mm; white-space: pre-line; }
+  .sign { margin-top: 18mm; display: grid; grid-template-columns: 1fr 1fr; gap: 12mm; }
+  .sign div { border-top: 0.5pt solid #111; padding-top: 1mm; font-size: 8pt; color: #555; }
+</style>
+</head>
+<body>
+  <div class="head">
+    <div>
+      <h1>{% translate "Test report" %}</h1>
+      <div class="standard">{% translate "Inspection of an electrical device after DGUV Vorschrift 3 and DIN VDE 0701-0702" %}</div>
+    </div>
+    <div class="company">{% if logo %}<img src="{{ logo }}" alt="">{% endif %}<strong>{{ company.name }}</strong>{% if company.street %}<br>{{ company.street }}{% endif %}{% if company.postal_code or company.city %}<br>{{ company.postal_code }} {{ company.city }}{% endif %}{% if company.phone %}<br>{{ company.phone }}{% endif %}{% if company.email %}<br>{{ company.email }}{% endif %}</div>
+  </div>
+
+  <h2>{% translate "Device" context "inspection" %}</h2>
+  <div class="facts">
+    <div><span>{% translate "ID" %}</span> {{ item.display_id }}</div>
+    <div><span>{% translate "Serial number" %}</span> {{ item.serial_number|default:"–" }}</div>
+    <div><span>{% translate "Model" %}</span> {{ item.material_model.name }}</div>
+    <div><span>{% translate "Manufacturer" %}</span> {{ item.material_model.manufacturer|default:"–" }}</div>
+    <div><span>{% translate "Protection class" %}</span> {{ inspection.get_protection_class_display }}</div>
+    {% if evaluation.cord_length_m is not None %}<div><span>{% translate "Cord length" %}</span> {{ evaluation.cord_length_m|number }} m</div>{% endif %}
+  </div>
+
+  <h2>{% translate "Inspection" %}</h2>
+  <div class="facts">
+    <div><span>{% translate "Inspection" %}</span> {{ inspection.inspection_type.name }}</div>
+    <div><span>{% translate "Date" %}</span> {{ inspection.date|date:"d.m.Y" }}</div>
+    <div><span>{% translate "Inspected by" %}</span> {{ inspection.inspector }}</div>
+    <div><span>{% translate "Test device" %}</span> {{ inspection.test_device|default:"–" }}</div>
+  </div>
+
+  <h2>{% translate "Checks and measured values" %}</h2>
+  <table>
+    <thead><tr><th>{% translate "Check" context "inspection" %}</th><th class="num">{% translate "Value" %}</th><th class="num">{% translate "Limit" %}</th><th>{% translate "Verdict" %}</th></tr></thead>
+    <tbody>
+      <tr><td>{% translate "Visual inspection" %}</td><td></td><td></td><td{% if not inspection.visual_check_passed %} class="bad"{% endif %}>{% if inspection.visual_check_passed %}{% translate "passed" %}{% else %}{% translate "not passed" %}{% endif %}</td></tr>
+      {% for check in evaluation.checks %}
+      <tr><td>{{ check.measurement.label }} {{ check.measurement.symbol_html }}</td>
+        <td class="num">{{ check.value_text|default:"–" }}</td>
+        <td class="num">{{ check.limit_text|default:"–" }}</td>
+        <td{% if check.verdict == "exceeded" or check.required_missing %} class="bad"{% elif check.verdict != "ok" %} class="muted"{% endif %}>{{ check.verdict_text }}{% if check.limit_note and check.cord_length_m %} <span class="muted">({{ check.limit_note }})</span>{% endif %}</td></tr>
+      {% endfor %}
+      <tr><td>{% translate "Function test" %}</td><td></td><td></td><td{% if inspection.function_test_passed is False %} class="bad"{% elif inspection.function_test_passed is None %} class="muted"{% endif %}>{% if inspection.function_test_passed is None %}{% translate "does not apply" %}{% elif inspection.function_test_passed %}{% translate "passed" %}{% else %}{% translate "not passed" %}{% endif %}</td></tr>
+    </tbody>
+  </table>
+
+  <div class="result">
+    {% translate "Result" %}: <strong>{{ inspection.get_result_display|capfirst }}</strong>
+    {% if inspection.passed and next_due %} · {% blocktranslate with date=next_due|date:"d.m.Y" %}next inspection due by {{ date }}{% endblocktranslate %}{% endif %}
+    {% if evaluation.reasons %}<div class="findings">{% translate "Findings" %}:</div><ul class="reasons">{% for reason in evaluation.reasons %}<li>{{ reason }}</li>{% endfor %}</ul>{% endif %}
+  </div>
+  {% if inspection.note %}<div class="note"><strong>{% translate "Note" %}:</strong> {{ inspection.note }}</div>{% endif %}
+
+  <div class="sign"><div>{% translate "Date, signature of the inspector" %}</div><div>{% translate "Date, signature of the responsible person" %}</div></div>
+</body>
+</html>

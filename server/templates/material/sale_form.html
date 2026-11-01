@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Sell from stock" %} {{ item.display_id }}{% endblock %}
+{% block content %}
+{% comment %}
+  Used sale from stock ("Gebrauchtverkauf aus Bestand"): day, buyer, price and tax rate (and, for bulk material, the (MAT-087)
+  quantity) – "Preview" shows the book value on the day of the sale and the gain or loss, "Sell" does it. What stops the sale
+  (an allocation to a project, a status, something installed) is shown instead of the button; what should give pause (wished
+  for by a project, blocked) needs a tick. One form, works without scripts.
+{% endcomment %}
+<div class="page-head">
+  <div>
+    <div class="breadcrumb"><a href="{% url 'material:item_list' %}">{% translate "Items" %}</a> / <a href="{% url 'material:item_detail' item.pk %}#asset"><span class="tape">{{ item.display_id }}</span> {{ item.material_model.name }}</a></div>
+    <h1>{% translate "Sell from stock" %}</h1>
+    <p class="lead">{% blocktranslate with id=item.display_id name=item.material_model.name %}{{ id }} {{ name }} leaves the stock with the status “sold”. The book value on the day of the sale decides whether it is a gain or a loss.{% endblocktranslate %}</p>
+  </div>
+</div>
+{% if blocked %}
+{% for message in blocked %}<div class="message error" role="alert">{{ message }}</div>{% endfor %}
+{% endif %}
+<form method="post" class="form" autocomplete="off" novalidate>
+  {% csrf_token %}
+  <section class="panel" aria-labelledby="sale-title">
+    <div class="panel-head"><h2 id="sale-title">{% translate "The sale" %}</h2></div>
+    <div class="panel-body">
+      {% include "core/_form_errors.html" %}{% include "core/_required_note.html" with form=form %}
+      <div class="form-grid">
+        {% include "core/_field.html" with field=form.sold_on %}
+        {% if form.quantity %}{% include "core/_field.html" with field=form.quantity %}{% endif %}
+      </div>
+      <div class="form-grid">
+        {% if form.customer %}{% url 'customers:suggest' as customer_url %}{% translate "Name, number or city" as customer_placeholder %}{% include "core/_typeahead_field.html" with field=form.customer url=customer_url text=form.customer_text placeholder=customer_placeholder %}{% endif %}
+        {% include "core/_field.html" with field=form.buyer_name %}
+      </div>
+      <div class="form-grid">
+        {% include "core/_field.html" with field=form.net_price %}
+        {% include "core/_field.html" with field=form.tax_rate %}
+      </div>
+      {% include "core/_field.html" with field=form.note %}
+    </div>
+  </section>
+  {% if plan %}
+  <section class="panel" id="preview" aria-labelledby="preview-title">
+    <div class="panel-head"><h2 id="preview-title">{% translate "Preview" %}</h2></div>
+    <div class="panel-body">
+      {% if plan.problems %}
+      {% for message in plan.problems %}<div class="message error" role="alert">{{ message }}</div>{% endfor %}
+      {% else %}
+      <dl class="facts">
+        <dt>{% translate "Price (net)" %}</dt><dd>{{ plan.net_price|money }}</dd>
+        <dt>{% translate "Tax" %}</dt><dd>{{ plan.tax_amount|money }} <span class="muted small">({{ plan.tax_percent|floatformat:"-2" }} %)</span></dd>
+        <dt>{% translate "Price (gross)" %}</dt><dd>{{ plan.gross_price|money }}</dd>
+        {% if plan.cost is not None %}<dt>{% translate "Acquisition cost (net)" %}</dt><dd>{{ plan.cost|money }}</dd>{% endif %}
+        {% if plan.accumulated is not None %}<dt>{% blocktranslate with date=plan.sold_on|date:"d.m.Y" %}Depreciation until {{ date }}{% endblocktranslate %}</dt><dd>{{ plan.accumulated|money }}</dd>{% endif %}
+        <dt>{% blocktranslate with date=plan.sold_on|date:"d.m.Y" %}Book value on {{ date }}{% endblocktranslate %}</dt><dd>{{ plan.book_value|money }}</dd>
+        <dt>{% if plan.is_gain %}{% translate "Gain" %}{% else %}{% translate "Loss" %}{% endif %}</dt><dd><span class="badge {% if plan.is_gain %}green{% else %}red{% endif %}"><strong>{{ plan.gain_loss|money }}</strong></span> <span class="muted small">{% translate "Price (net) minus book value" %}</span></dd>
+      </dl>
+      {% if not plan.complete %}<p class="muted">{% blocktranslate with quantity=plan.quantity pieces=plan.pieces %}{{ quantity }} of {{ pieces }} pieces are sold; the rest stays in the stock with its share of the cost.{% endblocktranslate %}</p>{% endif %}
+      {% for note in plan.notes %}<p class="muted">{{ note }}</p>{% endfor %}
+      {% if plan.warnings %}
+      {% for message in plan.warnings %}<div class="message warning" role="alert">{{ message }}</div>{% endfor %}
+      {% include "core/_field.html" with field=form.accept_warnings %}
+      {% endif %}
+      {% endif %}
+      <p class="muted small">{% translate "Simplified standard setting, no tax advice." %}</p>
+    </div>
+  </section>
+  {% endif %}
+  <div class="btn-row">
+    <button class="btn secondary" type="submit" name="step" value="preview">{% icon "search" %}{% translate "Show the preview" %}</button>
+    {% if plan and plan.ok %}<button class="btn" type="submit" name="step" value="sell" data-confirm="{% translate 'Sell this item now? It leaves the stock.' %}">{% icon "invoice" %}{% translate "Sell" %}</button>{% endif %}
+    <a class="btn secondary" href="{% url 'material:item_detail' item.pk %}#asset">{% translate "Cancel" %}</a>
+  </div>
+</form>
+{% endblock %}

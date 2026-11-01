@@ -1,0 +1,27 @@
+{% load i18n rentalars %}
+{# PRJ-076: save a project as template – shown in the dialog of the project page. #}
+<form method="post" action="{% url 'projects:template_create' project.pk %}" hx-post="{% url 'projects:template_create' project.pk %}" hx-target="#dialog" novalidate>
+  {% csrf_token %}
+  <div class="dialog-head"><h2>{% translate "Save as template" %}</h2><button type="button" class="icon-btn" data-close-dialog data-href="{% url 'projects:detail' project.pk %}" aria-label="{% translate 'Close' %}">{% icon "close" %}</button></div>
+  <div class="dialog-body form">
+    {% if saved %}
+      <p>{% blocktranslate with name=saved.name %}The template “{{ name }}” is saved. A new project can start from it: choose it under “Template” in the form for a new project.{% endblocktranslate %}</p>
+      <p><a href="{% url 'projects:templates' %}">{% translate "All templates" %}</a></p>
+    {% else %}
+      <p class="muted small">{% translate "Kept are the groups and lines with their quantities, the crew places without people, the phases and open items – with their times relative to the start. Customer, venue and people are not kept; prices are those of the day the template is used." %}</p>
+      {# PRJ-044, PRJ-076: a template holds one project; the parts of a whole project are templates of their own. #}
+      {% if project.has_subprojects %}<p class="note">{% translate "Subprojects are not part of the template; save them as templates one by one." %}</p>{% endif %}
+      {% include "core/_form_errors.html" %}
+      {% include "core/_field.html" with field=form.name %}
+      {% include "core/_field.html" with field=form.description %}
+      {% include "core/_field.html" with field=form.material %}
+      {% include "core/_field.html" with field=form.crew %}
+      {% include "core/_field.html" with field=form.course %}
+      {% include "core/_field.html" with field=form.replace %}
+    {% endif %}
+  </div>
+  <div class="dialog-foot">
+    {% if saved %}<button type="button" class="btn" data-close-dialog data-href="{% url 'projects:detail' project.pk %}">{% translate "Done" %}</button>
+    {% else %}<button type="button" class="btn secondary" data-close-dialog data-href="{% url 'projects:detail' project.pk %}">{% translate "Cancel" %}</button><button type="submit" class="btn">{% translate "Save template" %}</button>{% endif %}
+  </div>
+</form>

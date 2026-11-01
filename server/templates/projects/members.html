@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Access" %} {{ project.number }}{% endblock %}
+{% block content %}
+{% include "projects/_head.html" %}
+{# V18: the explanations in one box that folds, not three banners one over the other (the orange one looked like an error). #}
+<details class="help-box">
+<summary>{% translate "How access comes about" %}</summary>
+<p>{% translate "Only matters for users whose role covers “assigned projects only”. A membership opens this project for them, up to the level named here and never beyond what their role allows. Users whose role covers all projects need no entry." %}</p>
+{# AUT-031 (Crew): the ceiling of a role for "overview without planning" (accounts.rights.ProjectScope.DEPLOYMENT). #}
+<p>{% translate "A role with “overview without planning” – such as the start role “Crew” – opens only the overview, the packing list and the chat, whatever level is named here." %}</p>
+{% if project.parent_id %}<p>{% translate "Members of the whole project have the same access here. A membership of this subproject replaces theirs – with more or less access, or with “no access”." %}</p>
+{% elif project.has_subprojects %}<p>{% translate "The members hold in all subprojects as well. Each subproject can give a member other access, or none." %}</p>{% endif %}
+{# AUT-035: everybody assigned in one list – members, the crew planned with an account, the people of a service case – with the access that really holds (projects/access_rows.py). #}
+<p>{% translate "People planned in a crew line and the people of a service case are listed with what assigns them; their rows change with the planning or the case. “Access” is what each one may really do in this project – after their roles." %}</p>
+</details>
+<section class="panel">
+  <div class="panel-head"><h2>{% translate "Who has access" %}</h2></div>
+  {% if rows %}
+  <table class="table stack access-rows">
+    <thead><tr><th>{% translate "User" %}</th><th>{% translate "Access" %}</th><th>{% translate "Why" %}</th><th><span class="visually-hidden">{% translate "Actions" %}</span></th></tr></thead>
+    <tbody>
+    {% for row in rows %}
+      <tr>
+        <td>{{ row.name }}<div class="muted small">{{ row.user.username }}</div></td>
+        <td data-label="{% translate 'Access' %}">{% if row.access_label %}{{ row.access_label }}{% endif %}</td>
+        <td data-label="{% translate 'Why' %}">{{ row.reason }}{% if row.fixed_note %}<div class="muted small">{{ row.fixed_note }}</div>{% endif %}</td>
+        <td class="actions">{% if can_edit_members and row.membership %}<form method="post" action="{% url 'projects:member_remove' project.pk row.membership.pk %}" class="inline-form">{% csrf_token %}<button class="link-btn" type="submit" data-confirm="{% translate 'Take the access to this project away from this user?' %}">{% translate "remove" %}<span class="visually-hidden">: {{ row.name }}</span></button></form>{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty">{% translate "No members. The project is open to everybody whose role covers all projects." %}</div>
+  {% endif %}
+  {% if can_edit_members %}
+  <form method="post" class="panel-body inline-fields member-add" novalidate>
+    {% csrf_token %}
+    {% include "core/_form_errors.html" %}
+    <div class="field grow"><label for="{{ form.user.id_for_label }}">{{ form.user.label }}{% include "core/_required_mark.html" with field=form.user %}</label>{{ form.user }}</div>
+    <div class="field"><label for="{{ form.level.id_for_label }}">{{ form.level.label }}{% include "core/_required_mark.html" with field=form.level %}</label>{{ form.level }}</div>
+    <button class="btn secondary" type="submit">{% icon "plus" %}{% translate "Add member" %}</button>
+  </form>
+  {% endif %}
+</section>
+{% endblock %}

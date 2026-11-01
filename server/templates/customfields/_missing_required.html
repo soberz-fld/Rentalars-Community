@@ -1,0 +1,7 @@
+{% load i18n customfields %}{% comment %}
+  MAT-073: after a purchase (or several new items at once) – the new items that still lack a required value of
+  a custom field, each a link to its form. Expects: items.
+{% endcomment %}{% items_missing_required items as missing %}{% if missing %}
+<p class="note" role="status">{% blocktranslate count count=missing|length %}{{ count }} new item lacks a required value of a custom field:{% plural %}{{ count }} new items lack a required value of a custom field:{% endblocktranslate %}
+{% for item in missing %}<a class="tape" href="{% url 'material:item_edit' item.pk %}#custom-values-head">{{ item.display_id }}</a>{% if not forloop.last %} {% endif %}{% endfor %}</p>
+{% endif %}

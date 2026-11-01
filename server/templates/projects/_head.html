@@ -1,0 +1,56 @@
+{% load i18n rentalars project_actions service_cases invoices product_changes %}
+{% comment %}
+  The head of every project page. What it shows follows the access of the user to this project
+  (AUT-025): with the deployment view only, there is no customer and no tab of the planning.
+{% endcomment %}
+<div class="page-head">
+  <div>
+    <div class="breadcrumb"><a href="{% url 'projects:list' %}">{% translate "Projects" %}</a> / {% if project.is_service_case %}{# PRJ-090 #}<a href="{% url 'projects:cases' %}">{% translate "Service cases" %}</a> / {% endif %}{% if project.parent_id %}{# PRJ-044: a part names its whole project; the overview only for those who read the planning. #}{% if project.shows_planning %}<a href="{% url 'projects:family' project.pk %}">{{ project.parent.number }} {{ project.parent.name }}</a>{% else %}{{ project.parent.number }} {{ project.parent.name }}{% endif %} / {% endif %}{{ project.number }}{% if project.former_number %}{# ADM-012, ADM-014: the number printed on older documents and mails – the current one is the one with "P-". #} <span class="muted">({% blocktranslate with number=project.former_number %}formerly {{ number }}{% endblocktranslate %})</span>{% endif %}</div>
+    <h1>{{ project.name }}{% if project.parent_id %} <span class="badge accent subproject-badge">{% translate "subproject" %}</span>{% endif %}{% if project.is_service_case %} <span class="badge accent">{% translate "service case" %}</span>{% endif %}</h1>
+    <div class="project-meta">
+      {% if project.is_service_case %}<span><span class="badge {{ project.case_status|case_colour }}">{{ project.case_status_label }}</span></span>{# PRJ-090, PRJ-112 #}
+      {% else %}<span><span class="badge {{ project.status|status_colour }}">{{ project.get_status_display }}</span></span>{% endif %}
+      {% if project.is_internal %}<span><span class="badge">{% translate "internal project" %}</span></span>
+      {# PRJ-122: the name shows in every role; it is a link only for who may open customers. #}
+      {% elif project.customer_id %}<span>{% if can.read.customers %}<a href="{% url 'customers:detail' project.customer_id %}">{{ project.customer.name }}</a>{% else %}{{ project.customer.name }}{% endif %}</span>
+      {% elif project.shows_customer and project.case_contact %}<span>{{ project.case_contact }}</span>{# PRJ-090: a case without customer #}{% endif %}
+      {% if not project.is_service_case %}<span>{% translate "out" %} <strong>{{ project.start|date:"D d.m.Y H:i" }}</strong> – <strong>{{ project.end|date:"D d.m.Y H:i" }}</strong></span>{% endif %}
+      {% if project.shows_planning and not project.is_service_case %}<span>{% blocktranslate count days=project.effective_rental_days %}<strong>{{ days }}</strong> rental day{% plural %}<strong>{{ days }}</strong> rental days{% endblocktranslate %}</span>{% endif %}
+      {% if project.venue_label %}<span>{% if project.venue_site_id and can.read.customers and project.shows_planning %}<a href="{% url 'customers:venue_detail' project.venue_site_id %}">{{ project.venue_label }}</a>{% else %}{{ project.venue_label }}{% endif %}</span>{% endif %}
+      {% if project.manager %}<span>{% translate "managed by" %} {{ project.manager }}</span>{% endif %}
+      {# EML-011: the tag that puts mails into this project, to copy into a subject. #}
+      {% if project.shows_planning %}<span class="copy mail-tag" data-copy="{{ project.mail_tag }}" title="{% translate 'Mails with this in the subject land in the project. Click to copy.' %}">{% icon "mail" %}{{ project.mail_tag }}</span>{% endif %}
+    </div>
+    {% include "projects/_follow_up.html" %}{# PRJ-105 #}
+    {% invoice_state project %}{# DOK-015: from "Wieder im Lager" on, for who may see prices #}
+  </div>
+  {% project_actions project %}
+</div>
+{% product_change_hint project %}{# PRJ-072: products changed since the lines took them over #}
+<nav class="tabs" aria-label="{% translate 'Project' %}">
+  {# PRJ-090: a service case has its page instead of the planning, price overview, schedule, packlist and overview – called "Überblick". #}
+  {% if project.is_service_case %}{% if project.shows_planning %}<a href="{% url 'projects:case_detail' project %}"{% if tab == "case" %} aria-current="page"{% endif %}>{% translate "Overview" context "service case tab" %}</a>{% endif %}
+  {% else %}
+  {# PRJ-104 (tab order; PRJ-125): "Überblick" – the deployment view – is the first tab of a project, as of a service case; opening a project lands on it (projects:overview). #}
+  {% if project.shows_deployment %}<a href="{% url 'projects:deployment' project.pk %}"{% if tab == "deployment" %} aria-current="page"{% endif %}>{% translate "Overview" context "project tab" %}</a>{% endif %}
+  {% if project.shows_planning %}<a href="{% url 'projects:detail' project.pk %}"{% if tab == "planning" %} aria-current="page"{% endif %}>{% translate "Planning" %}</a>{% endif %}
+  {% endif %}
+  {# PRJ-046: the whole project with all its parts. #}
+  {% if project.shows_planning and project.is_in_family %}<a href="{% url 'projects:family' project.pk %}"{% if tab == "family" %} aria-current="page"{% endif %}>{% translate "Subprojects" %}</a>{% endif %}
+  {% if project.shows_planning and can_see_prices and not project.is_service_case %}<a href="{% url 'projects:price_overview' project.pk %}"{% if tab == "prices" %} aria-current="page"{% endif %}>{% translate "Price overview" %}</a>{% endif %}
+  {# PRJ-074: the documents right after the prices they are made of. #}
+  {# PRJ-079: documents and files on one tab. #}
+  {# AUT-033: documents, access and history need the module "projects" – somebody who only works on a service case without it does not reach them. #}
+  {% if project.shows_planning and can.read.projects %}<a href="{% url 'documents:list' project.pk %}"{% if tab == "documents" or tab == "files" %} aria-current="page"{% endif %}>{% translate "Documents" %}</a>{% endif %}
+  {% if project.shows_planning and not project.is_service_case %}<a href="{% url 'projects:course' project.pk %}"{% if tab == "course" %} aria-current="page"{% endif %}>{% translate "Schedule" %}{% if project.open_item_count %} <span class="badge yellow">{{ project.open_item_count }}</span>{% endif %}</a>{% endif %}
+  {# PRJ-104: the packlist before the correspondence; the deployment view is called "Overview" ("Überblick"), the first tab. #}
+  {% if can.read.packing and not project.is_service_case %}<a href="{% url 'packing:packlist' project.pk %}"{% if tab == "packlist" %} aria-current="page"{% endif %}>{% translate "Packing list" %}</a>{% endif %}
+  {# AUT-033 (PRJ-108): the correspondence of a service case also for whoever works on it (projects/case_work.py). #}
+  {# EML-055: and for the crew planned in the project – its open messages (mail/locks.py). #}
+  {% load mail_locks %}{% reads_correspondence project as reads_mail %}
+  {% if reads_mail %}<a href="{% url 'mail:project_mails' project.pk %}"{% if tab == "mails" %} aria-current="page"{% endif %}>{% translate "Correspondence" %}</a>{% endif %}
+  {# UIX-010: the chat, for everybody who can open the project; app.js fills in the unread count from the change polling. #}
+  {% if project.shows_deployment %}<a href="{% url 'chat:project' project.pk %}"{% if tab == "chat" %} aria-current="page"{% endif %}>{% translate "Chat" %}<span class="badge accent hidden" data-chat-unread="{{ project.pk }}" data-label="{% translate 'unread' %}"></span></a>{% endif %}
+  {% if project.shows_planning and can.read.projects %}<a href="{% url 'projects:members' project.pk %}"{% if tab == "members" %} aria-current="page"{% endif %}>{% translate "Access" %}</a>{% endif %}
+  {% if project.shows_planning and can.read.projects %}<a href="{% url 'projects:history' project.pk %}"{% if tab == "history" %} aria-current="page"{% endif %}>{% translate "History" %}</a>{% endif %}
+</nav>

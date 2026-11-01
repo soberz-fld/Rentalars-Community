@@ -1,0 +1,32 @@
+{% load i18n %}
+{% comment %}
+  The timeline of one product, model, item or person (VFG-019, PER-020). Expects: timeline (rows over days) and
+  the navigation of _span.html; for_person switches the legend. A row shows either bars – projects, blocks,
+  absences – or a number per day: how many pieces are free. VFG-032: the title of a bar (exact times on a person's
+  timeline) is also read by screen readers.
+{% endcomment %}
+{% include "schedule/_span.html" %}
+<div class="panel timeline">
+  {% if timeline.note %}<p class="panel-body muted">{{ timeline.note }}</p>{% endif %}
+  {% if timeline.rows %}
+  <div class="tl-grid">
+    <div class="tl-label head"></div>
+    {% include "schedule/_days_head.html" with days=timeline.days %}
+    {% for row in timeline.rows %}
+      <div class="tl-label {{ row.css }}">{% if row.url %}<a href="{{ row.url }}">{{ row.label }}</a>{% else %}{{ row.label }}{% endif %}{% if row.sublabel %} <span class="muted small">{{ row.sublabel }}</span>{% endif %}</div>
+      <div class="tl-row" style="grid-template-columns: repeat({{ timeline.days|length }}, minmax(28px, 1fr))">
+        {% if row.loads %}
+          {% for load in row.loads %}<div class="tl-load free-{{ load.free_level }}" title="{{ load.day|date:'D d.m.' }}: {% blocktranslate with free=load.free stock=load.stock optional=load.optional %}{{ free }} of {{ stock }} free, {{ optional }} more as options{% endblocktranslate %}">{{ load.free }}{% if load.optional %}<sup>−{{ load.optional }}</sup>{% endif %}</div>{% endfor %}
+        {% else %}
+          {% for bar in row.bars %}{% if bar.url %}<a class="tl-bar {{ bar.css }}" style="grid-column: {{ bar.span }}" href="{{ bar.url }}" title="{{ bar.label }}{% if bar.title %} – {{ bar.title }}{% endif %}">{{ bar.label }}{% if bar.title %}<span class="visually-hidden"> – {{ bar.title }}</span>{% endif %}</a>{% else %}<span class="tl-bar {{ bar.css }}" style="grid-column: {{ bar.span }}" title="{{ bar.label }}{% if bar.title %} – {{ bar.title }}{% endif %}">{{ bar.label }}{% if bar.title %}<span class="visually-hidden"> – {{ bar.title }}</span>{% endif %}</span>{% endif %}{% empty %}<span class="tl-empty muted small">–</span>{% endfor %}
+        {% endif %}
+      </div>
+    {% endfor %}
+  </div>
+  {% if for_person %}
+  <p class="panel-body muted small tl-legend"><span class="tl-bar legend crew status-confirmed">{% translate "firm" %}</span> <span class="tl-bar legend crew status-option">{% translate "option" %}</span> <span class="tl-bar legend crew status-inquiry">{% translate "inquiry" context "deployment" %}</span> <span class="tl-bar legend crew status-confirmed requested">{% translate "requested" %}</span>{# PER-020, PER-027: the availability as in the personnel plan. #}{% for value, label in availability_legend %} <span class="tl-bar legend availability is-{{ value }}">{{ label }}</span>{% endfor %} <span class="tl-bar legend availability is-unavailable from-feed">{% translate "busy in the linked calendar" %}</span> <span class="tl-bar legend absence">{% translate "absent" %}</span></p>
+  {% else %}
+  <p class="panel-body muted small tl-legend">{% translate "Numbers: pieces free that day; small: what options would take in addition." %} <span class="tl-bar legend status-confirmed">{% translate "firm" %}</span> <span class="tl-bar legend status-option">{% translate "option" %}</span> <span class="tl-bar legend status-out">{% translate "out" %}</span> <span class="tl-bar legend blocked">{% translate "blocked" %}</span></p>
+  {% endif %}
+  {% else %}<div class="empty">{% translate "Nothing to show in this period." %}</div>{% endif %}
+</div>

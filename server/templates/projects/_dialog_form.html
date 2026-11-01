@@ -1,0 +1,12 @@
+{% load i18n rentalars %}
+<form hx-post="{{ action }}" hx-target="#dialog" novalidate>
+  <div class="dialog-head"><h2>{{ title }}</h2><button type="button" class="icon-btn" data-close-dialog aria-label="{% translate 'Close' %}">{% icon "close" %}</button></div>
+  <div class="dialog-body form">
+    {% include "core/_form_errors.html" %}
+    <div class="form-grid">{% for field in form %}{% include "core/_field.html" %}{% endfor %}</div>
+  </div>
+  <div class="dialog-foot">
+    <button type="button" class="btn secondary" data-close-dialog>{% translate "Cancel" %}</button>
+    <button type="submit" class="btn">{{ submit_label }}</button>
+  </div>
+</form>

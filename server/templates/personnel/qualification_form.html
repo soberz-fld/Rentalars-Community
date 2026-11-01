@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{{ person.name }} – {% translate "Qualification" %}{% endblock %}
+{% block content %}
+<div class="page-head"><div><div class="breadcrumb"><a href="{% url 'personnel:person_detail' person.pk %}">{{ person.name }}</a></div>
+<h1>{% if qualification.pk %}{{ qualification.qualification_type.name }}{% else %}{% translate "New qualification" %}{% endif %}</h1>
+<p class="lead">{% translate "Personnel planning is told before it expires." %}</p></div></div>
+<div class="panel"><div class="panel-body">
+  <form method="post" enctype="multipart/form-data" class="form" novalidate>
+    {% csrf_token %}
+    {% include "core/_form_errors.html" %}
+    <div class="form-grid">{% for field in form %}{% include "core/_field.html" %}{% endfor %}</div>
+    {% if qualification.document %}<p class="help">{% translate "Stored:" %} <a href="{% url 'personnel:qualification_document' person.pk qualification.pk %}">{{ qualification.document_name }}</a></p>{% endif %}
+    <div class="btn-row"><button class="btn" type="submit">{% translate "Save qualification" %}</button><a class="btn secondary" href="{% url 'personnel:person_detail' person.pk %}#qualifications">{% translate "Cancel" %}</a></div>
+  </form>
+</div></div>
+{% if qualification.pk %}
+<form method="post" action="{% url 'personnel:qualification_delete' person.pk qualification.pk %}" class="section">{% csrf_token %}<button class="btn danger" type="submit" data-confirm="{% translate 'Remove this qualification with its certificate?' %}">{% icon "trash" %}{% translate "Remove qualification" %}</button></form>
+{% endif %}
+{% endblock %}

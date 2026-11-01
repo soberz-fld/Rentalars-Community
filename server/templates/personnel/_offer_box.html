@@ -1,0 +1,34 @@
+{% load i18n rentalars %}
+{% comment %}
+  The own price offers for a deployment, in the deployment view (PER-038): the exchange so far and what the
+  freelancer can do now – make an offer, take it back, answer a counter-offer. Only the person the line is for sees
+  it; the amounts are their own. Expects what the tag offer_box delivers.
+{% endcomment %}
+{% if show %}
+<div class="offer-box" data-offer-box>
+  <h3 class="offer-title">{% translate "Your price offer" %}</h3>
+  {% if applied %}<p class="offer-agreed"><span class="badge green">{% translate "Agreed price" %}</span> {{ applied.amount|money }} {{ applied.get_unit_display }}</p>{% endif %}
+  {% if counter %}
+  <div class="request-answer offer-counter" role="group" aria-label="{% translate 'Counter-offer' %}">
+    <p><strong>{% blocktranslate with amount=counter.amount|money unit=counter.get_unit_display %}Counter-offer: {{ amount }} {{ unit }}{% endblocktranslate %}</strong>{% if counter.valid_until %} <span class="muted">{% blocktranslate with day=counter.valid_until|date:"d.m.Y" %}valid until {{ day }}{% endblocktranslate %}</span>{% endif %}</p>
+    {% if counter.message %}<p>„{{ counter.message }}“</p>{% endif %}
+    <div class="btn-row">
+      <form method="post" action="{% url 'personnel:offer_accept' line.project_id line.pk counter.pk %}" class="inline-form">{% csrf_token %}<input type="hidden" name="next" value="{{ next }}"><button class="btn small" type="submit">{% icon "check" %}{% translate "Accept counter-offer" %}</button></form>
+      <form method="post" action="{% url 'personnel:offer_reject' line.project_id line.pk counter.pk %}" class="inline-form">{% csrf_token %}<input type="hidden" name="next" value="{{ next }}"><button class="btn secondary small" type="submit">{% translate "Reject" %}</button></form>
+      {% if can_counter %}<a class="btn secondary small" href="{% url 'personnel:offer_counter' line.project_id line.pk counter.pk %}?next={{ next|urlencode }}">{% translate "Counter again" %}</a>{% endif %}
+    </div>
+  </div>
+  {% elif own_offer %}
+  <p>{% blocktranslate with amount=own_offer.amount|money unit=own_offer.get_unit_display %}Your offer of {{ amount }} {{ unit }} waits for an answer.{% endblocktranslate %}</p>
+  <form method="post" action="{% url 'personnel:offer_withdraw' line.project_id line.pk own_offer.pk %}" class="inline-form">{% csrf_token %}<input type="hidden" name="next" value="{{ next }}"><button class="btn secondary small" type="submit">{% translate "Withdraw offer" %}</button></form>
+  {% elif can_start %}
+  <p class="muted small">{% translate "You can accept this request, decline it, or name your own price." %}</p>
+  <a class="btn secondary small" href="{% url 'personnel:offer_make' line.project_id line.pk %}?next={{ next|urlencode }}">{% icon "edit" %}{% translate "Make a price offer" %}</a>
+  {% endif %}
+  {% if rows %}
+  <details class="offer-details"><summary>{% blocktranslate count count=rows|length %}Exchange so far ({{ count }} round){% plural %}Exchange so far ({{ count }} rounds){% endblocktranslate %}</summary>
+  {% include "personnel/_offer_log.html" with show_reference=show_reference %}
+  </details>
+  {% endif %}
+</div>
+{% endif %}

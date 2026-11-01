@@ -1,0 +1,209 @@
+{% load i18n rentalars %}<!doctype html>
+{% get_current_language as LANGUAGE_CODE %}<html lang="{% if LANGUAGE_CODE == 'en' %}en-GB{% else %}{{ LANGUAGE_CODE }}{% endif %}">
+<head>
+<meta charset="utf-8">
+<title>{{ doc.title }} {{ doc.number }}</title>
+<style>
+  /* Documents for customers and crew (DOK-003 to DOK-006): letterhead after DIN 5008, footer with company data. */
+  @font-face { font-family: "Barlow"; font-weight: 400; src: url("{{ fonts.regular }}"); }
+  @font-face { font-family: "Barlow"; font-weight: 600; src: url("{{ fonts.semibold }}"); }
+  @font-face { font-family: "Barlow Condensed"; font-weight: 600; src: url("{{ fonts.condensed }}"); }
+  @page {
+    size: A4; margin: 20mm 18mm 34mm 25mm;
+    @bottom-left { content: element(footer); }
+    @bottom-right { content: "{% translate 'Page' %} " counter(page) " / " counter(pages); font: 7.5pt "Barlow"; color: #555; vertical-align: top; padding-top: 3mm; }
+  }
+  body { font-family: "Barlow", sans-serif; font-size: 9.5pt; color: #111; line-height: 1.4; }
+  .letterhead { display: flex; justify-content: space-between; align-items: flex-start; height: 25mm; }
+  .letterhead img { max-height: 20mm; max-width: 60mm; }
+  .letterhead .company { text-align: right; font-size: 8.5pt; color: #444; }
+  .window { display: flex; justify-content: space-between; margin-top: 4mm; min-height: 45mm; }
+  .address { width: 85mm; }
+  .address .sender { font-size: 7pt; color: #555; border-bottom: 0.3pt solid #999; margin-bottom: 2mm; padding-bottom: 0.5mm; }
+  .info { width: 70mm; font-size: 8.5pt; }
+  .info table td { padding: 0.4mm 0; border: none; }
+  .info table td:first-child { color: #555; padding-right: 3mm; }
+  h1 { font-family: "Barlow Condensed", sans-serif; font-size: 18pt; margin: 4mm 0 2mm; }
+  .draft { color: #b00; font-family: "Barlow Condensed", sans-serif; font-size: 14pt; border: 1pt solid #b00; padding: 0 2mm; margin-left: 3mm; }
+  p { margin: 0 0 2.5mm; }
+  table.positions { width: 100%; border-collapse: collapse; margin-top: 3mm; }
+  /* Document layout: a heading is aligned like the cells below it – numbers right, the rest left. The
+     rule for ``th.num`` must be as specific as the one for ``th``, else the headings of the number columns stood left
+     of their right-aligned figures. The widths are hints; the name column takes what is left. */
+  table.positions th { text-align: left; vertical-align: bottom; font-size: 7.5pt; font-weight: 600; color: #555; padding: 1mm 1mm; border-bottom: 0.6pt solid #111; }
+  table.positions th.num, table.positions td.num { text-align: right; }
+  table.positions td { padding: 1.3mm 1mm; border-bottom: 0.3pt solid #ccc; vertical-align: top; }
+  table.positions tr { break-inside: avoid; }
+  .num { text-align: right; white-space: nowrap; }
+  table.positions th.pos { width: 9mm; }
+  table.positions th.qty { width: 21mm; }
+  table.positions th.price { width: 25mm; }
+  table.positions th.discount { width: 15mm; }
+  table.positions th.amount { width: 27mm; }
+  .pos { color: #555; }
+  .details { font-size: 8pt; color: #555; }
+  .section td { font-weight: 600; background: #f0f0f0; border-bottom: 0.3pt solid #999; }
+  .subtotal td { font-weight: 600; border-bottom: 0.6pt solid #999; }
+  .optional td { color: #777; }
+  /* PRJ-037: subgroups indented below their parent group; the lines in a subgroup stand indented as well. */
+  .level-1 td:nth-child(2), .lvl-1 td:nth-child(2) { padding-left: 5mm; }
+  .level-2 td:nth-child(2), .lvl-2 td:nth-child(2) { padding-left: 9mm; }
+  /* Document hierarchy: top level Material / Personnel / Logistics / Surcharges, below Material the groups
+     (Teilgruppen), below them subgroups and lines. The levels differ in size, weight, rule and indent – not in colour
+     only – so that they read the same on a black-and-white print. */
+  tr.division-head, tr.section { break-after: avoid; }
+  .division-head td { font-family: "Barlow Condensed", sans-serif; font-weight: 600; font-size: 12.5pt; letter-spacing: 0.03em; text-transform: uppercase; padding: 3.5mm 1mm 1mm; background: none; border-top: 1.4pt solid #111; border-bottom: 0.6pt solid #111; }
+  .division-total td { font-weight: 600; font-size: 10.5pt; padding-top: 1.8mm; padding-bottom: 1.8mm; border-top: 0.6pt solid #111; border-bottom: 1.4pt solid #111; }
+  .section.level-0 td, .section:not([class*="level-"]) td { font-size: 10.5pt; }
+  .section.level-1 td { font-size: 9.5pt; background: #f8f8f8; border-bottom: 0.6pt solid #888; }
+  .section.level-2 td { font-size: 9pt; font-style: italic; background: none; border-bottom: 0.6pt solid #888; }
+  .subtotal.level-0 td, .subtotal:not([class*="level-"]) td { border-bottom: 0.8pt solid #555; }
+  .variant { font-style: italic; }
+  /* DOK-013: an offer with only the groups – one row per group with its sum. */
+  .group-only td { font-weight: 600; }
+  .group-only .details { font-weight: 400; }
+  .group-only.level-0 td, .group-only:not([class*="level-"]) td { font-size: 10.5pt; }
+  tr.group-only { break-after: avoid; }
+  /* PRJ-046: the block of each subproject of a whole project – a heading, its groups, its subtotal. */
+  tr.subproject-head { break-after: avoid; }
+  .subproject-head td { font-family: "Barlow Condensed", sans-serif; font-weight: 600; font-size: 14pt; padding-top: 4mm; border-top: 1pt solid #111; border-bottom: 0.6pt solid #111; }
+  .subproject-head .details { font-family: "Barlow", sans-serif; font-weight: 400; }
+  .subproject-total td { font-weight: 600; border-top: 0.6pt solid #111; border-bottom: 1pt solid #111; }
+  table.totals { margin-left: auto; margin-top: 4mm; border-collapse: collapse; min-width: 80mm; break-inside: avoid; }
+  table.totals td { padding: 0.8mm 1mm; }
+  table.totals .grand td { font-weight: 600; font-size: 11pt; border-top: 1pt solid #111; padding-top: 1.5mm; }
+  .closing { margin-top: 6mm; break-inside: avoid; }
+  .sign { margin-top: 14mm; display: grid; grid-template-columns: 1fr 1fr; gap: 14mm; }
+  .sign div { border-top: 0.5pt solid #111; padding-top: 1mm; font-size: 7.5pt; color: #555; }
+  .footer { position: running(footer); font-size: 7pt; color: #555; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4mm; border-top: 0.3pt solid #999; padding-top: 2mm; width: 160mm; }
+  .crew td { font-size: 9pt; }
+</style>
+</head>
+<body>
+  <div class="footer">
+    <div>{% if doc.company.name %}<strong>{{ doc.company.name }}</strong><br>{% endif %}{% for line in doc.company.lines %}{{ line }}<br>{% endfor %}{{ doc.company.country }}</div>
+    <div>{% if doc.company.phone %}{% translate "Phone" %} {{ doc.company.phone }}<br>{% endif %}{% if doc.company.email %}{{ doc.company.email }}<br>{% endif %}{{ doc.company.website }}{% if doc.company.tax_number %}<br>{% translate "Tax number" %} {{ doc.company.tax_number }}{% endif %}{% if doc.company.vat_id %}<br>{% translate "VAT ID" %} {{ doc.company.vat_id }}{% endif %}</div>
+    <div>{% if doc.company.iban %}{{ doc.company.bank_name }}<br>IBAN {{ doc.company.iban }}<br>{% if doc.company.bic %}BIC {{ doc.company.bic }}{% endif %}{% endif %}{% if doc.company.register_details %}<br>{{ doc.company.register_details }}{% endif %}{% if doc.footer %}<br>{{ doc.footer|linebreaksbr }}{% endif %}</div>
+  </div>
+
+  <div class="letterhead">
+    <div>{% if logo %}<img src="{{ logo }}" alt="">{% endif %}</div>
+    <div class="company">{% if doc.company.name %}<strong>{{ doc.company.name }}</strong><br>{% endif %}{% for line in doc.company.lines %}{{ line }}<br>{% endfor %}{{ doc.company.email }}</div>
+  </div>
+
+  <div class="window">
+    <div class="address">
+      {% if doc.recipient %}<div class="sender">{{ doc.company.name }}{% for line in doc.company.lines %} · {{ line }}{% endfor %}</div>
+      {% for line in doc.recipient %}{{ line }}<br>{% endfor %}{% endif %}
+    </div>
+    <div class="info"><table>
+      <tr><td>{% translate "Number" %}</td><td>{{ doc.number }}</td></tr>
+      <tr><td>{% translate "Date" %}</td><td>{{ doc.issued_on|date:"d.m.Y" }}</td></tr>
+      {% if doc.customer_number %}<tr><td>{% translate "Customer number" %}</td><td>{{ doc.customer_number }}</td></tr>{% endif %}
+      {% if doc.customer_vat_id %}<tr><td>{% translate "Your VAT ID" %}</td><td>{{ doc.customer_vat_id }}</td></tr>{% endif %}
+      {% if doc.project.number %}<tr><td>{% translate "Project" %}</td><td>{{ doc.project.number }}</td></tr>{% endif %}{# None for a document without a project #}
+      {% if doc.service_start %}<tr><td>{% translate "Date of service" %}</td><td>{{ doc.service_start|date:"d.m.Y" }}{% if doc.service_end != doc.service_start %} – {{ doc.service_end|date:"d.m.Y" }}{% endif %}</td></tr>{% endif %}
+      {% if doc.project.venue %}<tr><td>{% translate "Venue" %}</td><td>{{ doc.project.venue }}</td></tr>{% endif %}
+      {% if doc.project.contact %}<tr><td>{% translate "Contact" %}</td><td>{{ doc.project.contact }}</td></tr>{% endif %}
+      {% if doc.due_on %}<tr><td>{% translate "Due on" %}</td><td>{{ doc.due_on|date:"d.m.Y" }}</td></tr>{% endif %}
+      {% if doc.valid_until %}<tr><td>{% translate "Valid until" %}</td><td>{{ doc.valid_until|date:"d.m.Y" }}</td></tr>{% endif %}
+    </table></div>
+  </div>
+
+  <h1>{{ doc.title }} {{ doc.number }}{% if draft %}<span class="draft">{% translate "Draft" %}</span>{% endif %}</h1>
+  {% if doc.cancels_number %}<p>{% if doc.billing_type == "credit" %}{% blocktranslate with number=doc.cancels_number date=doc.cancels_date|date:"d.m.Y" %}Credit note for invoice {{ number }} of {{ date }}.{% endblocktranslate %}{% else %}{% blocktranslate with number=doc.cancels_number date=doc.cancels_date|date:"d.m.Y" %}Cancels invoice {{ number }} of {{ date }}.{% endblocktranslate %}{% endif %}</p>{% endif %}
+  {% if doc.reference %}<p class="reference"><strong>{{ doc.reference }}</strong></p>{# Free outgoing documents: the subject line #}{% endif %}
+  {% if doc.introduction %}<p>{{ doc.introduction|linebreaksbr }}</p>{% endif %}
+
+  {% if doc.sections %}
+  <table class="positions">
+    <thead><tr><th class="pos">{% translate "Pos." %}</th><th>{% translate "Name" %}</th><th class="num qty">{% translate "Quantity" %}</th><th class="num price">{% translate "Unit price" %}</th>{% if discount_column %}<th class="num discount">{% translate "Discount" %}</th>{% endif %}<th class="num amount">{% translate "Amount" %}</th></tr></thead>
+    <tbody>
+    {# The spans: ``span_all`` – every column but "Pos."; ``span_label`` – the same without "Amount" (the column "Discount" is left out when no line has a discount). #}
+    {% for section in doc.sections %}
+      {% if section.subproject_block %}{# PRJ-046: the block of a subproject – its heading, then its subtotal. #}
+      {% if section.part == "opens" %}<tr class="subproject-head"><td></td><td colspan="{{ span_all }}">{{ section.title }}{% if section.description %}<div class="details">{{ section.description }}</div>{% endif %}</td></tr>
+      {% else %}<tr class="subproject-total"><td></td><td colspan="{{ span_label }}">{% blocktranslate with title=section.title %}Total {{ title }}{% endblocktranslate %}</td><td class="num">{{ section.subtotal|money }}</td></tr>{% endif %}
+      {% elif section.overall_discount %}{# PRJ-123: the overall discount of the project – one row. #}
+      <tr class="overall-discount"><td></td><td colspan="{{ span_label }}"><strong>{{ section.title }}</strong></td><td class="num">{{ section.subtotal|money }}</td></tr>
+      {% else %}
+      {% if section.part != "closes" %}
+      {% if section.division == "material" and section.division_start %}{# The top level "Material" over the groups. #}
+      <tr class="division-head division-material"><td></td><td colspan="{{ span_all }}">{% translate "Material" %}</td></tr>
+      {% endif %}
+      {% if section.positions_hidden %}{# DOK-013: only the group – its title, description and sum. #}
+      <tr class="group-only{% if section.level %} level-{{ section.level }}{% endif %}{% if section.optional %} optional{% endif %}"><td></td><td colspan="{{ span_label }}">{{ section.title }}{% if section.optional %} – {% if section.alternative_to %}{{ section.alternative_to }}, {% translate "not included in the total" %}{% else %}{% translate "optional, not included in the total" %}{% endif %}{% endif %}{% if section.part == "opens" %} <span class="details">{% translate "with subgroups" %}</span>{% endif %}{% if section.description %}<div class="details">{{ section.description|linebreaksbr }}</div>{% endif %}{% if section.adjustment_label %}<div class="details">{{ section.adjustment_label }}</div>{% endif %}</td><td class="num">{% if section.part != "opens" %}{{ section.subtotal|money }}{% endif %}</td></tr>
+      {% elif not section.plain %}{# The positions of a document without a project have no heading #}
+      <tr class="{% if section.division and section.division != 'material' %}division-head division-{{ section.division }}{% else %}section{% if section.level %} level-{{ section.level }}{% endif %}{% endif %}{% if section.optional %} optional{% endif %}"><td></td><td colspan="{{ span_all }}">{{ section.title }}{% if section.optional %} – {% if section.alternative_to %}{{ section.alternative_to }}, {% translate "not included in the total" %}{% else %}{% translate "optional, not included in the total" %}{% endif %}{% endif %}{% if section.description %}<div class="details">{{ section.description|linebreaksbr }}</div>{% endif %}</td></tr>
+      {% endif %}
+      {% endif %}
+      {% for position in section.positions %}
+      {% if position.is_text %}{# A text line – a row of text over the whole table, without number, quantity and amount. #}
+      <tr class="text-row{% if section.level %} lvl-{{ section.level }}{% endif %}{% if section.optional %} optional{% endif %}"><td></td><td colspan="{{ span_all }}"><strong>{{ position.title }}</strong>{% if position.details %}<div class="details">{{ position.details|linebreaksbr }}</div>{% endif %}</td></tr>
+      {% else %}
+      <tr{% if section.optional or position.variant or section.level %} class="{% if section.optional or position.variant %}optional{% endif %}{% if section.level %} lvl-{{ section.level }}{% endif %}"{% endif %}>
+        <td class="pos">{{ position.number }}</td>
+        <td>{{ position.title }}{% if position.article_number %} <span class="details">{{ position.article_number }}</span>{% endif %}{% if position.variant %} <span class="variant">({{ position.variant_label }})</span>{% endif %}{% if position.description %}<div class="details">{{ position.description|linebreaksbr }}</div>{# The description of the product, if asked for #}{% endif %}{% if position.details %}<div class="details">{{ position.details }}</div>{% endif %}{% if position.is_estimate %}<div class="details">{% translate "estimate" %}</div>{% endif %}{% if position.variant %}<div class="details">{% translate "not included in the total" %}</div>{% endif %}</td>
+        <td class="num">{{ position.quantity|number }} {{ position.unit }}</td>
+        <td class="num">{% if position.unit_price is not None %}{{ position.unit_price|money }}{% endif %}</td>
+        {% if discount_column %}<td class="num">{% if position.discount_percent %}{{ position.discount_percent|number }} %{% endif %}</td>{% endif %}
+        {# PRJ-096: the customer's own material has no amount; its details say it is taken along, not charged. #}
+        <td class="num">{% if not position.customer_material %}{{ position.amount|money }}{% endif %}</td>
+      </tr>
+      {% endif %}
+      {% endfor %}
+      {% if section.positions_hidden %}{% if section.part == "closes" %}{# DOK-013: the sum of a group with its subgroups. #}
+      <tr class="subtotal{% if section.level %} level-{{ section.level }}{% endif %}{% if section.optional %} optional{% endif %}"><td></td><td colspan="{{ span_label }}">{% blocktranslate with title=section.title %}Subtotal {{ title }} with subgroups{% endblocktranslate %}{% if section.adjustment_label %}<div class="details">{{ section.adjustment_label }}</div>{% endif %}</td><td class="num">{{ section.subtotal|money }}</td></tr>
+      {% endif %}
+      {% elif section.part != "opens" and not section.plain %}{# PRJ-037: a group with subgroups has its subtotal after them. #}
+      {% if section.adjustment_label %}<tr class="{% if section.level %}level-{{ section.level }}{% endif %}{% if section.optional %} optional{% endif %}"><td></td><td colspan="{{ span_label }}">{{ section.adjustment_label }}</td><td class="num">{{ section.adjustment_amount|money }}</td></tr>{% endif %}
+      <tr class="{% if section.division and section.division != 'material' %}division-total{% else %}subtotal{% if section.level %} level-{{ section.level }}{% endif %}{% endif %}{% if section.optional %} optional{% endif %}"><td></td><td colspan="{{ span_label }}">{% if section.division and section.division != "material" %}{% blocktranslate with title=section.title %}Total {{ title }}{% endblocktranslate %}{% elif section.part == "closes" %}{% blocktranslate with title=section.title %}Subtotal {{ title }} with subgroups{% endblocktranslate %}{% else %}{% blocktranslate with title=section.title %}Subtotal {{ title }}{% endblocktranslate %}{% endif %}</td><td class="num">{{ section.subtotal|money }}</td></tr>
+      {% endif %}
+      {% if section.division == "material" and section.division_end %}{# The sum of the whole top level "Material". #}
+      <tr class="division-total division-material"><td></td><td colspan="{{ span_label }}">{% blocktranslate with title=_("Material") %}Total {{ title }}{% endblocktranslate %}</td><td class="num">{{ section.division_total|money }}</td></tr>
+      {% endif %}
+      {% endif %}
+    {% endfor %}
+    </tbody>
+  </table>
+  <table class="totals">
+    <tr><td>{% translate "Total net" %}</td><td class="num">{{ doc.net_total|money }}</td></tr>
+    {% for share in doc.taxes %}<tr><td>{% blocktranslate with name=share.name net=share.net|money %}Tax {{ name }} on {{ net }}{% endblocktranslate %}</td><td class="num">{{ share.tax|money }}</td></tr>{% endfor %}
+    <tr class="grand"><td>{% translate "Total gross" %}</td><td class="num">{{ doc.gross_total|money }}</td></tr>
+    {% if doc.deductions %}{# The advance and partial invoices a final invoice deducts, each with its tax (§ 14 (5) UStG) #}
+    {% for deduction in doc.deductions %}<tr><td>{% blocktranslate with title=deduction.title number=deduction.number date=deduction.issued_on|date:"d.m.Y" %}Less {{ title }} {{ number }} of {{ date }}{% endblocktranslate %}<div class="details">{% blocktranslate with net=deduction.net|money tax=deduction.tax|money %}net {{ net }}, tax {{ tax }}{% endblocktranslate %}</div></td><td class="num">{{ deduction.negative_gross|money }}</td></tr>{% endfor %}
+    <tr class="grand"><td>{% translate "Amount payable" %}</td><td class="num">{{ doc.payable_total|money }}</td></tr>
+    {% endif %}
+    {% if doc.kind == "order_confirmation" or doc.kind == "offer" %}
+    {% if doc.optional_total %}<tr><td class="details">{% translate "Optional groups, not included" %}</td><td class="num details">{{ doc.optional_total|money }}</td></tr>{% endif %}
+    {% if doc.optional_lines_total %}<tr><td class="details">{% translate "Optional lines, not included" %}</td><td class="num details">{{ doc.optional_lines_total|money }}</td></tr>{% endif %}
+    {% if doc.alternative_lines_total %}<tr><td class="details">{% translate "Alternative lines, not included" %}</td><td class="num details">{{ doc.alternative_lines_total|money }}</td></tr>{% endif %}
+    {% endif %}
+  </table>
+  {# A customer in another EU country owes the tax (§ 13b UStG, § 14a (5) UStG): the invoice says so. #}
+  {% if doc.reverse_charge %}<p class="details">{% translate "Reverse charge: the recipient of the service owes the tax (Steuerschuldnerschaft des Leistungsempfängers)." %}{% if doc.customer_vat_id %} {% blocktranslate with id=doc.customer_vat_id %}VAT ID of the customer: {{ id }}{% endblocktranslate %}{% endif %}</p>{% else %}{% for share in doc.taxes %}{% if share.category == "E" %}<p class="details">{% translate "Exempt from VAT." %}</p>{% endif %}{% endfor %}{% endif %}
+  {% endif %}
+
+  {% for title, rows in doc.delivery_rows %}
+  {% if title %}<h2 style="font-size: 11pt; margin: 5mm 0 0;">{{ title }}</h2>{% endif %}
+  <table class="positions">
+    <thead><tr><th class="num">{% translate "Quantity" %}</th><th>{% translate "Unit" %}</th><th>{% translate "Article no." %}</th><th>{% translate "Name" %}</th><th>{% translate "Items" %}</th></tr></thead>
+    <tbody>{% for row in rows %}<tr><td class="num">{{ row.quantity|number }}</td><td>{{ row.unit }}</td><td>{{ row.article_number }}</td><td>{{ row.title }}{% if row.description %}<div class="details">{{ row.description|linebreaksbr }}</div>{% endif %}{% if row.taken_over_from %}<div class="details">{% blocktranslate with part=row.taken_over_from %}Taken over from {{ part }}{% endblocktranslate %}</div>{% endif %}{% if row.customer_material %}<div class="details">{# PRJ-096 #}{% translate "Customer's own material – taken along" %}</div>{% endif %}</td><td class="details">{{ row.note }}</td></tr>{% endfor %}</tbody>
+  </table>
+  {% endfor %}
+
+  {% if doc.crew_rows %}
+  <table class="positions crew">
+    <thead><tr><th>{% translate "Day" %}</th><th>{% translate "From" %}</th><th>{% translate "Until" %}</th><th>{% translate "Person" %}</th><th>{% translate "Job function" %}</th><th>{% translate "Meeting point" %}</th><th>{% translate "Contact" context "contact data" %}</th></tr></thead>
+    <tbody>{% for row in doc.crew_rows %}<tr><td>{{ row.day }}</td><td>{{ row.start }}</td><td>{{ row.end }}</td><td>{{ row.person }}</td><td>{{ row.job_function }}{% if row.vehicle %}<div class="details">{{ row.vehicle }}</div>{% endif %}</td><td>{{ row.place }}</td><td class="details">{{ row.phone }}{% if row.phone and row.email %}<br>{% endif %}{{ row.email }}</td></tr>{% endfor %}</tbody>
+  </table>
+  <p class="details">{% translate "Phone numbers and e-mail addresses only of people who released them for colleagues." %}</p>
+  {% endif %}
+
+  <div class="closing">
+    {% for text in doc.text_blocks %}<p>{{ text|linebreaksbr }}</p>{% endfor %}
+    {% if doc.closing %}<p>{{ doc.closing|linebreaksbr }}</p>{% endif %}
+    {% if doc.kind == "delivery_note" %}<div class="sign"><div>{% translate "Delivered by, date" %}</div><div>{% translate "Received by, date, signature" %}</div></div>{% endif %}
+  </div>
+</body>
+</html>

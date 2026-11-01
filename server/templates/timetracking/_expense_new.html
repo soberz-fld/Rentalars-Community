@@ -1,0 +1,25 @@
+{% load i18n rentalars %}
+{% comment %}
+  ZEI-019: recording an expense, as a dialog like the quick time entry (ZEI-003) – from "My expenses", "My times",
+  after a recorded time and from the deployment view. Every request replaces this block itself (#expense-entry), so
+  the same markup works inside the dialog and on a page of its own (timetracking/expense_page.html).
+{% endcomment %}
+<div id="expense-entry">
+  <div class="dialog-head"><h2>{% translate "Record expenses" %}{% if person and may_manage %} – {{ person.name }}{% endif %}</h2><button type="button" class="icon-btn" data-close-dialog data-href="{% url 'timetracking:my_expenses' %}" aria-label="{% translate 'Close' %}">{% icon "close" %}</button></div>
+  {% if not person %}
+  <div class="dialog-body">
+    <p>{% translate "Your user account is not linked to a person yet, so there is nobody to record expenses for." %}</p>
+    <p class="muted">{% translate "Ask personnel planning to link your account in the personnel data." %}</p>
+  </div>
+  <div class="dialog-foot"><button type="button" class="btn secondary" data-close-dialog data-href="{% url 'timetracking:my_expenses' %}">{% translate "Close" %}</button></div>
+  {% else %}
+  <form method="post" action="{% url 'timetracking:expense_new' %}" enctype="multipart/form-data" hx-post="{% url 'timetracking:expense_new' %}" hx-encoding="multipart/form-data" hx-target="#expense-entry" hx-swap="outerHTML" novalidate autocomplete="off">
+    {% csrf_token %}
+    <div class="dialog-body form">{% include "timetracking/_expense_fields.html" %}</div>
+    <div class="dialog-foot">
+      <button type="button" class="btn secondary" data-close-dialog data-href="{% url 'timetracking:my_expenses' %}">{% translate "Cancel" %}</button>
+      <button type="submit" class="btn">{% translate "Save expense" %}</button>
+    </div>
+  </form>
+  {% endif %}
+</div>

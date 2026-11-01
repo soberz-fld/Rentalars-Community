@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% load i18n rentalars period_marks %}
+{% block title %}{% if project %}{{ project.number }}{% elif parent %}{% translate "New subproject" %}{% else %}{% translate "New project" %}{% endif %}{% endblock %}
+{% block content %}
+<div class="page-head"><div><div class="breadcrumb">{% if parent %}<a href="{% url 'projects:detail' parent.pk %}">{{ parent.number }} {{ parent.name }}</a>{% if project %} / <a href="{% url 'projects:detail' project.pk %}">{{ project.number }} {{ project.name }}</a>{% endif %}{% elif project %}<a href="{% url 'projects:detail' project.pk %}">{{ project.number }} {{ project.name }}</a>{% else %}<a href="{% url 'projects:list' %}">{% translate "Projects" %}</a>{% endif %}</div><h1>{% if converting %}{% translate "Turn the service case into a project" %}{% elif project %}{% translate "Edit project" %}{% elif parent %}{% translate "New subproject" %}{% else %}{% translate "New project" %}{% endif %}</h1>
+{% if converting %}<p class="lead">{% translate "The project keeps number, mails, files, open items and history and starts as an inquiry. Choose the customer and the rental period." %}</p>{# PRJ-090 #}
+{% elif parent and not project %}<p class="lead">{% blocktranslate with number=parent.number %}The subproject is numbered after {{ number }}. It has its own period, lines, crew and status; customer and billing are those of the whole project.{% endblocktranslate %}</p>
+{% elif unknown.is_manual %}<p class="lead">{% blocktranslate with subject=unknown.subject|default:"–" sender=unknown.sender|default:"–" %}From the inquiry “{{ subject }}” of {{ sender }}, noted by hand. Saving puts it as a note into the correspondence of the new project.{% endblocktranslate %}</p>{# EML-053 #}
+{% elif unknown %}<p class="lead">{% blocktranslate with subject=unknown.subject|default:"–" sender=unknown.sender %}From the mail “{{ subject }}” of {{ sender }}. Saving takes the mail out of the inbox into the new project.{% endblocktranslate %}</p>{# PRJ-107 #}
+{% elif not project %}<p class="lead">{% translate "The project number is assigned automatically. Material is added on the next page." %}</p>{% endif %}</div></div>
+{# PRJ-099: the calendar of each period shows the other one, as typed so far, hatched. #}
+<form method="post" class="form wide" novalidate data-calendar-marks="{% form_period_marks %}">
+  {% csrf_token %}
+  {% if unknown %}<input type="hidden" name="inquiry" value="{{ unknown.pk }}">{% endif %}
+  {% include "core/_form_errors.html" %}
+  <div class="panel"><div class="panel-body">
+    <div class="form-grid">
+      {% include "core/_field.html" with field=form.name %}
+      {% if form.template %}{% include "core/_field.html" with field=form.template %}{% endif %}
+      {% if parent %}
+      {# PRJ-045: customer and billing always come from the whole project. #}
+      <div class="field inherited"><span class="label">{% translate "Customer" %}</span><div class="value">{{ parent.customer_name }}</div><div class="help">{% translate "From the whole project, with its billing address. Change them there." %}</div></div>
+      {% else %}
+      {# ZEI-010: an internal project (warehouse, workshop, office) has no customer. #}
+      {# PRJ-070: typed with suggestions; the last suggestion creates a new customer in a dialog. #}
+      <div data-show-if="is_internal=">{% url 'customers:suggest' as customer_url %}{% translate "Name, number or city" as customer_placeholder %}{% include "core/_typeahead_field.html" with field=form.customer url=customer_url text=form.customer_text placeholder=customer_placeholder refresh=request.path %}</div>
+      {% endif %}
+      {% url 'customers:venue_suggest' as venue_url %}{% translate "Name or city of the venue" as venue_placeholder %}{% include "core/_typeahead_field.html" with field=form.venue_site url=venue_url text=form.venue_text placeholder=venue_placeholder %}
+      {% include "core/_field.html" with field=form.venue %}
+      {% include "core/_field.html" with field=form.manager %}
+    </div>
+    {# The contact and the addresses follow the chosen customer at once. #}
+    <div id="customer-dependants"{% if not parent %} data-show-if="is_internal="{% endif %}>
+      {# KND-005: only offered when the customer has further addresses. #}
+      <input type="hidden" name="addresses_for" value="{{ form.addresses_for }}">
+      {% if not parent or not parent.is_internal %}
+      <div class="form-grid">
+        {% include "core/_field.html" with field=form.contact %}
+        {% if form.billing_address %}{% if form.billing_address.is_hidden %}{{ form.billing_address }}{% else %}{% include "core/_field.html" with field=form.billing_address %}{% endif %}{% endif %}
+        {% if form.delivery_address.is_hidden %}{{ form.delivery_address }}{% else %}{% include "core/_field.html" with field=form.delivery_address %}{% endif %}
+      </div>
+      {% endif %}
+    </div>
+    {% if form.is_internal %}{% include "core/_field.html" with field=form.is_internal %}{% endif %}
+  </div></div>
+  {# PRJ-069: the two periods named by what they decide. #}
+  <div class="panel">
+    <div class="panel-head"><h2>{% translate "Rental period: material out of the warehouse" %}</h2></div>
+    <div class="panel-body">
+      <p class="help-line">{% translate "From leaving the warehouse until it is back, setup and teardown included. Availability is reserved for this period, and material lines take it over. Usual: noon to noon of the next day." %}</p>
+      {% if parent %}<p class="help-line">{% blocktranslate with start=parent.start|date:"d.m.Y H:i" end=parent.end|date:"d.m.Y H:i" %}Within the period of the whole project: {{ start }} – {{ end }}.{% endblocktranslate %}</p>{% endif %}
+      {# PRJ-099: both periods laid out alike – from, until, and the calendar button in the row of the fields. #}
+      <div class="period-fields">
+        {% include "core/_field.html" with field=form.start %}
+        {% include "core/_field.html" with field=form.end %}
+        <div class="field range-slot" data-range-slot="start"><span class="label" aria-hidden="true">&nbsp;</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="panel-head"><h2>{% translate "Event – for the rental days charged" %}</h2></div>
+    <div class="panel-body">
+      <p class="help-line">{% translate "Optional: the days of the event itself, e.g. the show days. The rental days charged are suggested from them; availability follows only the rental period above. For an event in several parts, enter its days as phases under “Schedule” (setup, show day 1, show day 2 …)." %}</p>
+      <div class="period-fields">
+        {% include "core/_field.html" with field=form.event_start %}
+        {% include "core/_field.html" with field=form.event_end %}
+        <div class="field range-slot" data-range-slot="event_start"><span class="label" aria-hidden="true">&nbsp;</span></div>
+        {% include "core/_field.html" with field=form.rental_days %}
+      </div>
+      {# PRJ-005 (event end; PRJ-127): a warning, never an error – the event ends after "Material zurück bis". The page script shows and hides it while the fields change. #}
+      <p class="field-warning" data-event-warning{% if not form.event_warning %} hidden{% endif %} role="status">{% icon "alert" %}<span>{% translate "The event ends after “Material back by”. Check the period." %}</span></p>
+    </div>
+  </div>
+  <div class="panel"><div class="panel-body">{% include "core/_field.html" with field=form.notes %}</div></div>
+  <div class="btn-row"><button class="btn" type="submit">{% if converting %}{% translate "Turn into a project" %}{% elif parent and not project %}{% translate "Add subproject" %}{% else %}{% translate "Save project" %}{% endif %}</button><a class="btn secondary" href="{% if project %}{% url 'projects:detail' project.pk %}{% elif parent %}{% url 'projects:detail' parent.pk %}{% elif unknown %}{% url 'mail:unknown_list' %}{% else %}{% url 'projects:list' %}{% endif %}">{% translate "Cancel" %}</a></div>
+</form>
+{% endblock %}

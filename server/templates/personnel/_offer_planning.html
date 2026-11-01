@@ -1,0 +1,32 @@
+{% load i18n rentalars %}
+{% comment %}
+  The price offer of a freelancer in the planning (PER-038), under the request of the crew line. Whoever sees
+  personnel costs (AUT-019) reads the offer next to the stored rate and, planning the crew, answers it: accept,
+  reject, counter. Whoever lacks that right sees nothing of it. Expects what the tag
+  offer_planning delivers; the forms work with htmx and without JavaScript.
+{% endcomment %}
+{% if show %}
+<div class="sub offer-planning" data-offer-planning>
+  <span class="badge {% if waiting %}yellow{% elif latest.status == 'accepted' %}green{% elif latest.status == 'rejected' %}red{% endif %}">{% if waiting_for_company %}{% translate "price offer" %}{% elif waiting_for_freelancer %}{% translate "counter-offer sent" %}{% elif latest.shown_status == "expired" %}{% translate "offer expired" %}{% elif latest.status == "accepted" %}{% translate "offer accepted" %}{% elif latest.status == "rejected" %}{% translate "offer rejected" %}{% else %}{% translate "price offer" %}{% endif %}</span>
+  <strong>{{ latest.amount|money }}</strong> <span class="muted">{{ latest.get_unit_display }}</span>
+  {% if latest.reference_amount %}<span class="muted">· {% blocktranslate with rate=latest.reference_amount|money %}stored: {{ rate }}{% endblocktranslate %}{% if percent %} ({{ percent|number }} %){% endif %}</span>{% endif %}
+  {% if latest.valid_until %}<span class="muted">· {% blocktranslate with day=latest.valid_until|date:"d.m." %}until {{ day }}{% endblocktranslate %}</span>{% endif %}
+  {% if latest.message %}<div class="muted">„{{ latest.message }}“</div>{% endif %}
+  {% if can_decide and waiting %}
+  <div class="offer-actions">
+    {% if waiting_for_company %}
+    <form class="inline-form" method="post" action="{% url 'personnel:offer_accept' project.pk line.pk waiting.pk %}" hx-post="{% url 'personnel:offer_accept' project.pk line.pk waiting.pk %}" hx-target="#planning" hx-swap="outerHTML">{% csrf_token %}<button class="link-btn" type="submit">{% translate "accept offer" %}</button></form> ·
+    <form class="inline-form" method="post" action="{% url 'personnel:offer_reject' project.pk line.pk waiting.pk %}" hx-post="{% url 'personnel:offer_reject' project.pk line.pk waiting.pk %}" hx-target="#planning" hx-swap="outerHTML">{% csrf_token %}<button class="link-btn" type="submit">{% translate "reject" %}</button></form>
+    {% if can_counter %} · <a href="{% url 'personnel:offer_counter' project.pk line.pk waiting.pk %}?next={{ next|urlencode }}">{% translate "counter" %}</a>{% endif %}
+    {% else %}
+    <form class="inline-form" method="post" action="{% url 'personnel:offer_withdraw' project.pk line.pk waiting.pk %}" hx-post="{% url 'personnel:offer_withdraw' project.pk line.pk waiting.pk %}" hx-target="#planning" hx-swap="outerHTML">{% csrf_token %}<button class="link-btn" type="submit">{% translate "withdraw counter-offer" %}</button></form>
+    {% endif %}
+  </div>
+  {% endif %}
+  {% if rows|length > 1 %}
+  <details class="offer-details"><summary>{% blocktranslate count count=rows|length %}Exchange ({{ count }} round){% plural %}Exchange ({{ count }} rounds){% endblocktranslate %}</summary>
+  {% include "personnel/_offer_log.html" with show_reference=True %}
+  </details>
+  {% endif %}
+</div>
+{% endif %}

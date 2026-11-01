@@ -1,0 +1,17 @@
+{% load i18n rentalars %}
+{# The dialog for correcting a time entry that is not approved yet (ZEI-012). #}
+<form hx-post="{{ action }}" hx-target="#dialog" novalidate autocomplete="off">
+  <div class="dialog-head"><h2>{% translate "Edit time" %} – {{ entry.person.name }}</h2><button type="button" class="icon-btn" data-close-dialog aria-label="{% translate 'Close' %}">{% icon "close" %}</button></div>
+  <div class="dialog-body form">
+    {% include "core/_form_errors.html" %}
+    {% if entry.status == "rejected" %}<p class="note red">{% translate "Sent back" %}: {{ entry.rejection_reason }}</p>{% endif %}
+    {% for row in form.rows %}
+    <div class="form-row{% if row|length > 1 %} pair keep{% endif %}">{% for field in row %}{% include "core/_field.html" %}{% endfor %}</div>
+    {% if row.0.name == "job_function" %}{% include "timetracking/_parts.html" %}{% endif %}
+    {% endfor %}
+  </div>
+  <div class="dialog-foot">
+    <button type="button" class="btn secondary" data-close-dialog>{% translate "Cancel" %}</button>
+    <button type="submit" class="btn">{% translate "Save time" %}</button>
+  </div>
+</form>

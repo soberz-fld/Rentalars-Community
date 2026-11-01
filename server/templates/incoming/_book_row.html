@@ -1,0 +1,50 @@
+{% load i18n rentalars %}{% comment %}
+  Incoming invoices: one goods position on the booking page. Expects: item (form: BookingRowForm; position: the (DOK-023, DOK-024)
+  InvoicePosition; cost: its PositionCost; booked: pieces and rows made of it already; hints). It is the row of "Kauf
+  einpflegen" (material/_purchase_position.html) without the price – that comes from the invoice – plus the kind of asset and
+  its useful life.
+{% endcomment %}{% with row=item.form position=item.position cost=item.cost booked=item.booked %}{% with new=row.is_new_model %}
+<fieldset class="purchase-row incoming-position{% if row.errors %} has-error{% endif %}">
+  <legend>{% if position %}{% blocktranslate with number=position.place %}Position {{ number }}{% endblocktranslate %}{% else %}{% translate "Position" %}{% endif %}</legend>
+  {{ row.position }}
+  {% if row.non_field_errors %}<div class="message error">{{ row.non_field_errors }}</div>{% endif %}
+  {% if position %}
+  <p class="purchase-source"><span class="badge accent">{% translate "from the invoice" %}</span>
+    {{ position.description }} · {{ position.quantity|floatformat:"-3" }}{% if position.unit_price_net is not None %} × {{ position.unit_price_net|money }}{% endif %}{% if cost and cost.total is not None %} · {% blocktranslate with total=cost.total|money %}acquisition cost {{ total }}{% endblocktranslate %}{% endif %}</p>
+  {% endif %}
+  {% if booked %}<p class="note small"><span class="badge yellow">{% translate "booked in already" %}</span> {% blocktranslate with rows=booked.rows pieces=booked.pieces %}{{ rows }} items, {{ pieces }} pieces were made of this position.{% endblocktranslate %}</p>{% endif %}
+  {% for hint in item.hints %}<p class="note small purchase-hint">{{ hint }}</p>{% endfor %}
+  <div class="purchase-row-tools">
+    {% include "core/_field.html" with field=row.include %}
+    {% if booked %}{% include "core/_field.html" with field=row.book_again %}{% endif %}
+  </div>
+  <div class="purchase-grid">
+    <div class="purchase-model">
+      {% url 'material:purchase_model_suggest' as model_url %}{% translate "Search or type a new name" as model_placeholder %}{% include "material/_name_typeahead.html" with field=row.model_name url=model_url placeholder=model_placeholder %}
+      {% if new and row.model_value %}<p class="small"><span class="badge yellow">{% translate "new model" %}</span> {% translate "created with its category when you book in" %}</p>{% endif %}
+    </div>
+    <div class="purchase-count">{% include "core/_field.html" with field=row.count %}</div>
+    <div class="purchase-location">{% include "core/_field.html" with field=row.storage_location %}</div>
+    <div class="purchase-article">{% include "core/_field.html" with field=row.article_number %}</div>
+  </div>
+  <div class="form-grid">
+    {% include "core/_field.html" with field=row.asset_kind %}
+    {% include "core/_field.html" with field=row.useful_life_months %}
+  </div>
+  <details class="purchase-new-model"{% if new and row.model_value or row.category.errors or row.product_text.errors %} open{% endif %}>
+    <summary>{% translate "New model: category, manufacturer, product" %}</summary>
+    <div class="form-grid">
+      {% include "core/_field.html" with field=row.category %}
+      {% url 'material:manufacturer_suggest' as manufacturer_url %}{% translate "Search or type a new name" as manufacturer_placeholder %}{% include "material/_name_typeahead.html" with field=row.manufacturer_name url=manufacturer_url placeholder=manufacturer_placeholder %}
+      {% url 'material:product_suggest' as product_url %}{% translate "Article number or name" as product_placeholder %}{% include "material/_name_typeahead.html" with field=row.product_text url=product_url|add:"?for=purchase" placeholder=product_placeholder %}
+      {% include "core/_field.html" with field=row.keep_as_quantity %}
+    </div>
+  </details>
+  <div class="field serial-numbers{% if row.serial_numbers.errors %} has-error{% endif %}" data-serial-numbers data-count-field="{{ row.count.auto_id }}" data-count="{{ row.serial_count }}" data-item-label="{% translate 'Item' %}" data-fields-help="{% translate 'In the order of the IDs. Empty: that item has none.' %}">
+    <label for="{{ row.serial_numbers.auto_id }}">{{ row.serial_numbers.label }}{% include "core/_required_mark.html" with field=row.serial_numbers %}</label>
+    {{ row.serial_numbers }}
+    {% if row.serial_numbers.help_text %}<div class="help" id="{{ row.serial_numbers.auto_id }}_helptext">{{ row.serial_numbers.help_text }}</div>{% endif %}
+    {{ row.serial_numbers.errors }}
+  </div>
+</fieldset>
+{% endwith %}{% endwith %}

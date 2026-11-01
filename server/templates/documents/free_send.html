@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}{% translate "Send by e-mail" %}{% endblock %}
+{% block content %}
+{# The mail with a document without a project; the PDF (and the XRechnung) goes along, the mail is noted in the mail log. #}
+<div class="page-head"><div>
+  <div class="breadcrumb"><a href="{% url 'documents:outgoing' %}">{% translate "Outgoing documents" %}</a> / <a href="{% url 'documents:free_document' document.pk %}">{{ document.title }} {{ document.number }}</a></div>
+  <h1>{% translate "Send by e-mail" %}</h1>
+  <p class="lead">{% blocktranslate with name=document.file_name %}The PDF {{ name }} goes along.{% endblocktranslate %}</p>
+</div></div>
+<form method="post" class="form wide" novalidate>
+  {% csrf_token %}
+  {% include "core/_form_errors.html" %}
+  <div class="panel"><div class="panel-body"><div class="form-grid">{% for field in form %}{% include "core/_field.html" %}{% endfor %}</div></div></div>
+  <div class="btn-row"><button class="btn" type="submit">{% translate "Send" %}</button><a class="btn secondary" href="{% url 'documents:free_document' document.pk %}">{% translate "Cancel" %}</a></div>
+</form>
+{% endblock %}

@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Capture a document" %}{% endblock %}
+{% block content %}
+{% comment %}
+  Incoming invoices: Buchhaltung → Beleg erfassen. The box "Rechnung hochladen": a new invoice is uploaded and read (DOK-023, DOK-024)
+  at once, then its page opens (rentalars/incoming/views.py invoice_capture, invoice_upload).
+{% endcomment %}
+<div class="page-head">
+  <div><h1>{% translate "Accounting" %}</h1></div>
+  {% if can.read.administration %}<div class="actions"><a class="btn secondary" href="{% url 'incoming:settings' %}">{% icon "settings" %}{% translate "Settings for incoming invoices" %}</a></div>{% endif %}
+</div>
+{% include "documents/_accounting_tabs.html" %}
+<section class="panel" aria-labelledby="incoming-upload-title">
+  <div class="panel-head"><h2 id="incoming-upload-title">{% translate "Upload an invoice" %}</h2></div>
+  <form method="post" action="{% url 'incoming:upload' %}" enctype="multipart/form-data" class="form panel-body" novalidate>
+    {% csrf_token %}{% include "core/_required_note.html" with form=upload_form %}
+    <div class="form-grid">{% include "core/_field.html" with field=upload_form.file %}</div>
+    <p class="muted small">{% translate "The invoice is read at once: number, date, supplier, amounts – with the AI also the positions. An XML e-invoice (XRechnung) or a ZUGFeRD / Factur-X PDF is read exactly from its data, without AI, positions included. You check and correct everything on the next page; nothing is booked in before you say so." %}</p>
+    <div class="btn-row"><button class="btn" type="submit">{% icon "upload" %}{% translate "Upload and read" %}</button></div>
+  </form>
+</section>
+<p class="muted small">{% translate "The register of all invoices is on the tab “Incoming documents”." %} <a href="{% url 'incoming:list' %}">{% translate "Open the register" %}</a></p>
+{% endblock %}

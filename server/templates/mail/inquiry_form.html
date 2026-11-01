@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% if inquiry %}{% translate "Edit inquiry" %}{% else %}{% translate "Add inquiry" %}{% endif %}{% endblock %}
+{% block content %}
+{% comment %}
+  EML-053: an inquiry noted by hand under Projekte → Anfragen – e.g. a phone call, written down so that the
+  office can deal with it. When it came in (never in the future), who called with phone and e-mail address, the
+  customer if known, a subject and a note. Taken over into a project or service case, it becomes a note in the
+  correspondence there; nothing is sent.
+{% endcomment %}
+<div class="page-head"><div><div class="breadcrumb"><a href="{% url 'projects:list' %}">{% translate "Projects" %}</a> / <a href="{% url 'mail:unknown_list' %}">{% translate "Inquiries" %}</a></div>
+<h1>{% if inquiry %}{% translate "Edit inquiry" %}{% else %}{% translate "Add inquiry" %}{% endif %}</h1>
+<p class="lead">{% translate "Note an inquiry that did not come by mail – a phone call, a visit. It waits under Inquiries until somebody makes a project or a service case of it; then it becomes a note in the correspondence." %}</p></div></div>
+<form method="post" class="form wide" novalidate autocomplete="off">
+  {% csrf_token %}
+  {% include "core/_form_errors.html" %}
+  <div class="panel"><div class="panel-head"><h2>{% translate "Who and when" %}</h2></div><div class="panel-body">
+    <div class="form-grid">
+      {% include "core/_field.html" with field=form.date %}
+      {% include "core/_field.html" with field=form.contact_name %}
+      {% include "core/_field.html" with field=form.phone %}
+      {% include "core/_field.html" with field=form.contact_email %}
+    </div>
+    {% url 'customers:suggest' as customer_url %}{% translate "Name, number or city" as customer_placeholder %}{% include "core/_typeahead_field.html" with field=form.customer url=customer_url text=form.customer_text placeholder=customer_placeholder %}
+  </div></div>
+  <div class="panel"><div class="panel-head"><h2>{% translate "What it is about" %}</h2></div><div class="panel-body">
+    {% include "core/_field.html" with field=form.subject %}
+    {% include "core/_field.html" with field=form.note %}
+  </div></div>
+  <div class="btn-row"><button class="btn" type="submit">{% icon "note" %}{% if inquiry %}{% translate "Save inquiry" %}{% else %}{% translate "Note inquiry" %}{% endif %}</button><a class="btn secondary" href="{% url 'mail:unknown_list' %}">{% translate "Cancel" %}</a></div>
+</form>
+{% if inquiry %}
+<div class="section">
+  <p class="muted small">{% if inquiry.created_by %}{% blocktranslate with name=inquiry.created_by.get_full_name|default:inquiry.created_by.username moment=inquiry.first_seen_at|date:"d.m.Y H:i" %}Noted by {{ name }} on {{ moment }}.{% endblocktranslate %}{% endif %}</p>
+  <form method="post" action="{% url 'mail:inquiry_delete' inquiry.pk %}" class="inline-form">{% csrf_token %}<button class="btn danger" type="submit" data-confirm="{% translate 'Delete the inquiry? It is gone then – to keep it, take it off the list instead.' %}">{% icon "trash" %}{% translate "Delete inquiry" %}</button></form>
+</div>
+{% endif %}
+{% endblock %}

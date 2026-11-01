@@ -1,0 +1,10 @@
+{% load i18n %}
+{# EML-040, DOK-016: the AI summarising the activity of a case – asked again every two seconds; done, the page loads anew. #}
+<div class="statement-job no-print" id="statement-job" aria-live="polite"{% if not job.is_finished %} hx-get="{% url 'documents:statement_job' statement.pk job.pk %}" hx-trigger="every 2s" hx-target="this" hx-swap="outerHTML"{% endif %}>
+  {% if not job.is_finished %}
+  <p><span class="badge yellow">{{ job.get_status_display }}</span> {% translate "The AI is summarising the activity …" %}{% if job.message %}<span class="muted"> – {{ job.message }}</span>{% endif %}</p>
+  <noscript><p class="muted small">{% translate "Load the page again in a moment to see the text." %}</p></noscript>
+  {% elif job.status == "failed" %}
+  <p class="note red">{{ job.message|default:_("The summary did not work.") }}</p>
+  {% endif %}
+</div>

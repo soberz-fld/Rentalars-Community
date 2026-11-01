@@ -1,0 +1,10 @@
+{% load i18n rentalars discount_tags %}
+{# The live preview in the dialog of the overall discount (discount target). #}
+{% if error %}
+  <p class="note red">{{ error }}</p>
+{% elif preview.mode %}
+  <p>{% if preview.is_target %}{% blocktranslate with percent=preview.percent|percent_places %}Stored percentage: <strong>{{ percent }} %</strong>.{% endblocktranslate %} {% endif %}{% blocktranslate with discount=preview.discount|money net=preview.net_total|money gross=preview.gross_total|money %}Discount {{ discount }}; the project then comes to <strong>{{ net }} net</strong>, <strong>{{ gross }} gross</strong>.{% endblocktranslate %}</p>
+  {% if not preview.is_exact %}<p class="note">{% blocktranslate with target=preview.target|money %}The target {{ target }} cannot be reached to the cent – this is the nearest amount.{% endblocktranslate %}</p>{% endif %}
+{% else %}
+  <p class="muted">{% translate "No overall discount." %}</p>
+{% endif %}

@@ -1,0 +1,26 @@
+{% load i18n %}
+{% comment %}MAT-078: the values of an electrical inspection (material.dguv), shown while an electrical inspection type is
+chosen. Typing asks the server for the limits, the verdicts and the suggested result (material:inspection_check); without
+scripts they appear when the form is sent.{% endcomment %}
+<fieldset class="section" data-show-if="{{ form.electrical_condition }}" hx-post="{% url 'material:inspection_check' item.pk %}" hx-trigger="input delay:400ms, change" hx-target="#dguv-suggestion" hx-swap="innerHTML" hx-sync="this:replace">
+  <legend>{% translate "Electrical inspection (DGUV V3 / DIN VDE 0701-0702)" %}</legend>
+  <p class="help">{% translate "Only for an electrical inspection. Leave a value empty where it was not measured or does not apply to the protection class." %}</p>
+  <div class="inline-fields">
+    {% include "core/_field.html" with field=form.protection_class %}
+    {% include "core/_field.html" with field=form.cord_length_m %}
+    {% include "core/_field.html" with field=form.test_device %}
+  </div>
+  {% include "core/_field.html" with field=form.visual_check_passed %}
+  <div class="form-grid">
+    {% for field, check in form.measurement_rows %}
+    <div class="field{% if field.errors %} has-error{% endif %}">
+      <label for="{{ field.id_for_label }}">{{ check.measurement.label }} {{ check.measurement.symbol_html }} ({{ check.measurement.unit }})</label>
+      {{ field }}
+      {% include "material/_dguv_limit.html" %}
+      {{ field.errors }}
+    </div>
+    {% endfor %}
+  </div>
+  {% include "core/_field.html" with field=form.function_test_passed %}
+  <div class="note" id="dguv-suggestion" role="status" aria-live="polite">{% include "material/_dguv_suggestion.html" with evaluation=form.evaluation %}</div>
+</fieldset>

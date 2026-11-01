@@ -1,0 +1,89 @@
+{% load i18n rentalars %}
+{# The own times of one week. Fetches itself again whenever a time was recorded or changed in a dialog. #}
+<div id="my-times" hx-get="{% url 'timetracking:my_times' %}?week={{ monday|date:'Y-m-d' }}" hx-trigger="timesChanged from:body" hx-target="this" hx-swap="outerHTML">
+{% if not person %}
+  <div class="panel"><div class="empty"><strong>{% translate "Your user account is not linked to a person." %}</strong>{% translate "Times are recorded for people. Ask personnel planning to link your account in the personnel data." %}{% if may_manage %} {% translate "You can still record times for others and approve them." %}{% endif %}</div></div>
+{% else %}
+  {% if companion_hint %}
+  {# ZEI-024: times can also be recorded on the phone, with the stopwatch and offline. Put away for good with ×. #}
+  <div class="note companion-hint" id="companion-hint">
+    <p>{% icon "clock" %}<span>{% translate "With the Rentalars Companion app for Android you record your times on the phone – with the stopwatch, also without a connection." %} <a href="{% url 'accounts:account' %}#tokens">{% translate "Create the app’s access under My account → API tokens." %}</a></span></p>
+    <form method="post" action="{% url 'timetracking:companion_hint_dismiss' %}" hx-post="{% url 'timetracking:companion_hint_dismiss' %}" hx-target="#companion-hint" hx-swap="outerHTML">{% csrf_token %}<button class="icon-btn" type="submit" aria-label="{% translate 'Hide this hint' %}" title="{% translate 'Hide this hint' %}">{% icon "close" %}</button></form>
+  </div>
+  {% endif %}
+  {% if running %}
+  <div class="panel timer-panel">
+    <div class="panel-body btn-row">
+      <span class="badge accent">{% translate "Stopwatch running" %}</span>
+      <strong class="timer" data-timer-since="{{ running.start|date:'c' }}">{{ running.start|date:"H:i" }}</strong>
+      <span>{{ running.project_label }}, {{ running.job_function.name }}</span>
+      <span class="spacer"></span>
+      <a class="btn" href="{% url 'timetracking:quick' %}" hx-get="{% url 'timetracking:quick' %}" hx-target="#dialog">{% icon "stop" %}{% translate "Stop" %}</a>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if open_entries %}
+  <div class="panel">
+    <div class="panel-head"><h2>{% translate "Not handed in yet" %}</h2>
+      <form method="post" action="{% url 'timetracking:submit' %}">{% csrf_token %}<button class="btn small" type="submit">{% translate "Hand in all" %}</button></form>
+    </div>
+    <table class="table stack">
+      <tbody>
+      {% for entry in open_entries %}
+        <tr>
+          <td>{{ entry.start|date:"D d.m.Y" }}<div class="muted small">{{ entry.start|date:"H:i" }} – {{ entry.end|date:"H:i" }}</div></td>
+          <td>{% if not entry.project_id %} <span class="badge yellow" title="{% translate 'Assign a project before the time can be approved.' %}">{% translate "without project" %}</span>{% else %}{{ entry.project }}{% endif %}<div class="muted small">{{ entry.job_function.name }}</div>{% include "timetracking/_part_of.html" %}{% if entry.status == "rejected" %}<div class="sub wish-warning">{% translate "Sent back" %}: {{ entry.rejection_reason }}</div>{% endif %}{% include "timetracking/_hints.html" with hints=entry.hints %}</td>
+          <td class="num">{{ entry.hours|number }} {% translate "h" %}</td>
+          <td class="actions"><button class="icon-btn" type="button" hx-get="{% url 'timetracking:entry_edit' entry.pk %}" hx-target="#dialog" aria-label="{% translate 'Edit time' %}" title="{% translate 'Edit time' %}">{% icon "edit" %}</button></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  <div class="panel">
+    <div class="panel-head">
+      <h2>{% blocktranslate with first=monday|date:"d.m." last=sunday|date:"d.m.Y" %}Week from {{ first }} to {{ last }}{% endblocktranslate %}</h2>
+      <span class="btn-row no-print">
+        <a class="btn secondary small" href="?week={{ previous_week|date:'Y-m-d' }}">‹ {% translate "earlier" %}</a>
+        {% if not is_current_week %}<a class="btn secondary small" href="{% url 'timetracking:my_times' %}">{% translate "This week" %}</a>{% endif %}
+        <a class="btn secondary small" href="?week={{ next_week|date:'Y-m-d' }}">{% translate "later" %} ›</a>
+      </span>
+    </div>
+    {% if report.entries %}
+    <table class="table stack">
+      <thead><tr><th>{% translate "Day" %}</th><th>{% translate "Time" %}</th><th>{% translate "Project" %}</th><th class="num">{% translate "Hours" %}</th>{% if show_rate %}<th class="num">{% translate "Hourly pay" %}</th><th class="num">{% translate "Amount" %}</th>{% endif %}<th>{% translate "Status" %}</th><th></th></tr></thead>
+      <tbody>
+      {% for row in report.rows %}{% for entry in row.entries %}
+        <tr>
+          <td>{% if forloop.first %}{{ entry.start|date:"D d.m." }}{% endif %}</td>
+          <td data-label="{% translate 'Time' %}">{{ entry.start|date:"H:i" }} – {{ entry.end|date:"H:i" }}{% if entry.break_minutes %}<div class="muted small">{% blocktranslate with minutes=entry.break_minutes %}{{ minutes }} min break{% endblocktranslate %}</div>{% endif %}{% include "timetracking/_hints.html" with hints=entry.hints %}</td>
+          <td data-label="{% translate 'Project' %}">{% if not entry.project_id %} <span class="badge yellow" title="{% translate 'Assign a project before the time can be approved.' %}">{% translate "without project" %}</span>{% else %}{{ entry.project }}{% endif %}<div class="muted small">{{ entry.job_function.name }}{% if entry.note %}, {{ entry.note }}{% endif %}</div>{% include "timetracking/_part_of.html" %}</td>
+          <td class="num" data-label="{% translate 'Hours' %}">{{ entry.hours|number }}</td>
+          {% if show_rate %}
+          {# ZEI-026: the hourly rate fixed on the entry – or the day rate of a deployment paid per day. ZEI-028: or the flat rate of the deployment, counted once with its first entry. #}
+          <td class="num" data-label="{% if entry.pay_kind == 'daily' %}{% translate 'Day rate' %}{% elif entry.pay_kind == 'flat' %}{% translate 'Flat rate' %}{% else %}{% translate 'Hourly pay' %}{% endif %}">{% if entry.pay_kind == "daily" %}<span class="muted small">{% translate "Day rate" %}</span> {% elif entry.pay_kind == "flat" %}<span class="muted small">{% translate "Flat rate" %}</span> {% endif %}{{ entry.pay_rate|money }}</td>
+          <td class="num" data-label="{% translate 'Amount' %}">{% if entry.pay_in_day_rate %}<span class="muted small">{% translate "in the day rate" %}</span>{% elif entry.pay_in_flat_rate %}<span class="muted small">{% translate "in the flat rate" %}</span>{% else %}{{ entry.pay_amount|money }}{% endif %}</td>
+          {% endif %}
+          <td data-label="{% translate 'Status' %}"><span class="badge {{ entry.status|status_colour }}">{{ entry.get_status_display }}</span></td>
+          <td class="actions no-print">{% if entry.is_editable and can_record %}
+            <button class="icon-btn" type="button" hx-get="{% url 'timetracking:entry_edit' entry.pk %}" hx-target="#dialog" aria-label="{% translate 'Edit time' %}" title="{% translate 'Edit time' %}">{% icon "edit" %}</button>
+            <form class="inline-form" method="post" action="{% url 'timetracking:entry_delete' entry.pk %}">{% csrf_token %}<button class="icon-btn" type="submit" aria-label="{% translate 'Delete time' %}" title="{% translate 'Delete time' %}" data-confirm="{% if entry.part_count %}{% translate 'Delete this period with all its job functions?' %}{% else %}{% translate 'Delete this time entry?' %}{% endif %}">{% icon "trash" %}</button></form>
+          {% endif %}{% if entry.copy_text %}
+            {# ZEI-026: one block per part of the period, for a timesheet of your own. #}
+            <button class="icon-btn" type="button" data-copy-block="{{ entry.copy_text }}" data-copied-text="{% translate 'Copied' %}" data-failed-text="{% translate 'Copying did not work.' %}" aria-label="{% translate 'Copy to the clipboard' %}" title="{% translate 'Copy to the clipboard' %}">{% icon "copy" %}</button>
+          {% endif %}</td>
+        </tr>
+      {% endfor %}{% endfor %}
+      <tr class="sum"><td colspan="3">{% translate "Sum of the week" %}</td><td class="num" data-label="{% translate 'Hours' %}">{{ report.total_hours|number }}</td>{% if show_rate %}<td></td><td class="num" data-label="{% translate 'Amount' %}">{{ week_amount|money }}</td>{% endif %}<td colspan="2"></td></tr>
+      </tbody>
+    </table>
+    <p class="visually-hidden" role="status" aria-live="polite" data-copy-status></p>
+    {% else %}
+    <div class="empty"><strong>{% translate "No times in this week." %}</strong>{% if can_record %}{% translate "“Record time” is in the navigation on every page." %}{% endif %}</div>
+    {% endif %}
+  </div>
+{% endif %}
+</div>

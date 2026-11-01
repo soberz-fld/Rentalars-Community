@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Fieldsets" %}{% endblock %}
+{% block content %}
+{# MAT-072: the fieldsets – which fields, in which order, which of them required; a material model gets one. #}
+<div class="page-head"><div><div class="breadcrumb"><a href="{% url 'core:administration' %}">{% translate "Settings" %}</a></div><h1>{% translate "Custom fields" %}</h1>
+<p class="lead">{% translate "A fieldset groups custom fields, each one required or optional, in an order. Choose the fieldset in the form of a material model: every item of the model then has these fields." %}</p></div>
+<div class="actions">{% if can.write.administration %}<a class="btn" href="{% url 'customfields:fieldset_create' %}">{% icon "plus" %}{% translate "New fieldset" %}</a>{% endif %}</div></div>
+{% include "customfields/_tabs.html" %}
+<div class="panel">
+  {% if rows %}
+  {% include "core/_table_tools.html" %}
+  {% include "core/_table.html" with stack=True %}
+  {% include "core/_pagination.html" %}
+  <p class="muted small panel-body">{% translate "* required field" %}</p>
+  {% elif has_fields %}
+  <div class="empty"><strong>{% translate "No fieldsets yet." %}</strong>{% translate "For example: “Network device” with MAC address (required) and firmware." %}</div>
+  {% else %}
+  <div class="empty"><strong>{% translate "No fieldsets yet." %}</strong>{% translate "Create the custom fields first, then group them here." %}</div>
+  {% endif %}
+</div>
+{% endblock %}

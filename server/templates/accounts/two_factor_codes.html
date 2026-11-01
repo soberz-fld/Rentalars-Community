@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Recovery codes" %}{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>{% translate "Recovery codes" %}</h1>
+<p class="lead">{% translate "Write these codes down or print them, and keep them apart from your phone. Each one replaces the app once, should the phone be lost. They are shown only now." %}</p></div>
+<div class="actions"><button class="btn secondary" type="button" data-print>{% icon "print" %}{% translate "Print" %}</button></div></div>
+<section class="panel"><div class="panel-body"><ul class="codes">{% for code in codes %}<li>{{ code }}</li>{% endfor %}</ul></div></section>
+<p><a class="btn" href="{% url 'core:home' %}">{% translate "Done – noted" %}</a></p>
+{% endblock %}

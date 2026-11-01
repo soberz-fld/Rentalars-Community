@@ -1,0 +1,22 @@
+{% load i18n rentalars %}
+{# ADM-017: the reply draft – asked for again every two seconds while it is written; taken over into the text by app.js. #}
+<div class="ai-draft no-print" id="ai-draft" aria-live="polite"{% if job and not job.is_finished %} hx-get="{% url 'ai:draft_job' project.pk job.pk %}" hx-trigger="every 2s" hx-target="this" hx-swap="outerHTML"{% endif %}>
+  {% if error %}<p class="note red">{{ error }}</p>{% endif %}
+  {% if job and not job.is_finished %}
+  <p><span class="badge yellow">{{ job.get_status_display }}</span> {% translate "The draft is being written …" %}{% if job.message %}{# EML-040 #}<span class="muted"> – {{ job.message }}</span>{% endif %}</p>
+  {% elif job.status == "done" %}
+  <div class="field">
+    <label for="ai-draft-text">{% translate "Draft by AI" %} <span class="badge accent">{% translate "made by AI" %}</span></label>
+    <textarea id="ai-draft-text" rows="10" readonly aria-describedby="ai-draft-note">{{ job.result.text }}</textarea>
+    <div class="help" id="ai-draft-note">{% blocktranslate with model=job.result.model provider=job.result.provider %}Written by the model {{ model }} ({{ provider }}). Check every statement before you send the mail.{% endblocktranslate %}</div>
+  </div>
+  {% endif %}
+  {% if not job or job.is_finished %}
+  <form method="post" action="{% url 'ai:draft' project.pk %}" hx-post="{% url 'ai:draft' project.pk %}" hx-target="#ai-draft" hx-swap="outerHTML" class="btn-row">
+    {% csrf_token %}{% if answer %}<input type="hidden" name="answer" value="{{ answer }}">{% endif %}
+    {% if job.status == "done" %}<button type="button" class="btn small" data-ai-take-draft="ai-draft-text" aria-controls="id_body" data-text-taken="{% translate 'The draft is now above the quoted mail in the text.' %}">{% icon "check" %}{% translate "Take it over into the text" %}</button>{% endif %}
+    <button class="btn secondary small" type="submit">{% icon "edit" %}{% if job %}{% translate "Suggest another draft" %}{% else %}{% translate "Suggest a draft" %}{% endif %}</button>
+  </form>
+  <p class="visually-hidden" role="status" data-ai-draft-status></p>
+  {% endif %}
+</div>

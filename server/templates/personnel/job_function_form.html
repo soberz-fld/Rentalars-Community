@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% if job_function %}{{ job_function.name }}{% else %}{% translate "New job function" %}{% endif %}{% endblock %}
+{% block content %}
+<div class="page-head"><div><div class="breadcrumb"><a href="{% url 'personnel:job_function_list' %}">{% translate "Job functions" %}</a></div><h1>{% if job_function %}{{ job_function.name }}{% else %}{% translate "New job function" %}{% endif %}</h1></div></div>
+{# PRD-044: every job function has exactly one service product; the two pages link to each other. #}
+{% include "personnel/_customer_price_note.html" %}{# The customer price is changed on the product; the values here are costs #}
+<div class="panel" id="service-product"><div class="panel-body">
+  {% if product %}
+  <p><strong>{% translate "Service product" %}:</strong> {% if may_open_product %}<a href="{% url 'products:detail' product.pk %}"><span class="artno">{{ product.article_number }}</span> {{ product.name }}</a>{% else %}<span class="artno">{{ product.article_number }}</span> {{ product.name }}{% endif %}{% if may_see_prices %} · {% if product.price is None %}<span class="badge yellow">{% translate "no price yet" %}</span>{% else %}{{ product.price|money }} {% translate "per hour" %}{% if product.hours_limit is not None and product.price_above_limit is not None %}, {% blocktranslate with limit=product.hours_limit|number price=product.price_above_limit|money %}from {{ limit }} h a day: {{ price }}{% endblocktranslate %}{% endif %}{% endif %}{% endif %}</p>
+  <p class="muted small">{% translate "The customer pays the price of this product for the job function. Price, tax rate and the limit of hours per day are changed on the product; crew lines planned later take them over." %}</p>
+  {% else %}
+  <p class="muted small">{% translate "Saving creates the service product of the job function with the same name: the customer pays its price. Price, tax rate and a limit of hours per day are kept there." %}</p>
+  {% endif %}
+</div></div>
+<div class="panel"><div class="panel-body">
+  <form method="post" class="form" novalidate>
+    {% csrf_token %}
+    {% include "core/_form_errors.html" %}
+    {% for field in form %}{% include "core/_field.html" %}{% endfor %}
+    <div class="btn-row"><button class="btn" type="submit">{% translate "Save job function" %}</button><a class="btn secondary" href="{% url 'personnel:job_function_list' %}">{% translate "Cancel" %}</a></div>
+  </form>
+</div></div>
+{% if job_function and can.delete.personnel %}
+<form method="post" action="{% url 'personnel:job_function_delete' job_function.pk %}" class="section">{% csrf_token %}<button class="btn danger" type="submit" data-confirm="{% translate 'Delete this job function and its service product?' %}">{% icon "trash" %}{% translate "Delete job function" %}</button></form>
+{% endif %}
+{% endblock %}

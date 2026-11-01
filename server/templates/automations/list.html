@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Automations" %}{% endblock %}
+{% block content %}
+{% comment %}
+  ADM-013: the rules "if …, then …" and below them every run – what triggered it, what was done or why not.
+  ADM-019: the rules that came with Rentalars are marked "Standard" and are edited, switched and deleted like any other;
+  "Standard-Automationen wiederherstellen" brings back the missing ones.
+{% endcomment %}
+<div class="page-head"><div><div class="breadcrumb"><a href="{% url 'core:administration' %}">{% translate "Settings" %}</a></div><h1>{% translate "Automations" %}</h1>
+<p class="lead">{% translate "If something happens, Rentalars does something by itself: answers an inquiry with a confirmation of receipt, tells a person, notes an open item." %}</p></div>
+<div class="actions">{% if can_write %}<a class="btn" href="{% url 'automations:create' %}">{% icon "plus" %}{% translate "New automation" %}</a>{% endif %}
+{# ADM-019: the missing rules that came with Rentalars, by their key; the question names them. The button sends the form below, so that it stands in the row of buttons like the link beside it. #}
+{% if missing_defaults %}<button class="btn secondary automations-restore" type="submit" form="restore-defaults" data-confirm="{{ restore_question }}">{% icon "refresh" %}{% translate "Restore default automations" %}</button>{% endif %}</div></div>
+{% if missing_defaults %}<form id="restore-defaults" method="post" action="{% url 'automations:restore_defaults' %}" hidden>{% csrf_token %}</form>{% endif %}
+<section class="panel">
+  <div class="panel-head"><h2>{% translate "Rules" %}</h2></div>
+  {% if rules %}
+  {# UIX-040: tables of core/tables.py (automations/list_tables.py): columns, sorting, groups, CSV. #}
+  {% include "core/_table_tools.html" with table=rule_table %}
+  {% include "core/_table.html" with table=rule_table rows=rule_rows stack=True %}
+  {% if can_write %}{% for rule in rules %}
+  <form id="toggle-{{ rule.pk }}" method="post" action="{% url 'automations:toggle' rule.pk %}" hidden>{% csrf_token %}</form>
+  <form id="delete-{{ rule.pk }}" method="post" action="{% url 'automations:delete' rule.pk %}" hidden>{% csrf_token %}</form>
+  {% endfor %}{% endif %}
+  {% else %}
+  <div class="empty"><strong>{% translate "No automations yet." %}</strong>{% translate "For example: if a mail without project tag arrives, answer it with a confirmation of receipt. Or: if a deployment request is declined, note an open item “find a replacement”." %}</div>
+  {% endif %}
+</section>
+<section class="panel" id="runs">
+  <div class="panel-head"><h2>{% translate "Runs" %}</h2></div>
+  <form method="get" class="filters" action="#runs">
+    {% filterpanel "automation-runs" %}
+    <div class="field"><label for="runs-automation">{% translate "Automation" %}</label>
+      <select id="runs-automation" name="automation" data-autosubmit><option value="">{% translate "All automations" %}</option>{% for rule in rules %}<option value="{{ rule.pk }}"{% if chosen == rule.pk|stringformat:"d" %} selected{% endif %}>{{ rule.name }}</option>{% endfor %}</select></div>
+    <div class="field"><label for="runs-status">{% translate "Result" %}</label>
+      <select id="runs-status" name="status" data-autosubmit><option value="">{% translate "All results" %}</option>{% for value, label in statuses %}<option value="{{ value }}"{% if status == value %} selected{% endif %}>{{ label|capfirst }}</option>{% endfor %}</select></div>
+    <button class="btn secondary" type="submit">{% translate "Show" %}</button>
+    {% endfilterpanel %}
+  </form>
+  {% include "core/_table_tools.html" with table=run_table %}
+  {% if page.object_list %}
+  {% include "core/_table.html" with table=run_table rows=run_rows stack=True %}
+  {% include "core/_pagination.html" %}
+  {% else %}
+  <div class="empty">{% translate "No runs yet." %}</div>
+  {% endif %}
+  <p class="muted small panel-body">{% translate "Runs are kept for a year. Answers by mail are also in the mail log." %}</p>
+</section>
+{% endblock %}

@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}{% if model.is_bulk %}{% translate "New stock row" %}{% else %}{% translate "New items" %}{% endif %}{% endblock %}
+{% block content %}
+<div class="page-head"><div><div class="breadcrumb"><a href="{% url 'material:model_detail' model.pk %}">{{ model.name }}</a></div><h1>{% if model.is_bulk %}{% translate "New stock row" %}{% else %}{% translate "New items" %}{% endif %}</h1>
+<p class="lead">{% if model.is_bulk %}{% translate "Bulk material is kept as a row with a quantity." %}{% else %}{% translate "Several items get consecutive IDs and share the purchase data." %}{% endif %}</p>
+{% if original %}<p class="note">{# MAT-064: duplicate #}{% blocktranslate with id=original.display_id %}A copy of {{ id }}: its purchase data and storage location are filled in. The ID and the serial number are new.{% endblocktranslate %}</p>{% endif %}</div></div>
+<form method="post" class="form wide" novalidate>
+  {% csrf_token %}
+  {% include "core/_form_errors.html" %}
+  {# A serial number that exists already is confirmed with "Create anyway" #}
+  {% translate "Create anyway" as confirm_label %}{% include "material/_serial_warnings.html" %}
+  <div class="panel"><div class="panel-body">
+    <div class="form-grid">
+      {% if form.count %}{% include "core/_field.html" with field=form.count %}{% endif %}
+      {% include "core/_field.html" with field=form.inventory_number %}
+      {% if form.quantity %}{% include "core/_field.html" with field=form.quantity %}{% endif %}
+      {% include "core/_field.html" with field=form.status %}
+      {% include "core/_field.html" with field=form.storage_location %}
+      {% include "core/_field.html" with field=form.storage_spot %}
+    </div>
+    {# MAT-050: one serial number per item. The page script shows a field per item and writes them into the text #}
+    {# field one per line; without it the text field itself takes them. #}
+    <div class="field serial-numbers{% if form.serial_numbers.errors %} has-error{% endif %}" data-serial-numbers{% if form.count %} data-count-field="{{ form.count.auto_id }}"{% endif %} data-count="{{ form.serial_count }}" data-item-label="{% translate 'Item' %}" data-fields-help="{% translate 'In the order of the IDs. Empty: that item has none.' %}">
+      <label for="{{ form.serial_numbers.auto_id }}">{{ form.serial_numbers.label }}{% include "core/_required_mark.html" with field=form.serial_numbers %}</label>
+      {{ form.serial_numbers }}
+      {% if form.serial_numbers.help_text %}<div class="help" id="{{ form.serial_numbers.auto_id }}_helptext">{{ form.serial_numbers.help_text }}</div>{% endif %}
+      {{ form.serial_numbers.errors }}
+    </div>
+  </div></div>
+  <div class="panel">
+    <div class="panel-head"><h2>{% translate "Purchase" %}</h2></div>
+    <div class="panel-body form-grid">
+      {# MAT-060: "new supplier" among the suggestions opens the supplier's master data in a dialog (material/_supplier_dialog.html) #}
+      {% url 'material:supplier_suggest' as supplier_url %}{% translate "Search or type a new name" as supplier_placeholder %}{% include "material/_name_typeahead.html" with field=form.supplier_name url=supplier_url placeholder=supplier_placeholder %}
+      {% include "core/_field.html" with field=form.supplier_article_number %}
+      {% include "core/_field.html" with field=form.invoice_number %}
+      {% include "core/_field.html" with field=form.purchase_date %}
+      {% include "material/_purchase_price.html" %}
+      {% include "core/_field.html" with field=form.purchase_note %}
+    </div>
+    {# MAT-054: several items bought together for one price – the first carries it. #}
+    {% if form.price_for_set %}<div class="panel-body">{% include "core/_field.html" with field=form.price_for_set %}</div>{% endif %}
+  </div>
+  {# MAT-073: the values for the new items #}
+  {% include "customfields/_value_fields.html" %}
+  <div class="btn-row"><button class="btn" type="submit">{% translate "Create" %}</button><a class="btn secondary" href="{% if original %}{% url 'material:item_detail' original.pk %}{% else %}{% url 'material:model_detail' model.pk %}{% endif %}">{% translate "Cancel" %}</a></div>
+</form>
+{% endblock %}

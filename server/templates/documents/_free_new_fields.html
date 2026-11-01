@@ -1,0 +1,23 @@
+{% load i18n rentalars %}
+{% comment %}
+  Free outgoing documents: the fields of the dialog "Neuer Ausgangsbeleg" – kind and customer first; the billing
+  address and the contact follow the customer chosen (#customer-dependants is loaded again when it changes). Used by
+  _free_new.html (dialog) and free_new.html (page of its own).
+{% endcomment %}
+<div class="form-grid">
+  {% include "core/_field.html" with field=form.kind %}
+  {% url 'customers:suggest' as customer_url %}{% translate "Name, number or city" as customer_placeholder %}
+  {% include "core/_typeahead_field.html" with field=form.customer url=customer_url text=form.customer_text placeholder=customer_placeholder refresh=refresh %}
+</div>
+<div id="customer-dependants" class="form-grid">
+  {{ form.dependants_for }}
+  {% include "core/_field.html" with field=form.billing_address %}
+  {% include "core/_field.html" with field=form.contact %}
+</div>
+<div class="form-grid">
+  {% include "core/_field.html" with field=form.issued_on %}
+  <div data-show-if="kind=invoice">{% include "core/_field.html" with field=form.payment_terms_days %}</div>
+  <div data-show-if="kind=offer">{% include "core/_field.html" with field=form.valid_until %}</div>
+</div>
+{% include "core/_field.html" with field=form.reference %}
+{% include "core/_field.html" with field=form.print_product_descriptions %}

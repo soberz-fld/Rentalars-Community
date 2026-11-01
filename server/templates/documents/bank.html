@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Bank" %}{% endblock %}
+{% block content %}
+{% comment %}
+  DOK-050: Buchhaltung → Bank. Bank statements (CAMT.053, CSV) are read in; each transaction shows the open invoices it
+  may belong to. A payment is entered only by a click on "Enter payment" – the suggestions are no booking.
+{% endcomment %}
+<div class="page-head"><div><h1>{% translate "Accounting" %}</h1></div></div>
+{% include "documents/_accounting_tabs.html" %}
+
+{% if may_change %}
+<div class="panel">
+  <div class="panel-head"><h2>{% translate "Read in a bank statement" %}</h2></div>
+  <form method="post" action="{% url 'documents:bank_upload' %}" enctype="multipart/form-data" class="form panel-body" novalidate>
+    {% csrf_token %}
+    {% include "core/_required_note.html" with always=True %}
+    <div class="form-row"><label for="bank-file">{% translate "File of the bank" %}{% include "core/_required_star.html" %}</label>
+      <input id="bank-file" type="file" name="file" accept=".xml,.csv,.txt" required>
+      <button class="btn" type="submit">{% icon "plus" %}{% translate "Read in" %}</button></div>
+    <p class="muted small">{% translate "CAMT.053 (XML) or the CSV export of your bank. Transactions that an earlier statement held are not entered twice. Nothing is booked by reading a file in." %}</p>
+  </form>
+</div>
+{% endif %}
+
+<nav class="tabs" aria-label="{% translate 'Transactions' %}">
+  {% for key, label in states %}<a href="?state={{ key }}"{% if state == key %} aria-current="page"{% endif %}>{{ label }}{% if key == "open" %} ({{ open_count }}){% endif %}</a>{% endfor %}
+</nav>
+
+<div class="panel">
+  <div class="panel-head"><h2>{% translate "Transactions" %}</h2></div>
+  {% if rows %}
+  <table class="table stack" data-bank>
+    <thead><tr><th scope="col">{% translate "Day" %}</th><th scope="col">{% translate "Counterparty" %}</th><th scope="col">{% translate "Purpose" %}</th><th scope="col" class="num">{% translate "Amount" %}</th><th scope="col">{% translate "Assignment" %}</th></tr></thead>
+    <tbody>{% for row in rows %}{% with tx=row.tx %}
+      <tr data-state="{{ row.state }}" id="tx-{{ tx.pk }}">
+        <td data-label="{% translate 'Day' %}">{{ tx.booked_on|date:"d.m.Y" }}</td>
+        <td data-label="{% translate 'Counterparty' %}">{{ tx.counterparty|default:"–" }}{% if tx.counterparty_iban %}<br><span class="muted small">{{ tx.counterparty_iban }}</span>{% endif %}</td>
+        <td data-label="{% translate 'Purpose' %}">{{ tx.purpose|default:"–" }}</td>
+        <td class="num" data-label="{% translate 'Amount' %}"><strong>{{ tx.amount|money }}</strong>{% if tx.currency != "EUR" %} {{ tx.currency }}{% endif %}</td>
+        <td data-label="{% translate 'Assignment' %}">
+          {% if row.state == "booked" %}
+            {% if tx.outgoing_payment %}<a href="{% url 'documents:payments' tx.outgoing_payment.document_id %}">{{ tx.outgoing_payment.document.number }}</a>{% else %}<a href="{% url 'incoming:payments' tx.incoming_payment.invoice_id %}">{{ tx.incoming_payment.invoice.invoice_number|default:tx.incoming_payment.invoice.original_name }}</a>{% endif %}
+          {% elif row.state == "ignored" %}
+            <span class="muted">{% blocktranslate with reason=tx.ignore_reason %}Ignored: {{ reason }}{% endblocktranslate %}</span>
+            {% if may_change %}<form method="post" action="{% url 'documents:bank_restore' tx.pk %}" class="inline-form">{% csrf_token %}<input type="hidden" name="state" value="{{ state }}"><button class="btn secondary small" type="submit">{% translate "Take back" %}</button></form>{% endif %}
+          {% else %}
+            {% for s in row.suggestions %}
+            <div class="suggestion" data-score="{{ s.score }}">
+              <strong>{{ s.candidate.number|default:"?" }}</strong> {{ s.candidate.party }} · {{ s.candidate.remaining|money }}
+              <span class="muted small">{{ s.reasons|join:" " }}</span>
+              {% if may_change %}<form method="post" action="{% url 'documents:bank_book' tx.pk %}" class="inline-form">{% csrf_token %}<input type="hidden" name="state" value="{{ state }}"><input type="hidden" name="side" value="{{ s.side }}"><input type="hidden" name="target" value="{{ s.target.pk }}"><button class="btn small" type="submit">{% translate "Enter payment" %}</button></form>{% endif %}
+            </div>
+            {% empty %}<span class="muted">{% translate "No suggestion." %}</span>{% endfor %}
+            {% if may_change %}<form method="post" action="{% url 'documents:bank_ignore' tx.pk %}" class="inline-form">{% csrf_token %}<input type="hidden" name="state" value="{{ state }}"><input type="text" name="reason" maxlength="250" placeholder="{% translate 'Reason' %}" aria-label="{% translate 'Reason' %}" required><button class="btn secondary small" type="submit">{% translate "Set aside" %}</button></form>{% endif %}
+          {% endif %}
+        </td>
+      </tr>
+    {% endwith %}{% endfor %}</tbody>
+  </table>
+  {% include "core/_pagination.html" %}
+  {% else %}<div class="empty"><strong>{% translate "No transactions." %}</strong></div>{% endif %}
+</div>
+
+{% if imports %}
+<div class="panel">
+  <div class="panel-head"><h2>{% translate "Statements read in" %}</h2></div>
+  <table class="table stack">
+    <thead><tr><th scope="col">{% translate "File" %}</th><th scope="col">{% translate "Period" %}</th><th scope="col">{% translate "Account" %}</th><th scope="col" class="num">{% translate "New" %}</th><th scope="col" class="num">{% translate "Already known" %}</th><th scope="col">{% translate "Read in" %}</th></tr></thead>
+    <tbody>{% for item in imports %}<tr>
+      <td data-label="{% translate 'File' %}">{{ item.name }}</td>
+      <td data-label="{% translate 'Period' %}">{{ item.first_day|date:"d.m.Y" }} – {{ item.last_day|date:"d.m.Y" }}</td>
+      <td data-label="{% translate 'Account' %}">{{ item.account_iban|default:"–" }}</td>
+      <td class="num" data-label="{% translate 'New' %}">{{ item.new_count }}</td>
+      <td class="num" data-label="{% translate 'Already known' %}">{{ item.skipped_count }}</td>
+      <td data-label="{% translate 'Read in' %}">{{ item.imported_at|date:"d.m.Y H:i" }}</td>
+    </tr>{% endfor %}</tbody>
+  </table>
+</div>
+{% endif %}
+<p class="muted small">{% translate "A suggestion is based on the invoice number in the purpose, the amount that is still open and the name. Check it before you enter the payment; a wrong payment is voided at the invoice, and the transaction is open again." %}</p>
+{% endblock %}

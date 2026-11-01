@@ -1,0 +1,30 @@
+{% load i18n rentalars %}
+{% comment %}
+  ZEI-019: the fields of an expense, for recording and correcting. Kilometres only for a trip: they give the amount
+  (× the rate per kilometre of the settings, kept on the expense). On a phone the receipt can be photographed.
+{% endcomment %}
+{% include "core/_form_errors.html" %}
+{% if people %}
+{# ZEI-011: the office records for others; another person has other projects, so the dialog loads again. #}
+<div class="form-row"><div class="field">
+  <label for="expense-person">{% translate "Person" %}</label>
+  <select name="person" id="expense-person" hx-get="{% url 'timetracking:expense_new' %}" hx-include="closest form" hx-target="#expense-entry" hx-swap="outerHTML" hx-trigger="change">
+    {% for someone in people %}<option value="{{ someone.pk }}"{% if someone.pk == person.pk %} selected{% endif %}>{{ someone.sort_name }}</option>{% endfor %}
+  </select>
+</div></div>
+{% endif %}
+{% if form.nothing_to_book %}<p class="note">{% translate "You are not scheduled for any project, and there is no internal project to book expenses on. Ask whoever plans the projects." %}</p>{% endif %}
+<div class="form-row">{% include "core/_field.html" with field=form.project %}</div>
+<div class="form-row pair keep">{% include "core/_field.html" with field=form.kind %}{% include "core/_field.html" with field=form.date %}</div>
+<div class="form-row" data-show-if="kind=travel">{% include "core/_field.html" with field=form.kilometres %}</div>
+<div class="form-row">
+  {% include "core/_field.html" with field=form.amount %}
+  <p class="help-line expense-amount-help" data-show-if="kind=travel">{% translate "For a trip with the own car leave the amount empty: the kilometres count. For a ticket enter its amount." %}</p>
+</div>
+<div class="form-row">{% include "core/_field.html" with field=form.note %}</div>
+<div class="form-row">
+  {% include "core/_field.html" with field=form.receipt %}
+  {% if expense.receipt %}<p class="small">{% icon "file" %}<a href="{% url 'timetracking:expense_receipt' expense.pk %}" target="_blank" rel="noopener">{% translate "Show the receipt stored so far" %}</a> – {% translate "a new file replaces it." %}</p>{% endif %}
+</div>
+{% if form.remove_receipt %}{% include "core/_field.html" with field=form.remove_receipt %}{% endif %}
+{% include "core/_field.html" with field=form.submit %}

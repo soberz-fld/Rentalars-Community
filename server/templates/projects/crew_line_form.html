@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}{{ line.title }} {{ project.number }}{% endblock %}
+{% block content %}
+{# PRJ-110: the dialog of a crew line opened from "Zeitplanung" on a page of its own, for a browser without scripts. #}
+<div class="page-head"><div><div class="breadcrumb"><a href="{% url 'projects:course' project.pk %}#phases">{{ project.number }} {{ project.name }}</a></div><h1>{{ line.title }}</h1></div></div>
+<div class="panel dialog-page">{% include "projects/_crew_form.html" %}</div>
+{% endblock %}

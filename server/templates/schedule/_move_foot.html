@@ -1,0 +1,6 @@
+{% load i18n %}
+{# VFG-026: the buttons of the move dialog; replaced together with the consequences (oob) – "Move" only when possible. #}
+<div class="dialog-foot" id="move-foot"{% if oob %} hx-swap-oob="true"{% endif %}>
+  {% if page %}<a class="btn secondary" href="{{ next }}">{% translate "Cancel" %}</a>{% else %}<button type="button" class="btn secondary" data-close-dialog>{% translate "Cancel" %}</button>{% endif %}
+  <button type="submit" class="btn"{% if not preview.is_possible %} disabled{% endif %}>{% translate "Move" context "appointment" %}</button>
+</div>

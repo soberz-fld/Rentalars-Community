@@ -1,0 +1,15 @@
+{% extends "base_public.html" %}
+{% load i18n %}
+{% block title %}{% translate "Log in" %}{% endblock %}
+{% block content %}
+<h1>Rentalars</h1>
+<p class="lead">{% translate "Log in to continue." %}</p>
+<form method="post" class="form" novalidate>
+  {% csrf_token %}<input type="hidden" name="next" value="{{ next }}">
+  {% include "core/_form_errors.html" %}
+  {% include "core/_field.html" with field=form.username %}
+  {% include "core/_field.html" with field=form.password %}
+  <button type="submit" class="btn block">{% translate "Log in" %}</button>
+  <p class="small"><a href="{% url 'accounts:password_reset' %}">{% translate "Forgot your password?" %}</a></p>
+</form>
+{% endblock %}

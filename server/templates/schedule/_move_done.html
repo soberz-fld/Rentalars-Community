@@ -1,0 +1,12 @@
+{% load i18n %}
+{% comment %}
+  VFG-026: what a move did, in the dialog. Closing it loads the page again with the new times (app.js, on
+  "timelineMoved"), and the focus goes back to the bar. Expects: name, notes (pairs of message level and text).
+{% endcomment %}
+<div class="dialog-head"><h2 id="move-title">{% blocktranslate with name=name %}{{ name }} moved{% endblocktranslate %}</h2></div>
+<div class="dialog-body">
+  <div role="status">
+  <ul class="messages">{% for level, text in notes %}<li class="message {{ level }}">{{ text }}</li>{% endfor %}</ul>
+  </div>
+</div>
+<div class="dialog-foot"><button type="button" class="btn" data-close-dialog autofocus>{% translate "Close" %}</button></div>

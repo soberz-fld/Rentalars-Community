@@ -1,0 +1,1 @@
+{% load i18n rentalars %}{# ZEI-025: which part of a period divided into job functions this row is. #}{% if entry.part_count %}<div class="muted small time-part-of">{% blocktranslate with number=entry.part_number total=entry.part_count hours=entry.period_hours|number %}Part {{ number }} of {{ total }} of a period of {{ hours }} h{% endblocktranslate %}</div>{% endif %}

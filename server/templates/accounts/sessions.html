@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Sessions" %}{% endblock %}
+{% block content %}
+<div class="page-head"><div><div class="breadcrumb"><a href="{% url 'accounts:account' %}">{% translate "My account" %}</a></div><h1>{% translate "Where you are logged in" %}</h1>
+<p class="lead">{% blocktranslate with minutes=idle_minutes %}A session ends after {{ minutes }} minutes without activity. A session you do not recognise: end it, and change your password.{% endblocktranslate %}</p></div></div>
+<section class="panel">
+  <table class="table stack">
+    <thead><tr><th>{% translate "Browser" %}</th><th>{% translate "IP address" %}</th><th>{% translate "Logged in" %}</th><th>{% translate "Last active" %}</th><th></th></tr></thead>
+    <tbody>
+    {% for item in sessions %}
+      <tr>
+        <td>{{ item.user_agent|truncatechars:70|default:"–" }}{% if item.session_key == current_key %} <span class="badge accent">{% translate "this browser" %}</span>{% endif %}</td>
+        <td data-label="{% translate 'IP address' %}">{{ item.ip_address|default:"–" }}</td>
+        <td class="nowrap" data-label="{% translate 'Logged in' %}">{{ item.created_at|date:"d.m.Y H:i" }}</td>
+        <td class="nowrap" data-label="{% translate 'Last active' %}">{{ item.last_activity|date:"d.m.Y H:i" }}</td>
+        <td class="actions">{% if item.session_key != current_key %}<form method="post" class="inline-form">{% csrf_token %}<input type="hidden" name="session" value="{{ item.pk }}"><button class="btn secondary small" type="submit">{% translate "End" %}</button></form>{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% if sessions|length > 1 %}<div class="panel-body"><form method="post">{% csrf_token %}<input type="hidden" name="all" value="1"><button class="btn secondary" type="submit">{% translate "End all other sessions" %}</button></form></div>{% endif %}
+</section>
+{% endblock %}

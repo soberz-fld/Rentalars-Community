@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}{% if role %}{{ role.name }}{% else %}{% translate "New role" %}{% endif %}{% endblock %}
+{% block content %}
+<div class="page-head"><div><div class="breadcrumb"><a href="{% url 'accounts:role_list' %}">{% translate "Roles" %}</a></div><h1>{% if role %}{{ role.name }}{% else %}{% translate "New role" %}{% endif %}</h1></div></div>
+<form method="post" class="form wide" novalidate>
+  {% csrf_token %}
+  {% include "core/_form_errors.html" %}
+  <div class="panel"><div class="panel-body form-grid">
+    {% include "core/_field.html" with field=form.name %}
+    {% include "core/_field.html" with field=form.description %}
+  </div></div>
+  <div class="panel">
+    <div class="panel-head"><h2>{% translate "Rights per module" %}</h2><span class="muted small">{% translate "Each level includes the ones to its left." %}</span></div>
+    <div class="table-scroll">
+    <table class="table matrix">
+      <thead><tr><th>{% translate "Module" %}</th>{% for value, label in form.fields.module_material.choices %}<th>{{ label }}</th>{% endfor %}</tr></thead>
+      <tbody>
+      {% for field, later in form.module_fields %}
+        <tr>
+          <td>{{ field.label }}{% include "core/_required_mark.html" %}{% if later %} <span class="badge">{% translate "later stage" %}</span>{% endif %}</td>
+          {% for radio in field %}<td><label class="visually-hidden" for="{{ radio.id_for_label }}">{{ field.label }}: {{ radio.choice_label }}</label>{{ radio.tag }}</td>{% endfor %}
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  </div>
+  <div class="panel"><div class="panel-body form-grid">
+    {% include "core/_field.html" with field=form.special_rights %}
+    {% include "core/_field.html" with field=form.requires_two_factor %}
+    {% include "core/_field.html" with field=form.project_scope %}
+  </div></div>
+  <div class="btn-row">
+    <button class="btn" type="submit">{% translate "Save role" %}</button>
+    <a class="btn secondary" href="{% url 'accounts:role_list' %}">{% translate "Cancel" %}</a>
+  </div>
+</form>
+{% if role and can.delete.administration %}
+<form method="post" action="{% url 'accounts:role_delete' role.pk %}" class="section">{% csrf_token %}<button class="btn danger" type="submit" data-confirm="{% translate 'Delete this role?' %}">{% translate "Delete role" %}</button></form>
+{% endif %}
+{% endblock %}

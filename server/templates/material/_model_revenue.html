@@ -1,0 +1,48 @@
+{% load i18n rentalars %}
+{% comment %}
+  MAT-058: what the items of a model earned – the figures of an item's box "Ertrag" (MAT-053), added up and item by
+  item. An item bought in a set (MAT-054) counts with its share of the set's price. Expects: model, revenue,
+  may_see_purchase_prices.
+  (MAT-058) The table item by item is folded by default – a <details> whose summary names it and the
+  number of items; the sums above stay in sight. Works without the page script.
+{% endcomment %}
+<section class="panel" id="model-revenue" aria-labelledby="model-revenue-title">
+  <div class="panel-head"><h2 id="model-revenue-title">{% translate "Calculated earnings" %}</h2></div>
+  <div class="panel-body">
+    <dl class="facts">
+      <dt>{% translate "Calculated: earned with the items of this model" %}</dt><dd><strong>{{ revenue.total|money }}</strong>{% if revenue.projects %} <span class="muted small">{% blocktranslate count count=revenue.projects %}in {{ count }} project{% plural %}in {{ count }} projects{% endblocktranslate %}</span>{% endif %}</dd>
+      <dt>{% translate "of which assigned" %}</dt><dd>{{ revenue.direct|money }} <span class="muted small">{% translate "projects an item was chosen for when packing" %}</span></dd>
+      <dt>{% translate "of which estimated" %}</dt><dd>{{ revenue.estimated|money }} <span class="muted small">{% translate "the share of the pieces that went out without an item chosen" %}</span></dd>
+      {% if may_see_purchase_prices %}
+      <dt>{% translate "Purchase prices together (net)" %}</dt><dd>{{ revenue.purchase_total|money|default:"–" }}</dd>
+      <dt>{% translate "Share of the purchase prices" %}</dt>
+      <dd>{% if revenue.share_percent is not None %}<span class="badge {% if revenue.share_percent >= 100 %}green{% elif revenue.share_percent >= 50 %}yellow{% endif %}">{{ revenue.share_percent|number }} %</span>
+        <div class="progress revenue-progress" role="img" aria-label="{{ revenue.share_percent|number }} %"><span style="width: {% if revenue.share_percent > 100 %}100{% else %}{{ revenue.share_percent|stringformat:'d' }}{% endif %}%"></span></div>
+        {% else %}<span class="muted">{% translate "no purchase prices" %}</span>{% endif %}</dd>
+      {% endif %}
+    </dl>
+  </div>
+  {% if revenue.items|length > 1 %}
+  <details class="revenue-items">
+  <summary>{% blocktranslate count count=revenue.items|length %}Earnings of each item ({{ count }} item){% plural %}Earnings of each item ({{ count }} items){% endblocktranslate %}</summary>
+  <table class="table stack">
+    <caption class="visually-hidden">{% translate "Earnings of each item" %}</caption>
+    <thead><tr><th scope="col">{% translate "ID" %}</th><th scope="col" class="num">{% translate "Earned" %}</th><th scope="col" class="num">{% translate "Projects" %}</th>{% if may_see_purchase_prices %}<th scope="col" class="num">{% translate "Purchase price (net)" %}</th><th scope="col" class="num">{% translate "Share" %}</th>{% endif %}</tr></thead>
+    <tbody>
+    {% for row in revenue.items %}
+      <tr>
+        <td><a class="tape" href="{% url 'material:item_detail' row.item.pk %}">{{ row.item.display_id }}</a>{% if row.item.purchase_price_in_id %} <span class="muted small">{% blocktranslate with id=row.item.purchase_price_in.display_id %}set {{ id }}{% endblocktranslate %}</span>{% endif %}</td>
+        <td class="num" data-label="{% translate 'Earned' %}">{{ row.total|money }}</td>
+        <td class="num" data-label="{% translate 'Projects' %}">{{ row.projects }}</td>
+        {% if may_see_purchase_prices %}
+        <td class="num" data-label="{% translate 'Purchase price (net)' %}">{{ row.purchase_price|money|default:"–" }}</td>
+        <td class="num" data-label="{% translate 'Share' %}">{% if row.purchase_price %}{% widthratio row.total row.purchase_price 100 %} %{% else %}–{% endif %}</td>
+        {% endif %}
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </details>
+  {% endif %}
+  <p class="panel-body muted small">{% translate "Lines after their discounts, in projects whose material went out; an item bought in a set counts with its share of the set's price." %}</p>
+</section>

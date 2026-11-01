@@ -1,0 +1,9 @@
+{% load i18n rentalars %}{% comment %}
+  UIX-030: the filters of a list behind one button, rendered by {% filterpanel "key" %} … {% endfilterpanel %}.
+  UIX-038: folded away at first on every width; app.js shows how many filters are active and,
+  while folded, which. UIX-038: folded on every page load – no open state is remembered; the button says
+  "(2 aktiv)". Without scripts the button stays hidden and every field shows (static/css/app.css, block UIX-030).
+{% endcomment %}
+<button type="button" class="btn secondary filter-toggle" data-filter-toggle="{{ filter_key }}" data-filter-active="{% blocktranslate context 'filters' with count='#' %}{{ count }} active{% endblocktranslate %}" aria-controls="filter-panel-{{ filter_key }}" aria-describedby="filter-summary-{{ filter_key }}">{% icon "filter" %}<span>{% translate "Filters" context "toggle" %}</span><span class="filter-count" data-filter-count></span><span class="filter-chevron" aria-hidden="true"></span></button>
+<span class="filter-summary" id="filter-summary-{{ filter_key }}" data-filter-summary hidden></span>
+<div class="filter-panel" id="filter-panel-{{ filter_key }}" data-filter-panel>{{ filter_fields }}</div>

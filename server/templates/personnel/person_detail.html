@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+{% load i18n rentalars subprojects %}
+{% block title %}{{ person.name }}{% endblock %}
+{% block content %}
+{% include "personnel/_person_head.html" %}
+
+{# Two columns that fill independently: who the person is and where they are planned; what they can do and when they are away. #}
+<div class="columns">
+  <div class="stack">
+  <section class="panel">
+    <div class="panel-head"><h2>{% translate "Person" %}</h2></div>
+    <div class="panel-body">
+      <dl class="facts">
+        {% if person.position %}<dt>{% translate "Position in the company" %}</dt><dd>{{ person.position }}</dd>{% endif %}
+        <dt>{% translate "E-mail" %}</dt><dd>{% if person.email %}<a href="mailto:{{ person.email }}">{{ person.email }}</a>{% else %}–{% endif %}</dd>
+        <dt>{% translate "Phone" %}</dt><dd>{% if person.phone %}<a href="tel:{{ person.phone }}">{{ person.phone }}</a>{% else %}–{% endif %}</dd>
+        {# ZEI-027 #}{% if person.commute_km is not None %}<dt>{% translate "Distance home – company" %}</dt><dd>{{ person.commute_km|number }} km</dd>{% endif %}
+        {% if person.is_freelancer %}
+        {% if person.company %}<dt>{% translate "Company" %}</dt><dd>{{ person.company }}</dd>{% endif %}
+        {% if person.street or person.city %}<dt>{% translate "Address" %}</dt><dd>{{ person.street }}{% if person.street %}, {% endif %}{{ person.postal_code }} {{ person.city }}</dd>{% endif %}
+        {% if person.tax_number %}<dt>{% translate "Tax number" %}</dt><dd>{{ person.tax_number }}</dd>{% endif %}
+        {% if person.vat_id %}<dt>{% translate "VAT ID" %}</dt><dd>{{ person.vat_id }}</dd>{% endif %}
+        {% endif %}
+        {# AUT-026: every person has an account; the settings manage roles and access. #}
+        <dt>{% translate "Login" %}</dt><dd>{{ person.user.username }} · {% if not person.user.is_active %}<span class="muted">{% translate "deactivated" %}</span>{% elif person.user.has_usable_password %}{% if person.user.last_login %}{% blocktranslate with when=person.user.last_login|date:"d.m.Y" %}last login {{ when }}{% endblocktranslate %}{% else %}{% translate "password set, not logged in yet" %}{% endif %}{% else %}<span class="muted">{% translate "no password yet – invite or set a one-time password" %}</span>{% endif %}{% if can.read.administration %} · <a href="{% url 'accounts:user_edit' person.user_id %}">{% translate "Roles and access" %}</a>{% endif %}</dd>
+        <dt>{% translate "Colleagues see" %}</dt><dd>{% if person.share_phone and person.share_email %}{% translate "phone and e-mail" %}{% elif person.share_phone %}{% translate "phone" %}{% elif person.share_email %}{% translate "e-mail" %}{% else %}{% translate "the name only" %}{% endif %}</dd>
+        {% if person.note %}<dt>{% translate "Note" %}</dt><dd>{{ person.note|linebreaksbr }}</dd>{% endif %}
+      </dl>
+    </div>
+  </section>
+  <section class="panel">
+    <div class="panel-head"><h2>{% translate "Planned deployments" %}</h2></div>
+    {% if deployments %}
+    <table class="table stack">
+      <thead><tr><th>{% translate "Project" %}</th><th>{% translate "Job function" %}</th><th>{% translate "Period" %}</th></tr></thead>
+      <tbody>
+      {% for line, is_visible in deployments %}
+        <tr>
+          <td>{% if is_visible %}<a href="{% url 'projects:overview' line.project_id %}">{{ line.project.number }} {{ line.project.name }}</a>{% if line.project.parent_id %}<div class="muted small">{{ line.project|part_of }}</div>{% endif %}{% else %}<span class="muted">{% translate "a project you cannot see" %}</span>{% endif %}</td>
+          <td data-label="{% translate 'Job function' %}">{{ line.job_function.name }}</td>
+          <td data-label="{% translate 'Period' %}">{{ line.start|date:"D d.m.Y H:i" }} – {{ line.end|date:"D d.m.Y H:i" }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty">{% translate "Not scheduled for any current or upcoming project." %}</div>
+    {% endif %}
+  </section>
+  </div>
+  <div class="stack">
+  <section class="panel" id="rates">
+    <div class="panel-head"><h2>{% translate "Job functions" %}</h2></div>
+    {# PER-005, PER-007, PER-029: functions with optional hourly and day rates; empty rates fall back to the guide values. #}
+    {% if current_rates %}
+    <table class="table stack rate-table">
+      <thead><tr><th>{% translate "Job function" %}</th>{% if may_see_rates %}<th class="num">{% translate "Hourly rate" %}</th><th class="num">{% translate "From the limit" %}</th><th class="num">{% translate "Day rate" %}</th><th>{% translate "Valid from" %}</th>{% endif %}<th></th></tr></thead>
+      <tbody>
+      {% for rate in current_rates %}
+        <tr><td>{{ rate.job_function.name }}</td>{% if may_see_rates %}<td class="num" data-label="{% translate 'Hourly rate' %}">{% include "personnel/_rate_value.html" with value=rate.hourly_rate guide=rate.job_function.guide_cost_rate %}</td><td class="num" data-label="{% translate 'From the limit' %}">{# PER-035 #}{% if rate.hourly_rate_above_limit is not None %}{{ rate.hourly_rate_above_limit|money }}{% elif rate.hourly_rate is None and rate.job_function.guide_cost_rate_above_limit is not None %}{% include "personnel/_rate_value.html" with value=None guide=rate.job_function.guide_cost_rate_above_limit %}{% else %}<span class="muted">{% translate "as per hour" %}</span>{% endif %}</td><td class="num" data-label="{% translate 'Day rate' %}">{% include "personnel/_rate_value.html" with value=rate.daily_rate guide=rate.job_function.guide_daily_cost_rate %}</td><td data-label="{% translate 'Valid from' %}">{% if rate.valid_from %}{{ rate.valid_from|date:"d.m.Y" }}{% else %}{% translate "always" %}{% endif %}</td>{% endif %}
+          {# Without the right to personnel costs only a function without own rates can be taken away: its rates would go with it. #}
+          <td class="actions">{% if can.write.personnel and not person.anonymised_at %}{% if may_see_rates or rate.job_function_id not in rated_functions %}<form method="post" action="{% url 'personnel:rate_remove' person.pk rate.job_function_id %}" class="inline-form">{% csrf_token %}<button class="link-btn" type="submit" data-confirm="{% translate 'Take this job function away from the person? Existing crew lines and time entries stay.' %}">{% translate "remove" %}</button></form>{% endif %}{% endif %}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty">{% translate "No job function yet. Without one the person cannot be planned." %}</div>
+    {% endif %}
+    {% if can.write.personnel and not person.anonymised_at %}
+    {# PER-029: assigning a function needs no rate; rates and "valid from" only with the right to personnel costs (AUT-019). #}
+    <form method="post" action="{% url 'personnel:rate_set' person.pk %}" class="panel-body rate-add" novalidate>
+      {% csrf_token %}{% include "core/_required_note.html" with form=rate_form %}
+      <h3 class="rate-add-title">{% translate "Assign a job function" %}</h3>
+      <div class="inline-fields">
+        <div class="field grow"><label for="{{ rate_form.job_function.id_for_label }}">{{ rate_form.job_function.label }}{% include "core/_required_mark.html" with field=rate_form.job_function %}</label>{{ rate_form.job_function }}</div>
+        {% if may_see_rates %}
+        <div class="field narrow"><label for="{{ rate_form.hourly_rate.id_for_label }}">{{ rate_form.hourly_rate.label }}{% include "core/_required_mark.html" with field=rate_form.hourly_rate %}</label>{{ rate_form.hourly_rate }}</div>
+        <div class="field narrow"><label for="{{ rate_form.hourly_rate_above_limit.id_for_label }}">{{ rate_form.hourly_rate_above_limit.label }}{% include "core/_required_mark.html" with field=rate_form.hourly_rate_above_limit %}</label>{{ rate_form.hourly_rate_above_limit }}</div>
+        <div class="field narrow"><label for="{{ rate_form.daily_rate.id_for_label }}">{{ rate_form.daily_rate.label }}{% include "core/_required_mark.html" with field=rate_form.daily_rate %}</label>{{ rate_form.daily_rate }}</div>
+        <div class="field"><label for="{{ rate_form.valid_from.id_for_label }}">{{ rate_form.valid_from.label }}{% include "core/_required_mark.html" with field=rate_form.valid_from %}</label>{{ rate_form.valid_from }}{% if rate_form.valid_from.help_text %}<div class="help" id="{{ rate_form.valid_from.auto_id }}_helptext">{{ rate_form.valid_from.help_text }}</div>{% endif %}</div>
+        {% endif %}
+        <button class="btn secondary" type="submit">{% translate "Save" %}</button>
+      </div>
+    </form>
+    {% if may_see_rates %}
+    <p class="panel-body help-line">{% translate "Rates and “valid from” are optional: without a rate the guide value of the job function counts, without a day the rates count from always. A rate with a day applies from that day on; crew lines and time entries that exist keep the rate they were created with." %}</p>
+    {# Job function notes; PER-008: the rates are costs; the customer pays the service product of the function. #}
+    <p class="panel-body help-line">{% translate "The rates are the hourly wage of the person – internal costs, not the price for the customer. That is the price of the service product of the job function, changed under Material management → Products." %}</p>
+    {% else %}
+    <p class="panel-body help-line">{% translate "Rates are entered by whoever may see personnel costs; until then the guide values of the job function count." %}</p>
+    {% endif %}
+    {% endif %}
+    {% if may_see_rates and all_rates|length > current_rates|length %}
+    <details class="panel-body"><summary>{% translate "All rates with their dates" %}</summary>
+      <ul class="plain">{% for rate in all_rates %}<li>{{ rate.job_function.name }}: {% translate "hourly rate" %} {% if rate.hourly_rate is not None %}{{ rate.hourly_rate|money }}{% else %}–{% endif %}{% if rate.hourly_rate_above_limit is not None %} · {% translate "from the limit" %} {{ rate.hourly_rate_above_limit|money }}{% endif %} · {% translate "day rate" %} {% if rate.daily_rate is not None %}{{ rate.daily_rate|money }}{% else %}–{% endif %} · {% if rate.valid_from %}{% translate "from" %} {{ rate.valid_from|date:"d.m.Y" }}{% else %}{% translate "always" %}{% endif %}</li>{% endfor %}</ul>
+    </details>
+    {% endif %}
+  </section>
+  <section class="panel" id="absences">
+    <div class="panel-head"><h2>{% translate "Absences" %}</h2></div>
+    {% if absences %}
+    <table class="table stack">
+      <tbody>
+      {% for absence in absences %}
+        <tr><td>{{ absence.get_kind_display|capfirst }}{% if absence.note %}<div class="muted small">{{ absence.note }}</div>{% endif %}</td><td>{{ absence.start|date:"D d.m.Y H:i" }} – {{ absence.end|date:"D d.m.Y H:i" }}</td>
+          <td class="actions">{% if can.write.personnel %}<form method="post" action="{% url 'personnel:absence_delete' person.pk absence.pk %}" class="inline-form">{% csrf_token %}<button class="link-btn danger" type="submit" data-confirm="{% translate 'Delete this absence?' %}">{% translate "Delete" %}</button></form>{% endif %}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty">{% translate "No absences entered." %}</div>
+    {% endif %}
+    {% if can.write.personnel and not person.anonymised_at %}
+    <form method="post" action="{% url 'personnel:absence_add' person.pk %}" class="panel-body inline-fields" novalidate>
+      {% csrf_token %}{% include "core/_required_note.html" with form=absence_form %}
+      <div class="field"><label for="{{ absence_form.kind.id_for_label }}">{{ absence_form.kind.label }}{% include "core/_required_mark.html" with field=absence_form.kind %}</label>{{ absence_form.kind }}</div>
+      <div class="field"><label for="{{ absence_form.start.id_for_label }}">{{ absence_form.start.label }}{% include "core/_required_mark.html" with field=absence_form.start %}</label>{{ absence_form.start }}</div>
+      <div class="field"><label for="{{ absence_form.end.id_for_label }}">{{ absence_form.end.label }}{% include "core/_required_mark.html" with field=absence_form.end %}</label>{{ absence_form.end }}</div>
+      <div class="field grow"><label for="{{ absence_form.note.id_for_label }}">{{ absence_form.note.label }}{% include "core/_required_mark.html" with field=absence_form.note %}</label>{{ absence_form.note }}</div>
+      <button class="btn secondary" type="submit">{% translate "Enter absence" %}</button>
+    </form>
+    {% endif %}
+  </section>
+  <section class="panel" id="qualifications">
+    <div class="panel-head"><h2>{% translate "Qualifications" %}</h2>{% if can.write.personnel and not person.anonymised_at %}<a class="btn secondary small" href="{% url 'personnel:qualification_create' person.pk %}">{% icon "plus" %}{% translate "Add" %}</a>{% endif %}</div>
+    {% include "personnel/_qualifications.html" with editable=can.write.personnel %}
+  </section>
+  </div>
+</div>
+
+{% if recent_entries %}
+<section class="panel">
+  <div class="panel-head"><h2>{% translate "Recorded times" %}</h2><a class="btn secondary small" href="{% url 'timetracking:report' %}?person={{ person.pk }}">{% translate "Report" %}</a></div>
+  <table class="table stack">
+    <thead><tr><th>{% translate "Day" %}</th><th>{% translate "Project" %}</th><th>{% translate "Job function" %}</th><th class="num">{% translate "Hours" %}</th><th>{% translate "Status" %}</th></tr></thead>
+    <tbody>
+    {% for entry in recent_entries %}
+      <tr><td>{{ entry.start|date:"D d.m.Y" }}</td><td data-label="{% translate 'Project' %}">{{ entry.project_label }}</td><td data-label="{% translate 'Job function' %}">{{ entry.job_function.name }}</td><td class="num" data-label="{% translate 'Hours' %}">{{ entry.hours|number }}</td><td data-label="{% translate 'Status' %}"><span class="badge {{ entry.status|status_colour }}">{{ entry.get_status_display }}</span></td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+
+<section class="panel">
+  <div class="panel-head"><h2>{% translate "History" %}</h2></div>
+  {% include "core/_history.html" %}
+</section>
+
+{% if can.write.personnel and not person.anonymised_at %}
+<section class="panel">
+  <div class="panel-head"><h2>{% translate "Deactivate, privacy" %}</h2></div>
+  <div class="panel-body btn-row">
+    <form method="post" action="{% url 'personnel:person_set_active' person.pk %}">{% csrf_token %}
+      {% if person.is_active %}<input type="hidden" name="active" value="0"><button class="btn secondary" type="submit" data-confirm="{% translate 'Deactivate this person? They can no longer be planned or record times; everything recorded stays.' %}">{% translate "Deactivate person" %}</button>
+      {% else %}<input type="hidden" name="active" value="1"><button class="btn secondary" type="submit">{% translate "Reactivate person" %}</button>{% endif %}
+    </form>
+    {% if can.delete.personnel %}
+    {% if may_see_rates %}<a class="btn secondary" href="{% url 'personnel:person_export' person.pk %}">{% translate "Export all stored data" %}</a>{% endif %}
+    <form method="post" action="{% url 'personnel:person_anonymise' person.pk %}">{% csrf_token %}<button class="btn danger" type="submit" data-confirm="{% translate 'Anonymise this person? Name, contact data, notes and absences are erased for good and the user account is closed; deployments and times stay without the name. This cannot be undone.' %}">{% translate "Anonymise" %}</button></form>
+    <form method="post" action="{% url 'personnel:person_delete' person.pk %}">{% csrf_token %}<button class="btn danger" type="submit" data-confirm="{% translate 'Delete this person for good? Only possible if they were never planned and never recorded a time.' %}">{% icon "trash" %}{% translate "Delete person" %}</button></form>
+    {% endif %}
+  </div>
+</section>
+{% endif %}
+{% endblock %}

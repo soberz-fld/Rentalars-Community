@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Import old projects" %}{% endblock %}
+{% block content %}
+{% comment %}
+  Import of old projects on the basis of invoices: Buchhaltung → Altprojekte importieren. Upload of one (PRJ-130)
+  or several PDF invoices of the old system; the batches still to check; what was taken over, with "Undo" for a week
+  (rentalars/projects/legacy_views.py). Nothing is created by the upload: the invoices are read and shown for checking.
+{% endcomment %}
+<div class="page-head">
+  <div><h1>{% translate "Accounting" %}</h1></div>
+</div>
+{% include "documents/_accounting_tabs.html" %}
+<section class="panel" aria-labelledby="legacy-upload-title">
+  <div class="panel-head"><h2 id="legacy-upload-title">{% translate "Import old projects from invoices" %}</h2></div>
+  <div class="panel-body">
+    <p>{% translate "Upload your own invoices of past projects as PDF. Each one is read and shown for checking: customer, invoice data and positions. Only after you confirm, a closed project with its invoice is created for it. No mail is sent, nothing is reserved, and the numbers of your current invoices stay untouched." %}</p>
+    <form method="post" enctype="multipart/form-data" class="form" novalidate>
+      {% csrf_token %}{% include "core/_required_note.html" with always=True %}
+      <div class="field">
+        <label for="legacy-files">{% translate "Invoices (PDF)" %}{% include "core/_required_star.html" %}</label>
+        <input type="file" id="legacy-files" name="invoices" accept="application/pdf,.pdf" multiple required aria-describedby="legacy-files-help">
+        <div class="help" id="legacy-files-help">{% blocktranslate with count=max_files size=max_megabytes %}Up to {{ count }} files at a time, each at most {{ size }} MB. Only PDFs with text are read; a scanned invoice is not (there is no text recognition) – its data is typed by hand.{% endblocktranslate %}</div>
+      </div>
+      <p class="muted small">{% if ai_on %}{% translate "The text of each invoice is sent to the AI provider chosen for reading invoices (Settings → AI) – nothing else." %}{% else %}{% translate "The AI is off (Settings → AI): customer, invoice data and positions are taken from the text by patterns. That works for simple invoices; check every field." %}{% endif %}</p>
+      <div class="btn-row"><button class="btn" type="submit">{% icon "upload" %}{% translate "Upload and read" %}</button></div>
+    </form>
+  </div>
+</section>
+
+<section class="panel" aria-labelledby="legacy-open-title">
+  <div class="panel-head"><h2 id="legacy-open-title">{% translate "To check" %}</h2></div>
+  {% if open_batches %}
+  <table class="table stack">
+    <thead><tr><th scope="col">{% translate "Uploaded" %}</th><th scope="col">{% translate "By" %}</th><th scope="col" class="num">{% translate "Invoices" %}</th><th scope="col" class="num">{% translate "To check" %}</th><th scope="col"><span class="visually-hidden">{% translate "Actions" %}</span></th></tr></thead>
+    <tbody>
+    {% for batch, counts in open_batches %}
+      <tr>
+        <td>{{ batch.created_at|date:"SHORT_DATETIME_FORMAT" }}</td>
+        <td data-label="{% translate 'By' %}">{{ batch.created_by.get_full_name|default:batch.created_by.get_username }}</td>
+        <td class="num" data-label="{% translate 'Invoices' %}">{{ counts.total }}</td>
+        <td class="num" data-label="{% translate 'To check' %}">{{ counts.read }}{% if counts.uploaded or counts.reading %} <span class="muted small">+ {{ counts.uploaded|add:counts.reading }} {% translate "being read" %}</span>{% endif %}</td>
+        <td class="actions"><a class="btn secondary small" href="{% url 'projects:legacy_batch' batch.pk %}">{% icon "edit" %}{% translate "Open" %}</a></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty"><strong>{% translate "Nothing to check." %}</strong>{% translate "Upload invoices above to start." %}</div>
+  {% endif %}
+</section>
+
+<section class="panel" aria-labelledby="legacy-done-title">
+  <div class="panel-head"><h2 id="legacy-done-title">{% translate "Taken over" %}</h2>
+    <span class="muted small">{% blocktranslate with days=undo_days %}An import can be undone for {{ days }} days, as long as nothing was changed on its projects and invoices.{% endblocktranslate %}</span></div>
+  {% if imported %}
+  <table class="table stack">
+    <thead><tr><th scope="col">{% translate "Invoice" %}</th><th scope="col">{% translate "Date" %}</th><th scope="col">{% translate "Customer" %}</th><th scope="col">{% translate "Project" %}</th><th scope="col" class="num">{% translate "Net" %}</th><th scope="col">{% translate "Taken over" %}</th></tr></thead>
+    <tbody>
+    {% for item in imported %}
+      <tr>
+        <td><strong>{{ item.invoice_number }}</strong>{% if item.paid %} <span class="badge green">{% translate "paid" %}</span>{% endif %}</td>
+        <td data-label="{% translate 'Date' %}">{{ item.invoice_date|date:"SHORT_DATE_FORMAT" }}</td>
+        <td data-label="{% translate 'Customer' %}">{{ item.customer.name }}</td>
+        <td data-label="{% translate 'Project' %}">{% if item.project %}<a href="{% url 'projects:detail' item.project.pk %}">{{ item.project.number }}</a>{% endif %}</td>
+        <td class="num" data-label="{% translate 'Net' %}">{{ item.document.net_total|money }}</td>
+        <td data-label="{% translate 'Taken over' %}">{{ item.imported_at|date:"SHORT_DATETIME_FORMAT" }} · {{ item.imported_by.get_full_name|default:item.imported_by.get_username }} · <a href="{% url 'projects:legacy_batch' item.batch_id %}">{% translate "Batch" %}</a></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty"><strong>{% translate "No old projects taken over yet." %}</strong></div>
+  {% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,30 @@
+{% load i18n %}
+{% comment %}
+  VFG-021: the week as a time grid. One scroll area holds everything: the line of days and the all-day strip stay
+  at the top, the hours stay at the left. The page opens scrolled to 06:00 (or to something earlier) and, on a
+  narrow screen, to today (static/js/app.js). Blocks get their place from custom properties set in
+  schedule/calendars.py: --start and --length in hours, --lane and --lanes for blocks side by side.
+  VFG-039: follow-ups at their time (class follow-up), one without a time in the all-day strip.
+  Expects: grid (calendars.WeekGrid), legend.
+{% endcomment %}
+<section class="week-grid{% if grid.has_hidden %} has-hidden{% endif %}" data-week-grid data-scroll-hour="{{ grid.scroll_hour }}">
+  <div class="wk-scroll" tabindex="0" role="region" aria-label="{% translate 'Week plan, scrolls up, down and sideways' %}">
+    <div class="wk" style="--days: {{ grid.columns|length }}; {{ grid.columns_style }}">
+      <div class="wk-corner"></div>
+      {% for column in grid.columns %}<div class="wk-dayhead{% if column.is_today %} today{% endif %}{% if column.is_weekend %} weekend{% endif %}" style="grid-column: {{ forloop.counter|add:1 }}"{% if column.is_today %} data-today{% endif %}><span class="wd">{{ column.day|date:"D" }}</span> <strong>{{ column.day|date:"j." }}</strong>{% if column.is_today %}<span class="visually-hidden"> ({% translate "today" %})</span>{% endif %}</div>{% endfor %}
+      <div class="wk-allday-label">{% translate "all day" %}</div>
+      <div class="wk-allday" style="{{ grid.all_day_style }}" data-all-day>
+        {% for segment in grid.all_day %}<a class="wk-bar {{ segment.css }}{% if segment.starts_before %} from-before{% endif %}{% if segment.ends_after %} goes-on{% endif %}{% if segment.lane >= grid.collapsed_lanes %} is-extra{% endif %}" style="{{ segment.strip_style }}" data-lane="{{ segment.lane }}" href="{{ segment.url }}" title="{{ segment.title }} · {{ segment.status_label }}">{% if segment.start_note %}<span class="time">{{ segment.start_note }}</span> {% endif %}<span class="name">{{ segment.label }}</span>{% if segment.end_note %} <span class="time end">{{ segment.end_note }}</span>{% endif %}<span class="visually-hidden">, {{ segment.status_label }}, {{ segment.record.start|date:"d.m. H:i" }} – {{ segment.record.end|date:"d.m. H:i" }}</span></a>{% endfor %}
+        {% if grid.has_hidden %}{% for column in grid.columns %}{% if column.hidden %}<button type="button" class="wk-more" style="grid-column: {{ forloop.counter }}; grid-row: {{ grid.more_row }}" data-all-day-toggle aria-expanded="false" title="{% translate 'Show all all-day entries' %}">+{{ column.hidden }}<span class="visually-hidden"> {% blocktranslate with day=column.day|date:"d.m." count count=column.hidden %}more all-day entry on {{ day }}, show all{% plural %}more all-day entries on {{ day }}, show all{% endblocktranslate %}</span></button>{% endif %}{% endfor %}<button type="button" class="wk-less" style="grid-row: {{ grid.more_row }}" data-all-day-toggle aria-expanded="true">{% translate "Show fewer" %}</button>{% endif %}
+        {% if not grid.all_day %}<span class="wk-none muted small">–</span>{% endif %}
+      </div>
+      <div class="wk-hours" aria-hidden="true">{% for hour in grid.hours %}<div class="wk-hour" data-hour="{{ forloop.counter0 }}"><span>{{ hour }}</span></div>{% endfor %}</div>
+      {% for column in grid.columns %}
+      <div class="wk-col{% if column.is_today %} today{% endif %}{% if column.is_weekend %} weekend{% endif %}" style="grid-column: {{ forloop.counter|add:1 }}" data-day="{{ column.day|date:'Y-m-d' }}" role="group" aria-label="{{ column.day|date:'l, j. F' }}">
+        {% for block in column.blocks %}<a class="wk-event {{ block.css }}" style="{{ block.style }}" href="{{ block.url }}" title="{{ block.title }} · {{ block.status_label }}"><span class="time">{{ block.times }}</span> <span class="name">{{ block.label }}</span>{% if block.is_follow_up %}{% if block.note %} <span class="meta">{{ block.note }}</span>{% endif %}{% elif not block.is_phase %} <span class="meta">{{ block.project.number }}{% if block.project.customer_id %} · {{ block.project.customer.name }}{% endif %}{% if block.project.venue_label %} · {{ block.project.venue_label }}{% endif %}</span>{% endif %}<span class="visually-hidden">, {{ block.status_label }}</span></a>{% endfor %}
+        {% if column.is_today %}<div class="wk-now" style="{{ column.now_style }}" data-now aria-hidden="true"></div>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>

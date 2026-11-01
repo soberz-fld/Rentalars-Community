@@ -1,0 +1,1 @@
+{% load i18n %}{% if show %}{% if counter %}<a class="btn secondary small" href="{% url 'projects:deployment' line.project_id %}">{% translate "Counter-offer waiting" %}</a>{% elif can_start %}<a class="btn secondary small" href="{% url 'personnel:offer_make' line.project_id line.pk %}?next={% url 'core:home' %}">{% translate "Make a price offer" %}</a>{% endif %}{% endif %}

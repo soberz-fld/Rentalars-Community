@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Subprojects" %} {{ family.whole.number }}{% endblock %}
+{% block content %}
+{% include "projects/_head.html" %}
+{% comment %}
+  PRJ-046: the whole project with every part side by side and their sum. PRJ-047: shortages between the parts.
+  Reachable from the whole project and from every part; parts the user may not read are left out.
+{% endcomment %}
+{% with whole=family.whole total=family.total %}
+<div class="page-head family-head">
+  <div>
+    <h2>{% blocktranslate with number=whole.number name=whole.name %}Whole project {{ number }} {{ name }}{% endblocktranslate %}</h2>
+    <p class="muted">{{ whole.start|date:"D d.m.Y H:i" }} – {{ whole.end|date:"D d.m.Y H:i" }} · {{ whole.customer_name }}</p>
+  </div>
+  {% if can_add %}<div class="actions no-print"><a class="btn" href="{% url 'projects:subproject_create' whole.pk %}">{% icon "plus" %}{% translate "Add subproject" %}</a></div>{% endif %}
+</div>
+
+{% if family.hidden %}<p class="note">{% blocktranslate count count=family.hidden %}{{ count }} part is not shown: you have no access to its planning. The sums are without it.{% plural %}{{ count }} parts are not shown: you have no access to their planning. The sums are without them.{% endblocktranslate %}</p>{% endif %}
+
+<section class="panel">
+  <table class="table stack family-table">
+    <thead><tr>
+      <th>{% translate "Part" %}</th><th>{% translate "Status" %}</th><th>{% translate "Rental period" %}</th>
+      <th class="num">{% translate "Lines" %}</th><th class="num">{% translate "Pieces" %}</th>
+      <th class="num">{% translate "Crew" %}</th><th class="num">{% translate "Hours" %}</th>
+      {% if can_see_prices %}<th class="num">{% translate "Net" %}</th>{% endif %}
+      {% if can.special.availability %}<th>{% translate "Availability" %}</th>{% endif %}{# AUT-032: a special right #}
+    </tr></thead>
+    <tbody>
+    {% for part in family.parts %}{% with p=part.project %}
+      <tr{% if p.pk == project.pk %} class="is-current"{% endif %}>
+        <td>{% if part.is_whole %}<a href="{% url 'projects:detail' p.pk %}">{{ p.number }}</a> <span class="muted">{% translate "own lines of the whole project" %}</span>{% else %}<a href="{% url 'projects:detail' p.pk %}">{{ p.number }} {{ p.name }}</a>{% if p.venue_label %}<div class="muted small">{{ p.venue_label }}</div>{% endif %}{% if p.manager %}<div class="muted small">{{ p.manager }}</div>{% endif %}{% endif %}</td>
+        <td data-label="{% translate 'Status' %}"><span class="badge {{ p.status|status_colour }}">{{ p.get_status_display }}</span></td>
+        <td data-label="{% translate 'Rental period' %}">{{ p.start|date:"D d.m. H:i" }} – {{ p.end|date:"D d.m. H:i" }}</td>
+        <td class="num" data-label="{% translate 'Lines' %}">{{ part.lines }}{% if part.takeovers %}<div class="muted small">{% blocktranslate count count=part.takeovers %}{{ count }} taken over{% plural %}{{ count }} taken over{% endblocktranslate %}</div>{% endif %}</td>
+        <td class="num" data-label="{% translate 'Pieces' %}">{{ part.pieces|number }}</td>
+        <td class="num" data-label="{% translate 'Crew' %}">{{ part.crew_lines }}{% if part.open_places %}<div class="muted small">{% blocktranslate count count=part.open_places %}{{ count }} open{% plural %}{{ count }} open{% endblocktranslate %}</div>{% endif %}</td>
+        <td class="num" data-label="{% translate 'Hours' %}">{{ part.hours|number }}</td>
+        {% if can_see_prices %}<td class="num" data-label="{% translate 'Net' %}">{{ part.net_total|money }}</td>{% endif %}
+        {% if can.special.availability %}<td data-label="{% translate 'Availability' %}">{% if part.shortage %}<span class="avail short">{% blocktranslate count count=part.shortage %}{{ count }} missing{% plural %}{{ count }} missing{% endblocktranslate %}</span>{% else %}<span class="avail ok">{% translate "enough" %}</span>{% endif %}</td>{% endif %}
+      </tr>
+    {% endwith %}{% endfor %}
+    </tbody>
+    <tfoot>
+      <tr class="family-total">
+        <th>{% translate "Whole project with all parts" %}</th><td></td><td></td>
+        <td class="num" data-label="{% translate 'Lines' %}">{{ total.lines }}</td>
+        <td class="num" data-label="{% translate 'Pieces' %}">{{ total.pieces|number }}</td>
+        <td class="num" data-label="{% translate 'Crew' %}">{{ total.crew_lines }}</td>
+        <td class="num" data-label="{% translate 'Hours' %}">{{ total.hours|number }}</td>
+        {% if can_see_prices %}<td class="num" data-label="{% translate 'Net' %}"><strong>{{ total.net_total|money }}</strong><div class="muted small">{% translate "gross" %} {{ total.gross_total|money }}</div></td>{% endif %}
+        {% if can.special.availability %}<td data-label="{% translate 'Availability' %}">{% if total.shortage %}<span class="avail short">{% blocktranslate count count=total.shortage %}{{ count }} missing{% plural %}{{ count }} missing{% endblocktranslate %}</span>{% endif %}</td>{% endif %}
+      </tr>
+    </tfoot>
+  </table>
+  {% if not family.subprojects %}<div class="empty">{% translate "No subprojects yet. A subproject has its own period, lines, crew and status – a stage of a festival, say." %}</div>{% endif %}
+</section>
+
+{# PRJ-047: where the parts take the same material at the same time. AUT-032: with the special right to see availability. #}
+{% if can.special.availability %}
+<section class="panel">
+  <div class="panel-head"><h2>{% translate "Shortages between the parts" %}</h2></div>
+  {% if family.shortages %}
+  <table class="table stack">
+    <thead><tr><th>{% translate "Part" %}</th><th>{% translate "Line" %}</th><th class="num">{% translate "Missing" %}</th><th class="num">{% translate "Held by other parts" %}</th></tr></thead>
+    <tbody>
+    {% for shortage in family.shortages %}
+      <tr>
+        <td><a href="{% url 'projects:detail' shortage.project.pk %}">{{ shortage.project.number }}</a></td>
+        <td data-label="{% translate 'Line' %}">{{ shortage.planned.line.quantity_display }} × {{ shortage.planned.line.title }}<div class="muted small">{{ shortage.planned.line.start|date:"d.m. H:i" }} – {{ shortage.planned.line.end|date:"d.m. H:i" }}</div></td>
+        <td class="num" data-label="{% translate 'Missing' %}"><span class="avail short">{{ shortage.missing }}</span></td>
+        <td class="num" data-label="{% translate 'Held by other parts' %}">{{ shortage.held_by_others }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <div class="panel-body"><p class="muted small">{% translate "Where the same pieces serve one stage after the other, plan them in the later part as taken over from the earlier one: they then go straight from one to the next, without the buffer times of the warehouse." %}</p></div>
+  {% else %}
+  <div class="empty">{% translate "The parts do not take each other's material away." %}</div>
+  {% endif %}
+</section>
+{% endif %}
+{% endwith %}
+{% endblock %}

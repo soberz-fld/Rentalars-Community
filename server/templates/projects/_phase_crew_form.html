@@ -1,0 +1,72 @@
+{% load i18n rentalars %}
+{% comment %}
+  Plan personnel for one phase (PRJ-080), opened from the page "Zeitplanung" – function by
+  function (PRJ-120): first the job functions with their places (rows; "Weitere Funktion" and "Entfernen" send the form back for
+  one row more or less), then one field per place for the person, as "Neue Exemplare" asks for a serial number per
+  item; an empty place stays open. The open places of the phase are filled in, so they are filled rather than planned
+  twice. Every line gets the period of the phase.
+  In the dialog (typeahead) the places are type-ahead fields with the people of the job function and what the crew
+  warnings would say at the phase's period, and they follow the rows at once (#staffing-places is asked for again when
+  a row changes). Without the page script – the same markup on a page of its own (phase_crew_form.html) – the places
+  are lists, shown after "Weiter zu den Personen". "Einplanen" plans what is there; rows without people plan open places.
+  Expects: form, project, phase, action, typeahead, people_url.
+{% endcomment %}
+<form method="post" action="{{ action }}" hx-post="{{ action }}" hx-target="#dialog" novalidate autocomplete="off" class="staffing-form" aria-labelledby="staffing-title">
+  {% csrf_token %}{{ form.rows }}
+  {# Enter in a field shows the places (or the errors) – it must neither add nor remove a row. #}
+  <button type="submit" name="step" value="people" class="visually-hidden" tabindex="-1" aria-hidden="true">{% translate "On to the people" %}</button>
+  <div class="dialog-head"><h2 id="staffing-title">{% blocktranslate with phase=phase.label %}Personnel for {{ phase }}{% endblocktranslate %}</h2><button type="button" class="icon-btn" data-close-dialog data-href="{% url 'projects:course' project.pk %}" aria-label="{% translate 'Close' %}">{% icon "close" %}</button></div>
+  <div class="dialog-body form">
+    <p class="muted small">{% blocktranslate with start=phase.start|date:"D d.m. H:i" end=phase.end|date:"D d.m. H:i" %}Everybody is planned for the period of the phase: {{ start }} – {{ end }}.{% endblocktranslate %}</p>
+    {% include "core/_form_errors.html" %}
+    <fieldset class="staffing-rows" aria-describedby="staffing-rows-help">
+      <legend>{% translate "1. Job functions and places" %}</legend>
+      <p class="help" id="staffing-rows-help">{% translate "The open places of the phase are filled in. A person chosen below fills an open place of the job function first; more places are added." %}</p>
+      <div class="staffing-row-list" hx-post="{{ action }}" hx-trigger="change" hx-target="#staffing-places" hx-select="#staffing-places" hx-swap="outerHTML" hx-include="closest form" hx-vals='{"refresh": "1"}' hx-sync="this:replace">
+      {% for index, function, places in form.function_rows %}
+        <div class="form-row staffing-row" data-staffing-row="{{ index }}">
+          {% include "core/_field.html" with field=function %}
+          {% include "core/_field.html" with field=places %}
+          {% if form.row_count > 1 %}<button type="submit" class="btn secondary small staffing-remove" name="remove_row" value="{{ index }}" aria-label="{% blocktranslate with number=forloop.counter %}Remove job function {{ number }}{% endblocktranslate %}">{% icon "trash" %}<span class="visually-hidden">{% translate "Remove" %}</span></button>{% endif %}
+        </div>
+      {% endfor %}
+      </div>
+      <div class="btn-row">
+        {% if form.can_add_row %}<button type="submit" class="btn secondary small" name="add_row" value="1">{% icon "plus" %}{% translate "Another job function" %}</button>{% endif %}
+        <noscript><button type="submit" class="btn secondary small" name="step" value="people">{% translate "On to the people" %}</button></noscript>
+      </div>
+    </fieldset>
+    <div id="staffing-places" class="staffing-places" aria-live="polite">
+    {% if form.groups %}
+      <h3 class="staffing-heading">{% translate "2. People" %}</h3>
+      <p class="help">{% translate "One person per place; an empty place stays open." %}</p>
+      {% for group, places in form.place_groups %}
+      <fieldset class="staffing-group">
+        <legend>{% blocktranslate count places=group.places with function=group.job_function.name %}{{ function }} – {{ places }} place{% plural %}{{ function }} – {{ places }} places{% endblocktranslate %}</legend>
+        <ol class="staffing-place-list">
+        {% for place in places %}
+          <li class="field staffing-place{% if place.field.errors %} has-error{% endif %}">
+            <label for="{{ place.field.auto_id }}">{% blocktranslate with number=place.number %}Place {{ number }}{% endblocktranslate %}</label>
+            {% if typeahead %}
+            {# hx-preserve: a place that stays when the rows change keeps what is being typed in it – and the focus. #}
+            <div class="typeahead" id="place-{{ group.index }}-{{ group.job_function.pk }}-{{ place.number }}" hx-preserve data-typeahead data-url="{{ people_url }}?function={{ group.job_function.pk }}">
+              <input type="search" id="{{ place.field.auto_id }}" name="{{ place.field.html_name }}_text" value="{{ place.person_label }}" data-typeahead-input placeholder="{% translate '– still open –' %}" autocomplete="off">
+              <input type="hidden" name="{{ place.field.html_name }}" value="{{ place.person|default_if_none:'' }}" data-typeahead-value>
+            </div>
+            {% else %}{{ place.field }}{% endif %}
+            {{ place.field.errors }}
+          </li>
+        {% endfor %}
+        </ol>
+      </fieldset>
+      {% endfor %}
+    {% endif %}
+    </div>
+    {# PER-041 (firm planning): the people chosen are planned without request – and told. #}
+    <div class="form-row">{% include "core/_field.html" with field=form.firm %}</div>
+  </div>
+  <div class="dialog-foot">
+    <button type="button" class="btn secondary" data-close-dialog data-href="{% url 'projects:course' project.pk %}">{% translate "Cancel" %}</button>
+    <button type="submit" class="btn" name="save" value="1">{% icon "plus" %}{% translate "Plan" %}</button>
+  </div>
+</form>

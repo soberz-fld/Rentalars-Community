@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}{% translate "Change line" %}{% endblock %}
+{% block content %}
+{# Change one line of a draft of a document without a project. #}
+<div class="page-head"><div>
+  <div class="breadcrumb"><a href="{% url 'documents:outgoing' %}">{% translate "Outgoing documents" %}</a> / <a href="{% url 'documents:free_edit' draft.pk %}">{% translate "Draft" %}</a></div>
+  <h1>{% translate "Change line" %}</h1>
+</div></div>
+<form method="post" class="form wide" novalidate>
+  {% csrf_token %}
+  {% include "core/_form_errors.html" %}
+  <div class="panel"><div class="panel-body"><div class="form-grid">{% for field in form %}{% include "core/_field.html" %}{% endfor %}</div></div></div>
+  <div class="btn-row"><button class="btn" type="submit">{% translate "Save line" %}</button><a class="btn secondary" href="{% url 'documents:free_edit' draft.pk %}#lines">{% translate "Cancel" %}</a></div>
+</form>
+{% endblock %}

@@ -1,0 +1,5 @@
+{% load i18n %}{% comment %}
+  The bars of one row of the timeline of a project (PRJ-103), see _course_timeline.html. VFG-026: a bar that can be
+  moved is a link to its dialog. VFG-035: a crew bar carries its exact times as hidden text, as in the personnel plan –
+  also when it can be moved (PRJ-121).
+{% endcomment %}{% for bar in row.bars %}{% if bar.move %}<a class="tl-bar {{ bar.css }}" style="{{ bar.style }}" href="{{ bar.move.url }}&amp;next={{ request.get_full_path|urlencode }}" title="{{ bar.title|default:bar.label }}" data-tl-dialog{{ bar.move.attrs }}><span class="visually-hidden">{% blocktranslate with name=bar.move.name %}Move {{ name }}{% endblocktranslate %}: </span><span class="tl-text">{{ bar.label }}</span>{% if row.kind == "person" or row.kind == "open" %}<span class="visually-hidden"> – {{ bar.title }}</span>{% endif %}{{ bar.move.grips }}</a>{% else %}<span class="tl-bar {{ bar.css }}" style="{{ bar.style }}" title="{{ bar.title|default:bar.label }}"><span class="tl-text">{{ bar.label }}</span>{% if row.kind == "person" or row.kind == "open" %}<span class="visually-hidden"> – {{ bar.title }}</span>{% endif %}</span>{% endif %}{% endfor %}

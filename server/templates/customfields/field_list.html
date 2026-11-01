@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Custom fields" %}{% endblock %}
+{% block content %}
+{% comment %}
+  MAT-071, MAT-072: the definitions. Fields are grouped into fieldsets; a material model gets one
+  fieldset, and every item of the model has its fields with values of its own.
+{% endcomment %}
+<div class="page-head"><div><div class="breadcrumb"><a href="{% url 'core:administration' %}">{% translate "Settings" %}</a></div><h1>{% translate "Custom fields" %}</h1>
+<p class="lead">{% translate "Fields every item of a material model has with a value of its own – e.g. MAC address, firmware, inspection sticker. The fields are grouped into fieldsets; a material model gets one fieldset." %}</p></div>
+<div class="actions">{% if can.write.administration %}<a class="btn" href="{% url 'customfields:field_create' %}">{% icon "plus" %}{% translate "New custom field" %}</a>{% endif %}</div></div>
+{% include "customfields/_tabs.html" %}
+<div class="panel">
+  {% if rows %}
+  {% include "core/_table_tools.html" %}
+  {% include "core/_table.html" with stack=True %}
+  {% include "core/_pagination.html" %}
+  {% else %}
+  <div class="empty"><strong>{% translate "No custom fields yet." %}</strong>{% translate "For example: “MAC address” (text, unique), “Firmware” (text), “Inspection sticker until” (date). Then put them into a fieldset and give it to material models." %}</div>
+  {% endif %}
+</div>
+<p class="muted small">{% translate "Category-specific fields (Settings → Categories and codes) describe a material model – the same for all its items, e.g. the length of a cable. Custom fields describe each item: every item has a value of its own." %}</p>
+{% endblock %}

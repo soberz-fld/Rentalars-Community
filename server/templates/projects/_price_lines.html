@@ -1,0 +1,23 @@
+{% load i18n rentalars %}
+<table class="table stack price-lines">
+  <colgroup><col class="p-art"><col><col class="p-qty"><col class="p-unit"><col class="p-days"><col class="p-price"><col class="p-disc"><col class="p-amount"></colgroup>
+  <thead><tr><th>{% translate "Article no." %}</th><th>{% translate "Name" %}</th><th class="num">{% translate "Quantity" %}</th><th>{% translate "Unit" %}</th><th class="num">{% translate "Rental days" %}</th><th class="num">{% translate "Unit price" %}</th><th class="num">{% translate "Discount" %}</th><th class="num">{% translate "Amount" %}</th></tr></thead>
+  <tbody>
+  {% for planned in lines %}{% with line=planned.line price=planned.price %}{% if not line.is_covering_subrental %}
+    {% if line.is_text %}{# A text line is a row of text – no quantity, no amount. #}
+    <tr class="text-line"><td></td><td colspan="7"><span class="copy" data-copy="{{ line.title }}">{{ line.title }}</span>{% if line.note %}<div class="muted small">{{ line.note|linebreaksbr }}</div>{% endif %}</td></tr>
+    {% else %}
+    <tr{% if line.variant %} class="is-variant"{% endif %}>
+      <td data-label="{% translate 'Article no.' %}">{% if line.product %}<span class="copy" data-copy="{{ line.product.article_number }}">{{ line.product.article_number }}</span>{% endif %}</td>
+      <td><span class="copy" data-copy="{{ line.title }}">{{ line.title }}</span>{% if line.is_percent_surcharge %}<div class="muted small">{% translate "refers to" %}: {{ price.surcharge_target_labels|join:", " }} ({{ price.surcharge_base|money }})</div>{% endif %}{% if price.is_estimate %} <span class="badge yellow">{% translate "estimate" %}</span>{% endif %}{% if price.is_customer_material %}{# PRJ-096 #} <span class="badge accent">{% translate "customer material – taken along" %}</span>{% endif %}{% if line.variant %} <span class="badge yellow">{{ line.get_variant_display }}</span>{% if planned.alternative_to %}<div class="muted small">{% blocktranslate with line=planned.alternative_label %}alternative to “{{ line }}”{% endblocktranslate %}</div>{% endif %}<div class="muted small">{% translate "not in the total" %}</div>{% endif %}{% if line.taken_over_from_id %} <span class="badge accent">{% translate "taken over" %}</span><div class="muted small">{% blocktranslate with number=line.taken_over_from.project.number name=line.taken_over_from.project.name %}comes from {{ number }} {{ name }}, not from the warehouse{% endblocktranslate %}</div>{% endif %}</td>
+      <td class="num" data-label="{% translate 'Quantity' %}">{% if line.is_percent_surcharge %}{{ line.surcharge_percent|number }} %{% else %}<span class="copy" data-copy="{{ line.quantity_display }}">{{ line.quantity_display }}</span>{% endif %}</td>
+      <td data-label="{% translate 'Unit' %}">{% if line.unit and not line.is_percent_surcharge %}{{ line.unit.abbreviation }}{% endif %}</td>
+      <td class="num" data-label="{% translate 'Rental days' %}">{% if price.rental_days %}{{ price.rental_days|days }}<div class="muted small">{% translate "factor" %} {{ price.scale_factor|number }}</div>{% endif %}</td>
+      <td class="num" data-label="{% translate 'Unit price' %}">{% if not line.is_percent_surcharge and not line.taken_over_from_id and not price.is_customer_material %}<span class="copy" data-copy="{{ line.unit_price|money_plain }}">{{ line.unit_price|money }}</span>{% endif %}</td>
+      <td class="num" data-label="{% translate 'Discount' %}">{% if price.discount_percent %}{{ price.discount_percent|number }} %{% endif %}{% if price.discount_is_capped %}<div class="muted small">{% if line.product.max_discount_percent == price.max_discount_percent %}{# PRD-041 #}{% blocktranslate with percent=price.max_discount_percent|number %}at most {{ percent }} % (product){% endblocktranslate %}{% else %}{% blocktranslate with percent=price.max_discount_percent|number %}at most {{ percent }} % (job function){% endblocktranslate %}{% endif %}</div>{% endif %}</td>
+      <td class="num" data-label="{% translate 'Amount' %}">{% if price.is_customer_material %}<span class="muted">{% translate "not charged" %}</span>{% elif line.taken_over_from_id %}{# PRJ-060: charged once, where the pieces come from. #}<span class="muted">{% translate "not charged" %}</span><div class="muted small">{% blocktranslate with number=line.taken_over_from.project.number %}charged in {{ number }}{% endblocktranslate %}</div>{% else %}<span class="copy" data-copy="{{ price.amount|money_plain }}">{{ price.amount|money }}</span>{% endif %}</td>
+    </tr>
+    {% endif %}
+  {% endif %}{% endwith %}{% endfor %}
+  </tbody>
+</table>

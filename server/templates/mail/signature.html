@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% if mailbox %}{% blocktranslate with name=mailbox.name %}Signature of “{{ name }}”{% endblocktranslate %}{% else %}{% translate "Signature" context "mail" %}{% endif %}{% endblock %}
+{% block content %}
+{% comment %}
+  EML-034: one signature for everybody. Placeholders take the data of whoever writes; the preview shows
+  them with the data of the viewer. The preview button sends the draft into the frame; mail.js presses it
+  while typing, so the preview follows without a click.
+  EML-026: the same page writes the signature of one mailbox (``mailbox``); empty means the common one.
+{% endcomment %}
+<div class="page-head"><div><div class="breadcrumb"><a href="{% url 'core:administration' %}">{% translate "Settings" %}</a> / <a href="{% url 'mail:settings' %}">{% translate "Mailboxes and signature" %}</a></div><h1>{% if mailbox %}{% blocktranslate with name=mailbox.name %}Signature of “{{ name }}”{% endblocktranslate %}{% else %}{% translate "Signature" context "mail" %}{% endif %}</h1>
+{% if mailbox %}{# EML-026: the signature of one mailbox. #}
+<p class="lead">{% translate "Added below the mails sent from the addresses of this mailbox, instead of the common signature. Leave it empty to use the common signature. The placeholders are filled with the data of whoever writes the mail." %}</p>
+{% else %}<p class="lead">{% translate "Added below every mail written in Rentalars. The placeholders are filled with the data of whoever writes the mail." %}</p>{% endif %}</div></div>
+<form method="post" class="form wide signature-editor" novalidate data-signature-form>
+  {% csrf_token %}
+  {% if mailbox %}<input type="hidden" name="mailbox" value="{{ mailbox.pk }}">{% endif %}
+  {% include "core/_form_errors.html" %}
+  <div class="panel">
+    <div class="panel-body signature-columns">
+      <div>
+        {% include "core/_field.html" with field=form.html %}
+      </div>
+      <aside class="placeholder-list" aria-labelledby="placeholders-title">
+        <h3 id="placeholders-title">{% translate "Placeholders" %}</h3>
+        <p class="muted small">{% translate "Click to insert at the cursor." %}</p>
+        <ul>
+          {% for placeholder in placeholders %}
+          <li><button type="button" class="btn secondary small" data-insert-placeholder="{{ placeholder.token }}"><code>{{ placeholder.token }}</code></button> <span>{{ placeholder.label|capfirst }}</span></li>
+          {% endfor %}
+        </ul>
+        <p class="muted small">{% translate "The data come from the person of the writer’s account (personnel); the company name from the company data." %}</p>
+      </aside>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="panel-head"><h2>{% translate "Preview with your data" %}</h2>
+      <button class="btn secondary small" type="submit" formaction="{% url 'mail:signature_preview' %}" formtarget="signature-preview" name="text" value="1" data-signature-preview>{% icon "refresh" %}{% translate "Show preview" %}</button>
+    </div>
+    <iframe class="signature-frame" name="signature-preview" sandbox referrerpolicy="no-referrer" title="{% translate 'Preview of the signature' %}" src="{% url 'mail:signature_preview' %}?text=1{% if mailbox %}&amp;mailbox={{ mailbox.pk }}{% endif %}"></iframe>
+  </div>
+  <div class="btn-row"><button class="btn" type="submit">{% translate "Save" %}</button><a class="btn secondary" href="{% url 'mail:settings' %}{% if mailbox %}#signature{% endif %}">{% translate "Cancel" %}</a></div>
+</form>
+{% endblock %}

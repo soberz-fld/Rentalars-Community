@@ -1,0 +1,12 @@
+{% load i18n %}{% autoescape off %}{% blocktranslate with name=user.get_short_name %}Hello {{ name }},{% endblocktranslate %}
+
+{% blocktranslate %}an account was created for you in Rentalars, the project and material management of {{ company_name }}.{% endblocktranslate %}
+
+{% translate "Your username:" %} {{ user.username }}
+
+{% translate "Set your password with this link:" %}
+
+{{ link }}
+
+{% blocktranslate %}The link is valid for {{ valid_hours }} hours and can be used once.{% endblocktranslate %}
+{% endautoescape %}

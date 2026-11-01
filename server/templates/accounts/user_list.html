@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Users" %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><div class="breadcrumb"><a href="{% url 'core:administration' %}">{% translate "Settings" %}</a></div><h1>{% translate "Users" %}</h1></div>
+  <div class="actions">{% if can.write.administration %}<a class="btn" href="{% url 'accounts:user_create' %}">{% icon "plus" %}{% translate "Invite user" %}</a>{% endif %}</div>
+</div>
+<div class="panel">
+  <form method="get" class="filters"><div class="field grow"><label for="f-q">{% translate "Search" %}</label><input type="search" id="f-q" name="q" value="{{ q }}"></div><button class="btn secondary" type="submit">{% translate "Search" %}</button></form>
+  {% include "core/_table_tools.html" %}
+  {% include "core/_table.html" with stack=True %}
+  {% include "accounts/_data_access_legend.html" %}{# AUT-034 #}
+  {% include "core/_pagination.html" %}
+</div>
+{% endblock %}

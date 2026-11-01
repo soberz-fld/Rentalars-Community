@@ -1,0 +1,2 @@
+{# MAT-078: the answer of the live check – the suggestion, and out of band the limit and verdict of every value. #}
+{% with evaluation=form.evaluation %}{% include "material/_dguv_suggestion.html" %}{% for check in evaluation.checks %}{% include "material/_dguv_limit.html" %}{% endfor %}{% endwith %}

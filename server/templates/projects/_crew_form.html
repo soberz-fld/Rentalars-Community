@@ -1,0 +1,21 @@
+{% load i18n rentalars %}
+{% comment %}
+  The dialog for editing a crew line; see CrewLineForm.LAYOUT for the rows. PRJ-110: also opened from the
+  phases on "Zeitplanung" (back_to_course) – then also a page of its own for a browser without scripts, so the form
+  posts normally as well.
+{% endcomment %}
+<form method="post" action="{{ action }}" hx-post="{{ action }}" hx-target="#dialog" novalidate autocomplete="off">
+  {% csrf_token %}
+  <div class="dialog-head"><h2>{{ line.title }}{% if line.person %} – {{ line.person.name }}{% elif back_to_course %} – {% translate "open" context "crew" %}{% endif %}</h2><button type="button" class="icon-btn" data-close-dialog{% if back_to_course %} data-href="{% url 'projects:course' project.pk %}#phases"{% endif %} aria-label="{% translate 'Close' %}">{% icon "close" %}</button></div>
+  <div class="dialog-body form">
+    {% include "core/_form_errors.html" %}
+    {% for row in form.rows %}
+    <div class="form-row{% if row|length > 1 %} pair{% endif %}">{% for field in row %}{% include "core/_field.html" %}{% endfor %}</div>
+    {% endfor %}
+    <p class="muted small">{% translate "A new person brings their own hourly rate for the job function. Changing the person’s rate later does not change this line." %}</p>
+  </div>
+  <div class="dialog-foot">
+    <button type="button" class="btn secondary" data-close-dialog{% if back_to_course %} data-href="{% url 'projects:course' project.pk %}#phases"{% endif %}>{% translate "Cancel" %}</button>
+    <button type="submit" class="btn">{% translate "Save crew line" %}</button>
+  </div>
+</form>

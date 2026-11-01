@@ -1,0 +1,131 @@
+{% load i18n rentalars %}
+{% comment %}
+  Legacy import: the card of one invoice in the preview. Expects: v (legacy_views.ItemView). The names of the fields (PRJ-130)
+  are those draft_from_post reads: "i<id>-customer_choice", "i<id>-number", … and per position "i<id>-l<n>-title" …
+  The checks sit next to the fields they belong to; errors block taking the invoice over, warnings want to be read.
+{% endcomment %}
+{% with p=v.prefix item=v.item %}
+<section class="panel legacy-item" id="legacy-item-{{ item.pk }}" aria-labelledby="{{ p }}title">
+  <div class="panel-head">
+    <h2 id="{{ p }}title">{{ item.original_name }}</h2>
+    <span class="legacy-source">
+      {% if v.draft.source == "ai" %}<span class="badge accent">{% translate "read by AI" %}</span>{% elif v.draft.source == "text" %}<span class="badge yellow">{% translate "read by patterns" %}</span>{% else %}<span class="badge">{% translate "typed by hand" %}</span>{% endif %}
+      <a class="btn secondary small" href="{% url 'projects:legacy_pdf' item.pk %}">{% icon "download" %}{% translate "Original PDF" %}</a>
+      <button class="btn secondary small" type="submit" name="action" value="skip-{{ item.pk }}" formnovalidate>{% icon "trash" %}{% translate "Do not take over" %}</button>
+    </span>
+  </div>
+  <div class="panel-body">
+    {% if item.message %}<p class="note small">{{ item.message }}</p>{% endif %}
+    {% if v.draft.note %}<p class="note small">{{ v.draft.note }}</p>{% endif %}
+    {% with list=v.general %}{% include "projects/_legacy_issues.html" with id=p|add:"general" %}{% endwith %}
+    <input type="hidden" name="{{ p }}lines-count" value="{{ v.lines|length }}">
+    <div class="legacy-take check">
+      <input type="checkbox" id="{{ p }}take" name="take" value="{{ item.pk }}"{% if v.selected %} checked{% endif %}>
+      <label for="{{ p }}take">{% translate "Take this invoice over" %}</label>
+    </div>
+
+    <fieldset class="legacy-block">
+      <legend>{% translate "Customer" %}</legend>
+      {% if v.merged %}<p class="muted small">{% translate "This invoice becomes part of the project of the invoice it is joined to and uses its customer." %}</p>{% endif %}
+      <div class="form-grid">
+        <div class="field">
+          <label for="{{ p }}customer_choice">{% translate "Customer in Rentalars" %}</label>
+          <select id="{{ p }}customer_choice" name="{{ p }}customer_choice" aria-describedby="{{ p }}customer-issues">
+            {% for value, label, chosen in v.customers %}<option value="{{ value }}"{% if chosen %} selected{% endif %}>{{ label }}</option>{% endfor %}
+          </select>
+          {% with list=v.issues.customer %}{% include "projects/_legacy_issues.html" with id=p|add:"customer-issues" %}{% endwith %}
+          {% if v.customer_status and not v.merged %}<p class="help">{{ v.customer_status }}</p>{% endif %}
+        </div>
+      </div>
+      <details class="legacy-customer-data"{% if not v.merged and v.draft.customer.customer_id is None %} open{% endif %}>
+        <summary>{% translate "Data of a new customer (from the invoice)" %}</summary>
+        <div class="form-grid">
+          <div class="field"><label for="{{ p }}customer_name">{% translate "Name" %}</label><input type="text" id="{{ p }}customer_name" name="{{ p }}customer_name" maxlength="200" value="{{ v.draft.customer.name }}" aria-describedby="{{ p }}customer-name-issues">{% with list=v.issues.customer_name %}{% include "projects/_legacy_issues.html" with id=p|add:"customer-name-issues" %}{% endwith %}</div>
+          <div class="field"><label for="{{ p }}customer_name_addition">{% translate "Addition" %}</label><input type="text" id="{{ p }}customer_name_addition" name="{{ p }}customer_name_addition" maxlength="200" value="{{ v.draft.customer.name_addition }}"></div>
+          <div class="field"><label for="{{ p }}customer_street">{% translate "Street" %}</label><input type="text" id="{{ p }}customer_street" name="{{ p }}customer_street" maxlength="200" value="{{ v.draft.customer.street }}"></div>
+          <div class="field"><label for="{{ p }}customer_postal_code">{% translate "Postal code" %}</label><input type="text" id="{{ p }}customer_postal_code" name="{{ p }}customer_postal_code" maxlength="20" value="{{ v.draft.customer.postal_code }}"></div>
+          <div class="field"><label for="{{ p }}customer_city">{% translate "City" %}</label><input type="text" id="{{ p }}customer_city" name="{{ p }}customer_city" maxlength="120" value="{{ v.draft.customer.city }}"></div>
+          <div class="field"><label for="{{ p }}customer_country">{% translate "Country" %}</label><input type="text" id="{{ p }}customer_country" name="{{ p }}customer_country" maxlength="80" value="{{ v.draft.customer.country }}"></div>
+          <div class="field"><label for="{{ p }}customer_vat_id">{% translate "VAT ID" %}</label><input type="text" id="{{ p }}customer_vat_id" name="{{ p }}customer_vat_id" maxlength="30" value="{{ v.draft.customer.vat_id }}" aria-describedby="{{ p }}customer-vat-issues">{% with list=v.issues.customer_vat_id %}{% include "projects/_legacy_issues.html" with id=p|add:"customer-vat-issues" %}{% endwith %}</div>
+          <div class="field"><label for="{{ p }}customer_email">{% translate "Email" %}</label><input type="text" id="{{ p }}customer_email" name="{{ p }}customer_email" maxlength="254" value="{{ v.draft.customer.email }}"></div>
+        </div>
+        <div class="check"><input type="checkbox" id="{{ p }}customer_allow_duplicate" name="{{ p }}customer_allow_duplicate"{% if v.draft.customer.allow_duplicate %} checked{% endif %}><label for="{{ p }}customer_allow_duplicate">{% translate "Create a new customer although one with the same name or VAT ID exists" %}</label></div>
+      </details>
+    </fieldset>
+
+    <fieldset class="legacy-block">
+      <legend>{% translate "Invoice and project" %}</legend>
+      <div class="form-grid">
+        <div class="field"><label for="{{ p }}number">{% translate "Invoice number" %}</label><input type="text" id="{{ p }}number" name="{{ p }}number" maxlength="40" value="{{ v.values.number }}" aria-describedby="{{ p }}number-issues">{% with list=v.issues.number %}{% include "projects/_legacy_issues.html" with id=p|add:"number-issues" %}{% endwith %}</div>
+        <div class="field"><label for="{{ p }}date">{% translate "Invoice date" %}</label><input type="date" id="{{ p }}date" name="{{ p }}date" value="{{ v.values.date }}" aria-describedby="{{ p }}date-issues">{% with list=v.issues.date %}{% include "projects/_legacy_issues.html" with id=p|add:"date-issues" %}{% endwith %}</div>
+        <div class="field"><label for="{{ p }}service_start">{% translate "Service period from" %}</label><input type="date" id="{{ p }}service_start" name="{{ p }}service_start" value="{{ v.values.service_start }}" aria-describedby="{{ p }}service_start-issues">{% with list=v.issues.service_start %}{% include "projects/_legacy_issues.html" with id=p|add:"service_start-issues" %}{% endwith %}</div>
+        <div class="field"><label for="{{ p }}service_end">{% translate "Service period to" %}</label><input type="date" id="{{ p }}service_end" name="{{ p }}service_end" value="{{ v.values.service_end }}" aria-describedby="{{ p }}service_end-issues">{% with list=v.issues.service_end %}{% include "projects/_legacy_issues.html" with id=p|add:"service_end-issues" %}{% endwith %}</div>
+        <div class="field"><label for="{{ p }}event_name">{% translate "Event / project name" %}</label><input type="text" id="{{ p }}event_name" name="{{ p }}event_name" maxlength="200" value="{{ v.values.event_name }}"></div>
+        <div class="field"><label for="{{ p }}venue">{% translate "Venue" %}</label><input type="text" id="{{ p }}venue" name="{{ p }}venue" maxlength="250" value="{{ v.values.venue }}"></div>
+        <input type="hidden" name="{{ p }}currency" value="{{ v.draft.invoice.currency }}">
+        {% with list=v.issues.currency %}{% include "projects/_legacy_issues.html" with id=p|add:"currency-issues" %}{% endwith %}
+        <div class="field">
+          <div class="check"><input type="checkbox" id="{{ p }}paid" name="{{ p }}paid"{% if v.draft.invoice.paid %} checked{% endif %}><label for="{{ p }}paid">{% translate "The invoice was paid" %}</label></div>
+        </div>
+        <div class="field"><label for="{{ p }}paid_on">{% translate "Paid on" %}</label><input type="date" id="{{ p }}paid_on" name="{{ p }}paid_on" value="{{ v.values.paid_on }}" aria-describedby="{{ p }}paid_on-issues">{% with list=v.issues.paid_on %}{% include "projects/_legacy_issues.html" with id=p|add:"paid_on-issues" %}{% endwith %}</div>
+        {% if v.merge_options|length > 1 %}
+        <div class="field"><label for="{{ p }}merge">{% translate "Project" %}</label>
+          <select id="{{ p }}merge" name="{{ p }}merge" aria-describedby="{{ p }}merge-issues">{% for value, label, chosen in v.merge_options %}<option value="{{ value }}"{% if chosen %} selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+          {% with list=v.issues.merge_into %}{% include "projects/_legacy_issues.html" with id=p|add:"merge-issues" %}{% endwith %}
+        </div>
+        {% endif %}
+      </div>
+    </fieldset>
+
+    <fieldset class="legacy-block">
+      <legend>{% translate "Positions" %}</legend>
+      {% with list=v.issues.lines %}{% include "projects/_legacy_issues.html" with id=p|add:"lines-issues" %}{% endwith %}
+      <table class="table stack legacy-lines">
+        <thead><tr>
+          <th scope="col">{% translate "Text" %}</th><th scope="col">{% translate "Quantity" %}</th><th scope="col">{% translate "Unit" %}</th><th scope="col">{% translate "Unit price (net)" %}</th><th scope="col">{% translate "Discount in percent" %}</th><th scope="col">{% translate "Tax" %}</th><th scope="col">{% translate "Kind and assignment" %}</th><th scope="col" class="num">{% translate "Net" %}</th><th scope="col"><span class="visually-hidden">{% translate "Remove" %}</span></th>
+        </tr></thead>
+        <tbody>
+        {% for l in v.lines %}{% with q=l.prefix n=forloop.counter %}
+          <tr{% if l.issues %} class="has-issue"{% endif %}>
+            <td data-label="{% translate 'Text' %}">
+              <input type="text" name="{{ q }}title" maxlength="200" value="{{ l.title }}" aria-label="{% blocktranslate %}Text of position {{ n }}{% endblocktranslate %}">
+              <textarea name="{{ q }}note" rows="{% if l.note %}3{% else %}1{% endif %}" maxlength="2000" class="legacy-description" placeholder="{% translate 'Description (optional)' %}" aria-label="{% blocktranslate %}Description of position {{ n }}{% endblocktranslate %}">{{ l.note }}</textarea>
+              {% if l.line.is_text %}<input type="hidden" name="{{ q }}is_text" value="on"><span class="muted small">{% translate "Text line (no price)" %}</span>{% endif %}
+              {% if l.issues %}<ul class="legacy-issues small">{% for issue in l.issues %}<li>{% if issue.level == "error" %}<span class="badge red">{% translate "Error" %}</span>{% else %}<span class="badge yellow">{% translate "Check" %}</span>{% endif %} {{ issue.message }}</li>{% endfor %}</ul>{% endif %}
+            </td>
+            {% if l.line.is_text %}
+            <td colspan="7"></td>
+            {% else %}
+            <td data-label="{% translate 'Quantity' %}"><input type="text" inputmode="decimal" name="{{ q }}quantity" value="{{ l.quantity }}" aria-label="{% blocktranslate %}Quantity of position {{ n }}{% endblocktranslate %}"></td>
+            <td data-label="{% translate 'Unit' %}"><input type="text" name="{{ q }}unit" maxlength="12" value="{{ l.unit }}" aria-label="{% blocktranslate %}Unit of position {{ n }}{% endblocktranslate %}"></td>
+            <td data-label="{% translate 'Unit price (net)' %}"><input type="text" inputmode="decimal" name="{{ q }}unit_price" value="{{ l.unit_price }}" aria-label="{% blocktranslate %}Unit price of position {{ n }}{% endblocktranslate %}"></td>
+            <td data-label="{% translate 'Discount in percent' %}"><input type="text" inputmode="decimal" name="{{ q }}discount" value="{{ l.discount }}" aria-label="{% blocktranslate %}Discount of position {{ n }}{% endblocktranslate %}"></td>
+            <td data-label="{% translate 'Tax' %}"><select name="{{ q }}tax" aria-label="{% blocktranslate %}Tax rate of position {{ n }}{% endblocktranslate %}"><option value="">–</option>{% for value, label in v.tax_rates %}<option value="{{ value }}"{% if value == l.tax %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></td>
+            <td data-label="{% translate 'Kind and assignment' %}">
+              <select name="{{ q }}kind" aria-label="{% blocktranslate %}Kind of position {{ n }}{% endblocktranslate %}">{% for value, label, chosen in l.kinds %}<option value="{{ value }}"{% if chosen %} selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+              {% if l.targets %}<select name="{{ q }}{{ l.target_name }}" aria-label="{{ l.target_label }} – {% blocktranslate %}position {{ n }}{% endblocktranslate %}">{% for value, label, chosen in l.targets %}<option value="{{ value }}"{% if chosen %} selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+              {% elif l.products %}<select name="{{ q }}product" aria-label="{% blocktranslate %}Product of position {{ n }}{% endblocktranslate %}">{% for value, label, chosen in l.products %}<option value="{{ value }}"{% if chosen %} selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+              {% elif l.kind == "material" %}<span class="muted small">{% translate "Free text line" %}</span>{% endif %}
+            </td>
+            {% endif %}
+            <td class="num" data-label="{% translate 'Net' %}">{% if not l.line.is_text %}{{ l.base }}{% if l.printed and l.printed != l.base %}<div class="muted small">{% blocktranslate with printed=l.printed %}Invoice: {{ printed }}{% endblocktranslate %}</div>{% endif %}{% endif %}</td>
+            <td class="actions"><div class="check"><input type="checkbox" id="{{ q }}remove" name="{{ q }}remove"><label for="{{ q }}remove"><span class="visually-hidden">{% blocktranslate %}Remove position {{ n }}{% endblocktranslate %}</span><span aria-hidden="true">{% translate "Remove" %}</span></label></div></td>
+          </tr>
+        {% endwith %}{% endfor %}
+        </tbody>
+      </table>
+      <div class="btn-row"><button class="btn secondary small" type="submit" name="action" value="more-{{ item.pk }}">{% icon "plus" %}{% translate "Another position" %}</button><span class="muted small">{% translate "Ticked positions are removed when you save." %} {% translate "After you change the kind of a position, save: the matching job function or vehicle is offered then." %}</span></div>
+    </fieldset>
+
+    <fieldset class="legacy-block">
+      <legend>{% translate "Totals of the invoice" %}</legend>
+      <div class="form-grid">
+        <div class="field"><label for="{{ p }}total_net">{% translate "Net" %}</label><input type="text" inputmode="decimal" id="{{ p }}total_net" name="{{ p }}total_net" value="{{ v.values.total_net }}" aria-describedby="{{ p }}total_net-issues">{% with list=v.issues.total_net %}{% include "projects/_legacy_issues.html" with id=p|add:"total_net-issues" %}{% endwith %}</div>
+        <div class="field"><label for="{{ p }}total_tax">{% translate "Tax" %}</label><input type="text" inputmode="decimal" id="{{ p }}total_tax" name="{{ p }}total_tax" value="{{ v.values.total_tax }}" aria-describedby="{{ p }}total_tax-issues">{% with list=v.issues.total_tax %}{% include "projects/_legacy_issues.html" with id=p|add:"total_tax-issues" %}{% endwith %}</div>
+        <div class="field"><label for="{{ p }}total_gross">{% translate "Gross" %}</label><input type="text" inputmode="decimal" id="{{ p }}total_gross" name="{{ p }}total_gross" value="{{ v.values.total_gross }}" aria-describedby="{{ p }}total_gross-issues">{% with list=v.issues.total_gross %}{% include "projects/_legacy_issues.html" with id=p|add:"total_gross-issues" %}{% endwith %}</div>
+      </div>
+      <p class="muted small">{% blocktranslate with net=v.sums.net tax=v.sums.tax gross=v.sums.gross %}The positions add up to {{ net }} net, {{ tax }} tax, {{ gross }} gross.{% endblocktranslate %}</p>
+    </fieldset>
+  </div>
+</section>
+{% endwith %}

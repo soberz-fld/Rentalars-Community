@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{{ template.name }} – {% translate "Content" %}{% endblock %}
+{% block content %}
+{% comment %}
+  PRJ-135: the content of a project template – what a new project made from it gets – and the buttons to change
+  it entry by entry. Expects template, content, rows (groups and lines in order), crew, vehicles, phases, open_items,
+  notes, rental_days, length_seconds, has_prices.
+{% endcomment %}
+<div class="page-head"><div>
+  <div class="breadcrumb"><a href="{% url 'projects:templates' %}">{% translate "Project templates" %}</a></div>
+  <h1>{{ template.name }} <span class="badge">{% translate "Content" %}</span></h1>
+  <p class="lead">{% translate "This is what a new project made from the template gets. Changes here do not touch projects that exist already." %}</p>
+</div>
+<div class="btn-row"><a class="btn secondary" href="{% url 'projects:template_edit' template.pk %}">{% translate "Name and description" %}</a></div></div>
+
+<section class="panel" id="groups">
+  <div class="panel-head"><h2>{% translate "Groups and lines" %}</h2>
+    <div class="btn-row">
+      <a class="btn secondary" href="{% url 'projects:template_entry_add' template.pk 'groups' %}">{% icon "plus" %}{% translate "Add group" %}</a>
+      <a class="btn secondary" href="{% url 'projects:template_entry_add' template.pk 'lines' %}?as=product">{% icon "plus" %}{% translate "Add product" %}</a>
+      <a class="btn secondary" href="{% url 'projects:template_entry_add' template.pk 'lines' %}?as=free">{% icon "plus" %}{% translate "Add free line" %}</a>
+      <a class="btn secondary" href="{% url 'projects:template_entry_add' template.pk 'lines' %}?as=text">{% icon "plus" %}{% translate "Add text" %}</a>
+    </div></div>
+  {% if rows %}
+  <table class="table stack" data-template-rows>
+    <thead><tr><th scope="col">{% translate "Name" %}</th><th scope="col" class="num">{% translate "Quantity" %}</th><th scope="col">{% translate "Details" %}</th><th scope="col"></th></tr></thead>
+    <tbody>
+    {% for row in rows %}{% with entry=row.entry %}
+      {% if row.type == "group" %}
+      <tr data-group="{{ entry.key }}" class="is-group"><td data-label="{% translate 'Name' %}"><strong style="padding-left: {{ row.depth }}em">{{ row.name }}</strong></td><td></td>
+        <td data-label="{% translate 'Details' %}" class="muted small">{{ row.kind }}{% if entry.rental_days %} · {% blocktranslate with days=entry.rental_days %}{{ days }} rental days{% endblocktranslate %}{% endif %}</td>
+        {% include "projects/_template_row_actions.html" with section="groups" key=entry.key %}</tr>
+      {% else %}
+      <tr data-line="{{ entry.key }}"{% if entry.is_text %} class="is-muted"{% endif %}><td data-label="{% translate 'Name' %}"><span style="padding-left: {{ row.depth }}em">{{ row.name }}</span>{% if entry.note %}<div class="muted small" style="padding-left: {{ row.depth }}em">{{ entry.note|linebreaksbr }}</div>{% endif %}</td>
+        <td class="num" data-label="{% translate 'Quantity' %}">{% if not entry.is_text %}{{ entry.quantity }}{% endif %}</td>
+        <td data-label="{% translate 'Details' %}" class="muted small">{% if entry.is_text %}{% translate "Text only" %}{% else %}{{ row.variant }}{% if entry.is_sale %} {% translate "Sale" %}{% endif %}{% if row.period %} {{ row.period }}{% endif %}{% endif %}</td>
+        {% include "projects/_template_row_actions.html" with section="lines" key=entry.key %}</tr>
+      {% endif %}
+    {% endwith %}{% endfor %}
+    </tbody>
+  </table>
+  {% else %}<div class="empty"><strong>{% translate "Nothing here yet." %}</strong>{% translate "Add a group or a line." %}</div>{% endif %}
+</section>
+
+<section class="panel" id="crew">
+  <div class="panel-head"><h2>{% translate "Crew places" %}</h2><a class="btn secondary" href="{% url 'projects:template_entry_add' template.pk 'crew' %}">{% icon "plus" %}{% translate "Add crew place" %}</a></div>
+  {% if crew %}
+  <table class="table stack">
+    <thead><tr><th scope="col">{% translate "Job function" %}</th><th scope="col">{% translate "Period" %}</th><th scope="col">{% translate "Phase" %}</th><th scope="col"></th></tr></thead>
+    <tbody>{% for row in crew %}
+      <tr data-crew="{{ row.entry.key }}"><td data-label="{% translate 'Job function' %}">{{ row.name }}{% if row.entry.planned_hours %} · {{ row.entry.planned_hours }} h{% endif %}</td><td data-label="{% translate 'Period' %}" class="muted small">{{ row.period }}</td><td data-label="{% translate 'Phase' %}" class="muted small">{{ row.phase }}</td>
+      {% include "projects/_template_row_actions.html" with section="crew" key=row.entry.key %}</tr>{% endfor %}</tbody>
+  </table>
+  {% else %}<div class="empty"><strong>{% translate "Nothing here yet." %}</strong></div>{% endif %}
+</section>
+
+<section class="panel" id="vehicles">
+  <div class="panel-head"><h2>{% translate "Vehicle bookings" %}</h2><a class="btn secondary" href="{% url 'projects:template_entry_add' template.pk 'vehicles' %}">{% icon "plus" %}{% translate "Add vehicle booking" %}</a></div>
+  {% if vehicles %}
+  <table class="table stack">
+    <thead><tr><th scope="col">{% translate "Vehicle" %}</th><th scope="col">{% translate "Period" %}</th><th scope="col">{% translate "Phase" %}</th><th scope="col"></th></tr></thead>
+    <tbody>{% for row in vehicles %}
+      <tr data-vehicle="{{ row.entry.key }}"><td data-label="{% translate 'Vehicle' %}">{{ row.name }}</td><td data-label="{% translate 'Period' %}" class="muted small">{{ row.period }}</td><td data-label="{% translate 'Phase' %}" class="muted small">{{ row.phase }}</td>
+      {% include "projects/_template_row_actions.html" with section="vehicles" key=row.entry.key %}</tr>{% endfor %}</tbody>
+  </table>
+  {% else %}<div class="empty"><strong>{% translate "Nothing here yet." %}</strong></div>{% endif %}
+</section>
+
+<section class="panel" id="phases">
+  <div class="panel-head"><h2>{% translate "Phases" %}</h2><a class="btn secondary" href="{% url 'projects:template_entry_add' template.pk 'phases' %}">{% icon "plus" %}{% translate "Add phase" %}</a></div>
+  {% if phases %}
+  <table class="table stack">
+    <thead><tr><th scope="col">{% translate "Phase" %}</th><th scope="col">{% translate "Period" %}</th><th scope="col">{% translate "Place" %}</th><th scope="col"></th></tr></thead>
+    <tbody>{% for row in phases %}
+      <tr data-phase="{{ row.entry.key }}"><td data-label="{% translate 'Phase' %}">{{ row.name }}</td><td data-label="{% translate 'Period' %}" class="muted small">{{ row.period }}</td><td data-label="{% translate 'Place' %}" class="muted small">{{ row.entry.location }}</td>
+      {% include "projects/_template_row_actions.html" with section="phases" key=row.entry.key %}</tr>{% endfor %}</tbody>
+  </table>
+  {% else %}<div class="empty"><strong>{% translate "Nothing here yet." %}</strong></div>{% endif %}
+</section>
+
+<section class="panel" id="open_items">
+  <div class="panel-head"><h2>{% translate "Open items" %}</h2><a class="btn secondary" href="{% url 'projects:template_entry_add' template.pk 'open_items' %}">{% icon "plus" %}{% translate "Add open item" %}</a></div>
+  {% if open_items %}
+  <table class="table stack">
+    <tbody>{% for index, text in open_items %}
+      <tr data-open-item="{{ index }}"><td>{{ text }}</td>
+      {% include "projects/_template_row_actions.html" with section="open_items" key=index expect=text %}</tr>{% endfor %}</tbody>
+  </table>
+  {% else %}<div class="empty"><strong>{% translate "Nothing here yet." %}</strong></div>{% endif %}
+</section>
+
+<section class="panel" id="notes">
+  <div class="panel-head"><h2>{% translate "Notes" %}</h2><a class="btn secondary" href="{% url 'projects:template_notes' template.pk %}">{% icon "edit" %}{% translate "Change notes" %}</a></div>
+  <div class="panel-body">
+    {% if notes %}<p>{{ notes|linebreaksbr }}</p>{% else %}<p class="muted">{% translate "No notes." %}</p>{% endif %}
+    {% if rental_days %}<p class="muted small">{% blocktranslate with days=rental_days %}Rental days: {{ days }}{% endblocktranslate %}</p>{% endif %}
+  </div>
+</section>
+{% endblock %}

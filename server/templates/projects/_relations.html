@@ -1,0 +1,59 @@
+{% load i18n rentalars service_cases %}
+{% comment %}
+  PRJ-119: the box "Verwandt" on the overview of a project and on the page of a service case
+  (templatetags/project_relations.py). Each related project or case with number, name, kind, status and link – one the
+  reader may not open as "Projekt 2027-0042 (kein Zugriff)" only, without name, status, note or link (AUT-016).
+  Whoever may edit the project links another one – searched by number or name with suggestions; a number typed in
+  full works without the page script – and unlinks one ("Lösen", which needs read access to the other one).
+  Expects: show, project, entries, can_link, can_unlink, next, csrf_token.
+{% endcomment %}
+{% if show %}
+{# PRJ-119: a heading and a list, linking opens from a line under the list. V17: in a box like the others, no loose lines between the boxes. #}
+<section class="panel related-projects related-compact" id="related" aria-labelledby="related-title">
+  <div class="panel-head"><h2 id="related-title">{% translate "Related" context "projects" %}</h2></div>
+  <div class="panel-body">
+  {% if entries %}
+  <ul class="related-list">
+    {% for entry in entries %}
+    <li data-related="{{ entry.number }}">
+      {% if entry.visible %}
+      <a href="{{ entry.url }}">{{ entry.number }}</a>
+      <a href="{{ entry.url }}">{{ entry.project.name }}</a>
+      <span class="muted">{{ entry.kind_label }}</span>
+      <span class="badge {% if entry.project.is_service_case %}{{ entry.status_key|case_colour }}{% else %}{{ entry.status_key|status_colour }}{% endif %}">{{ entry.status_label }}</span>
+      {% if entry.note %}<span class="muted">{{ entry.note }}</span>{% endif %}
+      {% else %}
+      <span class="muted">{{ entry.label }}</span>
+      {% endif %}
+      {% if can_unlink and entry.readable %}<form method="post" action="{% url 'projects:relation_remove' project.pk entry.relation.pk %}" class="inline-form">{% csrf_token %}<input type="hidden" name="next" value="{{ next }}"><button class="link-btn" type="submit" aria-label="{% blocktranslate with number=entry.number %}Unlink {{ number }}{% endblocktranslate %}" data-confirm="{% blocktranslate with number=entry.number %}No longer relate {{ number }} to this one?{% endblocktranslate %}">{% translate "Unlink" %}</button></form>{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}<p class="muted small">{% translate "Nothing related yet." %}</p>{% endif %}
+  {% if can_link %}
+  <details class="related-add">
+    <summary>{% translate "Add a related one" %}</summary>
+    <form method="post" action="{% url 'projects:relation_add' project.pk %}" class="form related-form">
+      {% csrf_token %}<input type="hidden" name="next" value="{{ next }}">
+      {% include "core/_required_note.html" with always=True %}
+      <div class="form-grid">
+        <div class="field">
+          <label for="related-project">{% translate "Project or service case" %}{% include "core/_required_star.html" %}</label>
+          <div class="typeahead" data-typeahead data-typeahead-free data-url="{% url 'projects:relation_suggest' project.pk %}">
+            <input type="search" id="related-project" name="project_text" data-typeahead-input placeholder="{% translate 'Number or name' %}" required autocomplete="off" aria-describedby="related-help">
+            <input type="hidden" name="project_number" data-typeahead-value>
+          </div>
+          <div class="help" id="related-help">{% translate "Whole projects and service cases you may read; the relation shows on both." %}</div>
+        </div>
+        <div class="field">
+          <label for="related-note">{% translate "Note (optional)" %}</label>
+          <input type="text" id="related-note" name="note" maxlength="200">
+        </div>
+      </div>
+      <div class="btn-row"><button class="btn secondary small" type="submit">{% icon "link" %}{% translate "Link" context "projects" %}</button></div>
+    </form>
+  </details>
+  {% endif %}
+  </div>
+</section>
+{% endif %}

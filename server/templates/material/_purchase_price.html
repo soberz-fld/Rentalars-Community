@@ -1,0 +1,12 @@
+{% comment %}
+  The purchase price of the forms for items – only with the right to see purchase prices (AUT-019). MAT-059: entered
+  net or gross; a gross price names the tax rate it includes, which the page script shows only for "gross"
+  (material.forms.PriceEntryMixin, as the material import of IMP-014). Expects: form.
+{% endcomment %}
+{% if form.purchase_price %}
+{% include "core/_field.html" with field=form.purchase_price %}
+{% if form.prices %}
+{% include "core/_field.html" with field=form.prices %}
+<div data-show-if="prices=gross">{% include "core/_field.html" with field=form.price_tax_rate %}</div>
+{% endif %}
+{% endif %}

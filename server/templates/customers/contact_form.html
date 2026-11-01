@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% if contact.pk %}{{ contact.name }}{% else %}{% translate "New contact" %}{% endif %}{% endblock %}
+{% block content %}
+<div class="page-head"><div><div class="breadcrumb"><a href="{% url 'customers:detail' customer.pk %}">{{ customer.name }}</a></div><h1>{% if contact.pk %}{{ contact.name }}{% else %}{% translate "New contact" %}{% endif %}</h1></div></div>
+<div class="panel"><div class="panel-body">
+  <form method="post" class="form" novalidate hx-get="{% url 'customers:greeting_preview' %}" hx-trigger="input changed delay:300ms, change" hx-target="#greeting-preview" hx-swap="outerHTML">
+    {% csrf_token %}
+    {% include "core/_form_errors.html" %}
+    {# KND-004: salutation, first name, last name – the salutation suggests Herr/Frau/Dr. but takes any text. #}
+    <div class="form-grid">
+      {% include "core/_field.html" with field=form.salutation %}
+      {% include "core/_field.html" with field=form.first_name %}
+      {% include "core/_field.html" with field=form.last_name %}
+      {% include "core/_field.html" with field=form.position %}
+      {% include "core/_field.html" with field=form.email %}
+      {% include "core/_field.html" with field=form.phone %}
+    </div>
+    <datalist id="salutation-suggestions">{% for suggestion in form.salutation_suggestions %}<option value="{{ suggestion }}"></option>{% endfor %}</datalist>
+    {% include "core/_field.html" with field=form.is_primary %}
+    <fieldset>
+      <legend>{% translate "Greeting in e-mails" %}</legend>
+      <p class="help-line">{% translate "How a mail to this contact begins. The mail form and the reply drafts start with this line." %}</p>
+      <div class="form-grid">
+        {% include "core/_field.html" with field=form.greeting_style %}
+        <div data-show-if="greeting_style=custom"{% if form.greeting_style.value != "custom" %} class="hidden"{% endif %}>{% include "core/_field.html" with field=form.greeting_text %}</div>
+      </div>
+      {% include "customers/_greeting_preview.html" %}
+    </fieldset>
+    <div class="btn-row"><button class="btn" type="submit">{% translate "Save contact" %}</button><a class="btn secondary" href="{% url 'customers:detail' customer.pk %}">{% translate "Cancel" %}</a></div>
+  </form>
+</div></div>
+{% if contact.pk %}
+<form method="post" action="{% url 'customers:contact_delete' customer.pk contact.pk %}" class="section">{% csrf_token %}<button class="btn danger" type="submit" data-confirm="{% translate 'Delete this contact?' %}">{% icon "trash" %}{% translate "Delete contact" %}</button></form>
+{% endif %}
+{% endblock %}

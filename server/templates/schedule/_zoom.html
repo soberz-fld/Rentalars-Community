@@ -1,0 +1,24 @@
+{% load i18n %}
+{% comment %}
+  VFG-022, VFG-024: moving through the project timeline or the personnel plan, and its span: "Days" – one to ten
+  days in hour columns, the number chosen in the field "Days" – or "Weeks" of days as before (the parameters "from"
+  and "weeks" keep their meaning; "days" chooses the number of days). "Earlier" and "later" move by the shown span.
+  VFG-028: an address without "days" and "weeks" shows days, so "Weeks" names the number of weeks. VFG-029: the
+  material utilization uses the same control.
+  Expects: zoom (the number of days, 0 for weeks), day_count, day_choices, first, last, weeks, earlier, later,
+  today_from, day_from, week_from, week_choices.
+{% endcomment %}
+<form method="get" class="filters timeline-nav" data-tl-nav>
+  {% for key, value in request.GET.items %}{% if key != "from" and key != "weeks" and key != "days" %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endif %}{% endfor %}
+  <div class="segmented tl-zoom" role="group" aria-label="{% translate 'Span' %}">
+    <a class="btn secondary small{% if zoom %} is-active{% endif %}" href="{% querystring days=day_count from=day_from|date:'Y-m-d' %}"{% if zoom %} aria-current="true"{% endif %}>{% translate "Days" %}</a>
+    <a class="btn secondary small{% if not zoom %} is-active{% endif %}" href="{% querystring days=None weeks=weeks from=week_from|date:'Y-m-d' %}"{% if not zoom %} aria-current="true"{% endif %}>{% translate "Weeks" %}</a>
+  </div>
+  <a class="btn secondary small" href="{% querystring from=earlier|date:'Y-m-d' %}">‹ {% translate "earlier" %}</a>
+  <a class="btn secondary small" href="{% querystring from=today_from|date:'Y-m-d' %}">{% if zoom %}{% translate "today" %}{% else %}{% translate "this week" %}{% endif %}</a>
+  <a class="btn secondary small" href="{% querystring from=later|date:'Y-m-d' %}">{% translate "later" %} ›</a>
+  <div class="field"><label for="f-from">{% translate "From" %}</label><input type="date" id="f-from" name="from" value="{{ first|date:'Y-m-d' }}" data-autosubmit></div>
+  {% if zoom %}<div class="field"><label for="f-days">{% translate "Days" %}</label><select id="f-days" name="days" data-autosubmit>{% for choice in day_choices %}<option value="{{ choice }}"{% if choice == zoom %} selected{% endif %}>{{ choice }}</option>{% endfor %}</select></div>{% if request.GET.weeks %}<input type="hidden" name="weeks" value="{{ weeks }}">{% endif %}
+  {% else %}<div class="field"><label for="f-weeks">{% translate "Weeks" %}</label><select id="f-weeks" name="weeks" data-autosubmit>{% for choice in week_choices %}<option value="{{ choice }}"{% if choice == weeks %} selected{% endif %}>{{ choice }}</option>{% endfor %}</select></div>{% endif %}
+  <span class="tl-range" data-tl-range>{{ first|date:"D d.m.Y" }}{% if last != first %} – {{ last|date:"D d.m.Y" }}{% endif %}</span>
+</form>

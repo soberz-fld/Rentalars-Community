@@ -1,0 +1,47 @@
+{% load i18n rentalars %}
+{# The dialog for editing a line. Fields that belong together stand side by side (UIX-014); see LineForm.LAYOUT. #}
+<form hx-post="{{ action }}" hx-target="#dialog" novalidate autocomplete="off">
+  <div class="dialog-head"><h2>{% if line.is_covering_subrental %}{% translate "Subrental" %}: {{ line.title }}{% else %}{% if line.product %}{% if can.read.products %}<a class="artno" href="{% url 'products:detail' line.product_id %}?project={{ project.pk }}">{{ line.product.article_number }}</a>{% else %}<span class="artno">{{ line.product.article_number }}</span>{% endif %} {% endif %}{{ line.title }}{% endif %}</h2><button type="button" class="icon-btn" data-close-dialog aria-label="{% translate 'Close' %}">{% icon "close" %}</button></div>
+  <div class="dialog-body form">
+    {% include "core/_form_errors.html" %}
+    {# PRJ-096: the customer's own material – no price, no discount, nothing to choose about counting. #}
+    {% if line.is_customer_material %}<p class="muted small">{% translate "Customer's own material – taken along, not charged" %}</p>{% endif %}
+    {# PRJ-084: a subrental that covers a shortage is a part of its line; the customer pays the line. #}
+    {% if line.is_covering_subrental %}<p class="muted small">{% blocktranslate with quantity=line.covers_line.quantity_display title=line.covers_line.title %}Part of the line “{{ quantity }} × {{ title }}”. The customer pays the price of that line, so the subrental has no rental price of its own.{% endblocktranslate %}</p>{% endif %}
+    {% for row in form.rows %}
+    <div class="form-row{% if row|length > 1 %} pair{% endif %}">
+      {% for field in row %}
+        {% if field.name == "preferred_item_number" %}
+        <div class="field{% if field.errors %} has-error{% endif %}">
+          <label for="{{ field.id_for_label }}">{{ field.label }}{% include "core/_required_mark.html" with field=field %}</label>
+          <div class="typeahead" data-typeahead data-typeahead-free data-url="{% url 'material:item_suggest' %}?product={{ line.product_id }}">
+            <input type="search" data-typeahead-input id="{{ field.id_for_label }}" value="{{ field.value|default:'' }}" autocomplete="off" placeholder="{% translate 'Search by ID or name' %}">
+            <input type="hidden" name="{{ field.html_name }}" data-typeahead-value value="{{ field.value|default:'' }}">
+          </div>
+          <div class="help">{{ field.help_text }}</div>
+          {{ field.errors }}
+        </div>
+        {% elif field.name == "discount_percent" %}{# The live hint (_availability.html) stands below the field. #}
+        <div>{% include "core/_field.html" %}<div class="help discount-hint" id="discount-hint" role="status"></div></div>
+        {% elif field.name == "alternative_to" %}{# PRJ-083: only an alternative names what it could replace. #}
+        <div data-show-if="variant=alternative">{% include "core/_field.html" %}</div>
+        {% else %}{% include "core/_field.html" %}{% endif %}
+      {% endfor %}
+    </div>
+    {% endfor %}
+    {% if not line.is_percent_surcharge and not line.is_text %}
+    {# hx-target must be named here: otherwise the answer would inherit the form's target and replace the whole dialog. #}
+    <div id="line-availability"
+         hx-get="{% url 'projects:line_availability' project.pk %}?line={{ line.pk }}"
+         hx-target="this"
+         hx-include="closest form"
+         hx-trigger="load, change from:closest form, input changed delay:400ms from:closest form">
+    </div>
+    {% endif %}
+    {% if line.uses_rental_days and can_see_prices %}<p class="muted small">{% translate "The amount is quantity × daily price × factor of the rental days. A line with a period of its own is charged the days of that period, unless rental days are typed in here." %}</p>{% endif %}
+  </div>
+  <div class="dialog-foot">
+    <button type="button" class="btn secondary" data-close-dialog>{% translate "Cancel" %}</button>
+    <button type="submit" class="btn">{% translate "Save line" %}</button>
+  </div>
+</form>

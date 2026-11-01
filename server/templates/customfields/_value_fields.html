@@ -1,0 +1,19 @@
+{% load i18n %}{% comment %}
+  MAT-073: the values of an item in the forms "Neue Exemplare" and "Exemplar bearbeiten" – a form of its own
+  (customfields.forms.CustomValuesForm, prefix "cf") inside the same <form>. Expects: values_form. With several new items
+  at once a required field may stay empty (its asterisk shows while one item is created, data-require-if="count=1"),
+  and a unique field shows only while one item is created.
+{% endcomment %}{% if values_form.rows %}
+<section class="panel custom-values" aria-labelledby="custom-values-head">
+  <div class="panel-head"><h2 id="custom-values-head">{% translate "Custom fields" %}{% if values_form.fieldset %} <span class="muted small">{{ values_form.fieldset.name }}</span>{% endif %}</h2></div>
+  <div class="panel-body">
+    {% include "core/_required_note.html" with form=values_form %}
+    {% if values_form.non_field_errors %}<div class="message error" role="alert">{% for error in values_form.non_field_errors %}<div>{{ error }}</div>{% endfor %}</div>{% endif %}
+    {% if values_form.several %}<p class="muted small">{% translate "The values apply to every new item. With several items at once, required fields may stay empty – fill them in per item later; a unique field is filled in per item." %}</p>{% endif %}
+    <div class="form-grid">
+      {% for row in values_form.rows %}{% if not row.wide %}<div{% if row.only_one %} data-show-if="count=1"{% endif %}>{% include "core/_field.html" with field=row.field %}</div>{% endif %}{% endfor %}
+    </div>
+    {% for row in values_form.rows %}{% if row.wide %}<div{% if row.only_one %} data-show-if="count=1"{% endif %}>{% include "core/_field.html" with field=row.field %}</div>{% endif %}{% endfor %}
+  </div>
+</section>
+{% endif %}

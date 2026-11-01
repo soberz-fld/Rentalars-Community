@@ -1,0 +1,50 @@
+{% load i18n %}
+{% comment %}
+  PRJ-103: the timeline of one project on its tab "Zeitplanung" (schedule/course_timeline.py) – rental period,
+  event, one row per phase, then the crew by person with the colours of the personnel plan (VFG-027) and the open
+  places. The columns and the navigation are those of Planung → Zeitstrahl (VFG-022, VFG-024): hour columns that
+  scroll sideways and load the next span at their ends, or weeks of days. VFG-030: bars have a frame of 3:1 and
+  more against the background; their text ends with "…", and the tooltip (bar.title) says all: what, when, who.
+  VFG-026: for whoever may change the project, in hour columns the rental period, the event and the phases are
+  links that open the dialog to move them (a page of its own without the page script); they can be dragged or
+  moved with the arrow keys as well (schedule/_move_hint.html). PRJ-121: the bars of the people and
+  of the open places too – a person who is the only person of their phase takes it along (schedule/moves.py).
+  VFG-035: the crew as in the personnel plan – colours of firm, option and inquiry, "requested" dashed, exact
+  times in the hover and as hidden text, a deployment in a conflict filled red with "!" and the warnings before the
+  name, for whoever reads the personnel the availability hatched above the deployments, and the same legend.
+  Expects: project, scale, timeline_rows, crew_legend, availability_legend (empty: no availability shown),
+  timeline_movable and the navigation of _zoom.html.
+{% endcomment %}
+<section class="course-timeline" aria-labelledby="course-timeline-title">
+  <h2 id="course-timeline-title" class="course-timeline-title">{% translate "Timeline" %}</h2>
+  <p class="visually-hidden" aria-live="polite" data-tl-announce></p>
+  <div data-tl-swap>
+  {% include "schedule/_zoom.html" %}
+  <div class="panel timeline project-timeline sticky-text{% if scale.is_hourly %} is-hourly{% endif %}"{% include "schedule/_scale_panel_attrs.html" %} tabindex="0" role="region" aria-label="{% translate 'Timeline of the project' %}">
+    <div class="tl-grid" style="{{ scale.grid_style }}">
+      <div class="tl-label head"></div>
+      {% if scale.is_hourly %}{% include "schedule/_hours_head.html" %}{% else %}{% include "schedule/_days_head.html" %}{% endif %}
+      {% for row in timeline_rows %}
+        <div class="tl-label {{ row.kind }}{% if row.starts_group %} starts-group{% endif %}{% if row.conflict %} has-warning{% endif %}"{% if row.title %} title="{{ row.title }}"{% endif %}>{% if row.conflict %}<span class="plan-warning" title="{{ row.warning_text }}"><span aria-hidden="true">!</span><span class="visually-hidden">{% translate "Warning" %}: {{ row.warning_text }}.</span></span> {% endif %}{% if row.url %}<a href="{{ row.url }}">{{ row.label }}</a>{% else %}{{ row.label }}{% endif %}{% if row.sublabel %} <span class="muted small">{{ row.sublabel }}</span>{% endif %}{% if row.conflict and row.warning_text %}<span class="plan-warning-text" aria-hidden="true">{{ row.warning_text }}</span>{% endif %}</div>
+        {% if row.availability is not None %}
+        {# VFG-035: as in the personnel plan – the availability, hatched, above the deployments of this project. #}
+        <div class="tl-person{% if row.starts_group %} starts-group{% endif %}">
+          <div class="tl-row tl-avail" style="{{ scale.row_style }}">{% for bar in row.availability %}<span class="tl-bar {{ bar.css }}" style="{{ bar.style }}" title="{{ bar.label }}: {{ bar.title }}"><span class="tl-text">{{ bar.label }}</span><span class="visually-hidden">: {{ bar.title }}</span></span>{% endfor %}</div>
+          <div class="tl-row tl-deploy" style="{{ scale.row_style }}">{% include "schedule/_course_bars.html" %}</div>
+        </div>
+        {% else %}
+        <div class="tl-row{% if row.starts_group %} starts-group{% endif %}" style="{{ scale.row_style }}">{% include "schedule/_course_bars.html" %}</div>
+        {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+  {% if timeline_movable %}{% include "schedule/_move_hint.html" %}{% endif %}
+  </div>
+  {# VFG-035: the legend of the personnel plan – availability (if shown), firm, option, inquiry, requested, conflict – and declined and open places. #}
+  <div class="muted small tl-legend project-timeline-legend plan-legend">
+    <span class="plan-legend-group"><span class="tl-bar legend phase">{% translate "Phase" %}</span></span>
+    {% if availability_legend %}<span class="plan-legend-group"><strong>{% translate "Availability" %}:</strong>{% for value, label in availability_legend %} <span class="tl-bar legend availability is-{{ value }}">{{ label }}</span>{% endfor %} <span class="tl-bar legend absence">{% translate "absent" %}</span></span>{% endif %}
+    <span class="plan-legend-group"><strong>{% translate "Personnel" %}:</strong>{% for css, label in crew_legend %} <span class="tl-bar legend {{ css }}">{{ label }}</span>{% endfor %}</span>
+    <p class="plan-legend-note"><span class="plan-warning" aria-hidden="true">!</span> {% translate "Deployments overlap each other, or somebody is planned during an absence or although not available. The deployments concerned are filled red." %} {% if availability_legend %}{% translate "Availability is hatched. Point at a bar to see its exact times." %}{% else %}{% translate "Point at a bar to see its exact times." %}{% endif %}</p>
+  </div>
+</section>

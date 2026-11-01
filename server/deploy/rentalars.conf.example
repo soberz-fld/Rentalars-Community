@@ -1,0 +1,143 @@
+# Rentalars – the configuration file (NFA-032).
+#
+# On a server this file is /etc/rentalars/rentalars.conf. The installation
+# script writes it; everything Rentalars needs to know about its surroundings
+# is in here and nowhere else. After a change, restart the application:
+#
+#     sudo systemctl restart rentalars
+#
+# Lines that start with "#" are comments. A value that is commented out shows
+# the default that applies without it.
+
+[rentalars]
+# The address under which people open Rentalars in the browser. It is used in
+# links of e-mails and decides which host name the application answers to.
+url = https://rentalars.example.de
+
+# NFA-073: a production server starts only with an https:// address. Behind
+# a server in front that encrypts (NGINX of the installation, or another
+# proxy), url stays https:// – that server must send the header
+# "X-Forwarded-Proto: https" to Rentalars. Only an installation that people
+# reach without encryption on purpose (a closed network) says yes here; the
+# self-check then warns. Passwords then travel in plain text.
+# allow_http = no
+
+# More host names or IP addresses under which people may open
+# Rentalars, separated by commas – for example after the IP address of the
+# server changed: allowed_hosts = 192.168.1.50, rentalars.lan
+# ".example.de" allows all names below example.de. No http://, no port, no *.
+# The IP addresses of the server itself need no entry (see below).
+# allowed_hosts =
+
+# The IP addresses that belong to this server are answered to without an
+# entry in allowed_hosts. Say no to allow only the names listed.
+# allow_own_addresses = yes
+
+# Only if another server is put in front of this one (a load balancer, a
+# firewall that encrypts): its address, or several, separated by commas – addresses
+# or networks such as 10.0.0.0/8. Without it every visitor has the address of
+# that server, and twenty wrong logins of anybody lock everybody out. NGINX then
+# reads the address of the visitor from X-Forwarded-For, but only from a request
+# that comes from one of these. Change it, then: sudo rentalars nginx-site (the
+# next update does it as well). Leave it out when visitors come directly.
+# trusted_proxies =
+
+# A long random text that signs sessions and password reset links. Keep it
+# secret. Changing it logs everybody out and makes sent links invalid.
+secret_key = REPLACE-WITH-A-LONG-RANDOM-TEXT
+
+# Where uploaded files and the collected static files are stored.
+# data_dir = /var/lib/rentalars
+
+# Language of the user interface and time zone for all dates and times.
+# language: de (German) or en (English). It is the default for users who chose
+# no language of their own, for the login page of browsers that ask for neither,
+# and for the documents of a new installation.
+# language = de
+# time_zone = Europe/Berlin
+
+# How long invitation and password reset links stay valid, in hours.
+# password_reset_hours = 72
+
+[database]
+# The MariaDB database. On a server of its own, the installation script
+# creates the database and the user and writes a random password here.
+#
+# A database on another server (NFA-066) needs its user to have all rights on
+# this one database and no others. "root" is refused, and so is any user with
+# rights on the whole database server or on further databases. To move to
+# another database server: sudo rentalars move-database (docs/betrieb/betrieb.md).
+name = rentalars
+user = rentalars
+password = REPLACE-WITH-THE-DATABASE-PASSWORD
+# host =            (empty: the MariaDB on this server, through its local socket)
+# port = 3306
+# tls = false       (true: encrypt the connection to a database on another server)
+# tls_ca =          (a CA certificate: then also check the server's certificate and name)
+
+[email]
+# The mail server for invitations and password resets. Without "host" no
+# mail is sent; the messages then appear in the log of the service
+# (journalctl -u rentalars), from where a link can be copied.
+# host = smtp.example.de
+# port = 587
+# user = rentalars@example.de
+# password =
+# use_tls = true          (STARTTLS on port 587)
+# use_ssl = false         (set to true for port 465, and use_tls to false)
+# from_address = rentalars@example.de
+
+[backup]
+# The daily backup (sudo rentalars backup). Backups made before an update are
+# never deleted automatically.
+# directory = /var/backups/rentalars
+# keep_days = 14
+# Encrypt every backup with the recovery key (NFA-067). Switched on by the
+# installation or by "sudo rentalars encryption enable"; the key itself is
+# in /etc/rentalars/recovery-key, readable by root only.
+# encrypt = false
+
+[maps]
+# Maps at addresses (UIX-034). A map appears only after a click on "Karte
+# anzeigen" – unless the setting "Karten sofort laden" says otherwise. Then
+# the server asks the search (geocoder) once per address where it lies and
+# keeps the answer; the browser loads the map pictures (tiles) itself. Both
+# default to the servers of OpenStreetMap; an own server can be named here.
+# Empty tile_url: no maps at all (the links "Route in Google Maps" stay).
+# Empty geocoder_url: positions are only set by hand on the map.
+# tile_url = https://tile.openstreetmap.org/{z}/{x}/{y}.png
+# geocoder_url = https://nominatim.openstreetmap.org/search
+# Who to credit for the map pictures of another provider (empty: OpenStreetMap).
+# attribution =
+# attribution_url = https://www.openstreetmap.org/copyright
+# max_zoom = 19
+
+[network]
+# NFA-071: calendars (.ics links, CalDAV), webhooks and the mail servers of
+# mailboxes are entered in the interface; Rentalars then connects to them.
+# Addresses inside the network – this machine, private networks
+# (192.168.x.x, 10.x.x.x, 172.16-31.x.x, fd00::/8), link-local, CGNAT
+# (100.64.0.0/10) and the addresses of this server – are refused, so that
+# such a setting cannot reach systems that are not meant for it. Allow what
+# is meant, separated by commas: networks, single addresses or host names,
+# e.g. the NAS with the company calendar or the ERP that receives webhooks.
+# After a change: sudo systemctl restart rentalars
+# allow_internal = 192.168.1.0/24, nas.local
+
+[gateway]
+# The Rentalars Gateway lets the apps reach this installation from the
+# internet without opening a port in the internal network (docs/betrieb/gateway.md).
+# "sudo rentalars gateway connect 'RGWL1:…'" sets the link up and stores the address
+# of the gateway and the keys in the database – nothing about it belongs in this file.
+# Without a gateway nothing changes: the apps reach the server directly as before.
+# Everything below is optional.
+# Where the link service carries out the requests of the apps: the socket of the
+# application server (the default on a server) or an address such as
+# http://127.0.0.1:8000 in development.
+# local = /run/rentalars/gunicorn.sock
+# Requests handled at the same time (at least 3), clock tolerance of a device in
+# seconds, largest answer in MiB (at most 12), longest time for one request in seconds.
+# workers = 4
+# time_window = 180
+# max_response_mib = 12
+# call_timeout = 60

@@ -1,0 +1,14 @@
+{% load i18n rentalars %}
+{# ZEI-019: correcting an expense that is not approved yet, in the dialog (ZEI-012); without scripts on a page of its own. #}
+<form method="post" action="{{ action }}" enctype="multipart/form-data" hx-post="{{ action }}" hx-encoding="multipart/form-data" hx-target="#dialog" novalidate autocomplete="off">
+  {% csrf_token %}
+  <div class="dialog-head"><h2>{% translate "Edit expense" %} – {{ expense.person.name }}</h2><button type="button" class="icon-btn" data-close-dialog data-href="{% url 'timetracking:my_expenses' %}" aria-label="{% translate 'Close' %}">{% icon "close" %}</button></div>
+  <div class="dialog-body form">
+    {% if expense.status == "rejected" %}<p class="note red">{% translate "Sent back" %}: {{ expense.rejection_reason }}</p>{% endif %}
+    {% include "timetracking/_expense_fields.html" %}
+  </div>
+  <div class="dialog-foot">
+    <button type="button" class="btn secondary" data-close-dialog data-href="{% url 'timetracking:my_expenses' %}">{% translate "Cancel" %}</button>
+    <button type="submit" class="btn">{% translate "Save expense" %}</button>
+  </div>
+</form>

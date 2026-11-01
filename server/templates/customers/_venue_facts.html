@@ -1,0 +1,13 @@
+{% load i18n maps %}
+{% comment %}
+  What a venue says about itself; shown on its page, in the project and in the deployment view (KND-009).
+  UIX-033: the address leads into the route planning of Google Maps, from where the person is.
+{% endcomment %}
+<dl class="facts">
+  {% if venue.address_lines %}<dt>{% translate "Address" %}</dt><dd>{% for line in venue.address_lines %}{{ line }}{% if not forloop.last %}<br>{% endif %}{% endfor %}<div class="no-print">{% route_link venue|address_line %}</div></dd>{% endif %}
+  {% if venue.contact_name or venue.contact_phone or venue.contact_email %}<dt>{% translate "Contact on site" %}</dt><dd>{{ venue.contact_name }}{% if venue.contact_phone %}<br><a href="tel:{{ venue.contact_phone }}">{{ venue.contact_phone }}</a>{% endif %}{% if venue.contact_email %}<br><a href="mailto:{{ venue.contact_email }}">{{ venue.contact_email }}</a>{% endif %}</dd>{% endif %}
+  {% if venue.access_notes %}<dt>{% translate "Access and loading" %}</dt><dd>{{ venue.access_notes|linebreaksbr }}</dd>{% endif %}
+  {% if venue.power_notes %}<dt>{% translate "Power" %}</dt><dd>{{ venue.power_notes|linebreaksbr }}</dd>{% endif %}
+  {% if venue.notes %}<dt>{% translate "Notes" %}</dt><dd>{{ venue.notes|linebreaksbr }}</dd>{% endif %}
+  {% if venue.hall_plan and show_hall_plan %}<dt>{% translate "Hall plan" %}</dt><dd><a href="{% url 'customers:venue_hall_plan' venue.pk %}" target="_blank" rel="noopener">{% translate "Open hall plan" %}</a></dd>{% endif %}
+</dl>

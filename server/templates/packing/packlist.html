@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}{% translate "Packing list" %} {{ project.number }}{% endblock %}
+{% block content %}
+{% include "projects/_head.html" %}
+{% include "packing/_packlist.html" %}
+{% endblock %}

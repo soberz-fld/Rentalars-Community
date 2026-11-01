@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% load i18n maps %}
+{% block title %}{% translate "Company data and settings" %}{% endblock %}
+{% block content %}
+<div class="page-head"><div><div class="breadcrumb"><a href="{% url 'core:administration' %}">{% translate "Settings" %}</a></div><h1>{% translate "Company data and settings" %}</h1></div></div>
+{# B1: ONE form with one button – three forms side by side lost what was typed in the others when one was saved. #}
+<form method="post" enctype="multipart/form-data" class="form settings-page" novalidate data-warn-unsaved>
+  {% csrf_token %}<input type="hidden" name="form" value="all">
+  {% include "core/_required_note.html" with always=True %}
+  {% if company_form.errors or system_form.errors or accounting_form.errors %}<p class="note red" role="alert">{% translate "Nothing was saved: please check the marked fields." %}</p>{% endif %}
+  <section class="panel" id="company" aria-labelledby="company-title">
+    <div class="panel-head"><h2 id="company-title">{% translate "Company data" %}</h2></div>
+    <div class="panel-body">
+      {% if company_form.non_field_errors %}<div class="message error" role="alert">{% for error in company_form.non_field_errors %}<div>{{ error }}</div>{% endfor %}</div>{% endif %}
+      <div class="form-grid">{% for field in company_form %}{% include "core/_field.html" %}{% endfor %}</div>
+      {% if company.logo %}<p class="muted small">{% translate "Current logo:" %} <img src="{% url 'core:media' company.logo.name %}" alt="" height="40"></p>{% endif %}
+      {# UIX-033, UIX-034, PRJ-097: the company and the warehouse – where the trips of the projects start – on the map. #}
+      {% if company.address_one_line or company.warehouse_address %}
+      <div class="company-map no-print">
+        <p>{% if company.address_one_line %}{% route_link company.address_one_line %}{% endif %}{% if company.warehouse_address %} {% route_link company.warehouse_address label=_("Route to the warehouse") %}{% endif %}</p>
+        {% map_box "company" 1 %}
+      </div>
+      {% endif %}
+    </div>
+  </section>
+  {% if system_form.non_field_errors %}<div class="message error" role="alert">{% for error in system_form.non_field_errors %}<div>{{ error }}</div>{% endfor %}</div>{% endif %}
+  {# B4: the settings in sections instead of one list of thirty fields. #}
+  {% for section_id, title, fields in system_sections %}
+  <section class="panel" id="settings-{{ section_id }}" aria-labelledby="settings-{{ section_id }}-title">
+    <div class="panel-head"><h2 id="settings-{{ section_id }}-title">{{ title }}</h2></div>
+    <div class="panel-body">
+      <div class="form-grid">{% for field in fields %}{% if field.name != "crew_answers" %}{% include "core/_field.html" %}{% endif %}{% endfor %}</div>
+      {% if section_id == "planning" %}<p class="muted small">{% translate "Buffer times count before and after every use; during them material is occupied. Categories and products can deviate." %}</p>{% endif %}
+      {% if section_id == "mail" %}
+      {# ADM-015, PER-032: how deployment requests are answered – by the link, by reply mail or both; kept with the mail settings. #}
+      {% with field=system_form.crew_answers %}
+      <fieldset id="crew-answers" class="field crew-answer-modes{% if field.errors %} has-error{% endif %}" aria-describedby="crew-answers-help crew-answers-mailbox">
+        <legend>{{ field.label|capfirst }}{% include "core/_required_mark.html" %}</legend>
+        {% for choice in field %}<div class="check">{{ choice.tag }}<label for="{{ choice.id_for_label }}">{{ choice.choice_label|capfirst }}</label></div>{% endfor %}
+        <div class="help" id="crew-answers-help">{{ field.help_text }}</div>
+        <p class="help" id="crew-answers-mailbox">{% if crew_answer_mailbox %}{% blocktranslate with address=crew_answer_mailbox.address name=crew_answer_mailbox.name %}Answers by mail go to {{ address }} – the mailbox “{{ name }}”, which Rentalars fetches.{% endblocktranslate %}{% else %}<strong>{% translate "No mailbox that Rentalars fetches can take the answers yet: the requests carry only the link." %}</strong> {% translate "Answers by mail need an active mailbox of the correspondence with an address – the one that sends the system mails, else the one that sends the correspondence." %}{% endif %}</p>
+        {{ field.errors }}
+      </fieldset>
+      {% endwith %}
+      {% endif %}
+    </div>
+  </section>
+  {% endfor %}
+  {# DOK-014, DOK-055: whether Rentalars is the accounting program – its own box, not one setting among many. #}
+  <section class="panel" id="accounting" aria-labelledby="accounting-title">
+    <div class="panel-head"><h2 id="accounting-title">{% translate "Bookkeeping and accounting" %}</h2></div>
+    <div class="panel-body">
+      {% if accounting_form.non_field_errors %}<div class="message error" role="alert">{% for error in accounting_form.non_field_errors %}<div>{{ error }}</div>{% endfor %}</div>{% endif %}
+      <div class="form-grid">{% for field in accounting_form %}{% include "core/_field.html" %}{% endfor %}</div>
+      <p class="muted small">{% translate "Off: the tabs of bookkeeping in “Accounting” – incoming documents, open invoices, bank, EÜR and archive, asset register, sales from stock, import of old projects – and the places that lead there are hidden, and no invoice or cancellation is made in a project. Offers, order confirmations and delivery notes, the monthly statement of the service cases and the mark “Invoice issued” stay. Nothing is deleted: switched on again, everything is there as it was." %}</p>
+      {% if can.special.prices %}<p class="small"><a href="{% url 'documents:accounting' %}">{% translate "Accounting" %}</a> <span class="muted">– {% translate "Invoices to Lexware Office, DATEV export for the tax adviser" %}</span></p>{% endif %}
+    </div>
+  </section>
+  {% if can_write %}<div class="settings-actions"><button class="btn" type="submit">{% translate "Save all settings" %}</button> <span class="muted small">{% translate "Company data, settings and bookkeeping are saved together." %}</span></div>{% endif %}
+</form>
+{# LOG-017: the route service for the kilometres of trips – read-only, set up by the operator. #}
+<div class="settings-page">{% include "core/_route_service.html" %}</div>
+{% endblock %}

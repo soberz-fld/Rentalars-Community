@@ -1,0 +1,21 @@
+{% load i18n rentalars %}
+{% comment %}
+  Choosing the items of a row beforehand (PCK-022), shown in the dialog. Nothing depends on it: a row without
+  chosen items is issued all the same. Items with another project are listed but cannot be ticked.
+{% endcomment %}
+<div class="dialog-head"><h2>{% blocktranslate with product=row.product.article_number %}Items for {{ product }}{% endblocktranslate %}</h2><button type="button" class="icon-btn" data-close-dialog aria-label="{% translate 'Close' %}">{% icon "close" %}</button></div>
+<div class="dialog-body">
+  <p class="muted small">{% if row.consists_of_pieces %}{% blocktranslate with count=row.required|number items=row.pieces_required per=row.pieces_per_unit %}The row needs {{ count }} × {{ per }} items, so {{ items }} items.{% endblocktranslate %}{% else %}{% blocktranslate with count=row.required|number %}The row needs {{ count }}.{% endblocktranslate %}{% endif %} {% translate "Choose where it matters – for the contents of a case, an inspection or the history of a device." %}</p>
+  <form method="post" action="{{ base }}choose-items/">
+    {% csrf_token %}
+    <input type="hidden" name="line" value="{{ row.line.pk }}"><input type="hidden" name="product" value="{{ row.product.pk }}">
+    {% if choices %}
+    <ul class="plain-list check-list">
+      {% for item, note, free, is_chosen in choices %}
+      <li><label class="check"><input type="checkbox" name="items" value="{{ item.pk }}"{% if is_chosen %} checked{% endif %}{% if not free %} disabled{% endif %}> <span class="tape">{{ item.display_id }}</span> {{ item.material_model.display_short_name }}{% if item.serial_number %} <span class="muted small">{{ item.serial_number }}</span>{% endif %}{% if note %} <span class="muted small">– {{ note }}</span>{% endif %}</label></li>
+      {% endfor %}
+    </ul>
+    {% else %}<p class="empty">{% translate "No item of this product is fit for use." %}</p>{% endif %}
+    <div class="btn-row"><button class="btn" type="submit">{% translate "Save choice" %}</button><button class="btn secondary" type="button" data-close-dialog>{% translate "Cancel" %}</button></div>
+  </form>
+</div>

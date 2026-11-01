@@ -1,0 +1,14 @@
+{% load i18n rentalars %}
+{# The dialog "Neuer Ausgangsbeleg" of Buchhaltung → Ausgangsbelege and of the page of a customer. #}
+<form hx-post="{% url 'documents:free_new' %}" hx-target="#dialog" novalidate>
+  <div class="dialog-head"><h2>{% translate "New outgoing document" %}</h2><button type="button" class="icon-btn" data-close-dialog aria-label="{% translate 'Close' %}">{% icon "close" %}</button></div>
+  <div class="dialog-body form">
+    {% include "core/_form_errors.html" %}
+    <p class="help">{% translate "The document is made as a draft first: you add the lines on the next page and issue it when it is right." %}</p>
+    {% include "documents/_free_new_fields.html" %}
+  </div>
+  <div class="dialog-foot">
+    <button type="button" class="btn secondary" data-close-dialog>{% translate "Cancel" %}</button>
+    <button type="submit" class="btn">{% translate "Create draft" %}</button>
+  </div>
+</form>

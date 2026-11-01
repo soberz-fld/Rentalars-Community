@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}{{ template.name }}{% endblock %}
+{% block content %}
+<div class="page-head"><div><div class="breadcrumb"><a href="{% url 'projects:templates' %}">{% translate "Project templates" %}</a></div><h1>{{ template.name }}</h1></div><div class="btn-row"><a class="btn secondary" href="{% url 'projects:template_content' template.pk %}">{% translate "Edit content" %}</a></div></div>
+<div class="panel"><div class="panel-body">
+  <form method="post" class="form" novalidate>
+    {% csrf_token %}
+    {% include "core/_form_errors.html" %}
+    {% include "core/_field.html" with field=form.name %}
+    {% include "core/_field.html" with field=form.description %}
+    <div class="btn-row"><button class="btn" type="submit">{% translate "Save template" %}</button><a class="btn secondary" href="{% url 'projects:templates' %}">{% translate "Cancel" %}</a></div>
+  </form>
+</div></div>
+{% endblock %}

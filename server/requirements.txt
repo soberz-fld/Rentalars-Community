@@ -1,0 +1,60 @@
+# Rentalars – libraries needed to run the application (NFA-029).
+#
+# Every version is fixed, including the libraries that the listed ones bring
+# along. An installation therefore always gets exactly the versions the
+# release was tested with. Update them deliberately (docs/dev/getting-started.md,
+# "Updating libraries"), never by loosening a pin.
+#
+# All licences are compatible with GPL-3.0-or-later; scripts/check_licenses.py
+# verifies that on every change (NFA-053). See THIRD-PARTY.md.
+
+# --- Chosen directly ---------------------------------------------------------
+Django==5.2.18                      # web framework, long-term support release (NFA-054)
+djangorestframework==3.18.3         # the API
+django-filter==26.2                 # filters of API lists
+drf-spectacular==0.30.0             # OpenAPI description of the API (API-004)
+drf-spectacular-sidecar==2026.10.1  # the API documentation pages, served locally (NFA-050)
+mysqlclient==2.3.0                  # connection to MariaDB
+gunicorn==26.2.0                    # application server behind NGINX
+weasyprint==70.0                    # PDF from HTML (packlist, labels, documents)
+openpyxl==3.1.5                     # reading XLSX files for the import
+pillow==13.0.0                      # checking uploaded images
+cryptography==50.0.2                # encrypting stored passwords and second-factor keys (EML-002, AUT-006)
+nh3==0.3.7                          # cleaning the HTML of received mails (EML-027)
+segno==1.6.6                        # QR codes: setting up the authenticator app (AUT-006), labels (MAT-026)
+icalendar==7.3.0                    # reading and writing .ics calendars (PER-022, PER-023)
+recurring-ical-events==3.8.2        # unfolding repeating appointments of linked calendars (PER-022)
+Markdown==3.11.1                    # the manual inside the application (UIX-029)
+pypdf==6.21.2                       # reading the text of an uploaded invoice, "Kauf einpflegen"
+ldap3==2.9.1                        # login with LDAP / Active Directory (AUT-029); LGPL-3.0, pure Python
+
+# --- Brought along by the libraries above --------------------------------------
+asgiref==3.12.1
+attrs==26.1.0
+brotli==1.2.1
+cffi==2.1.1
+click==8.5.0
+cssselect2==0.10.1
+et_xmlfile==2.0.0
+fonttools==4.66.1
+inflection==0.5.1
+jsonschema-specifications==2025.9.1
+jsonschema==4.26.0
+pyasn1==0.6.4
+pycparser==3.11
+pydyf==0.12.1
+pyphen==0.18.1
+python-dateutil==2.9.0.post0
+PyYAML==6.0.3
+referencing==0.37.0
+rpds-py==2026.9.1
+six==1.17.0
+sqlparse==0.6.0
+tinycss2==1.5.1
+tinyhtml5==2.1.0
+typing_extensions==4.16.0
+tzdata==2026.5
+uritemplate==4.2.0
+webencodings==0.6.1
+x-wr-timezone==2.0.1
+zopfli==0.4.3

@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% load i18n rentalars subprojects maps %}
+{% block title %}{{ venue.name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><div class="breadcrumb"><a href="{% url 'customers:venue_list' %}">{% translate "Venues" %}</a></div><h1>{{ venue.name }}</h1>
+  {% if not venue.is_active %}<p class="lead"><span class="badge">{% translate "deactivated" %}</span></p>{% endif %}</div>
+  <div class="actions">
+    {% if can.write.customers %}<a class="btn" href="{% url 'customers:venue_edit' venue.pk %}">{% icon "edit" %}{% translate "Edit venue" %}</a>{% endif %}
+  </div>
+</div>
+<section class="panel"><div class="panel-body">{% include "customers/_venue_facts.html" with show_hall_plan=True %}
+  {# UIX-034: the map of the venue after a click. #}
+  {% if venue.address_lines %}{% map_box "venue" venue.pk %}{% endif %}</div></section>
+{% if projects is not None %}
+<section class="panel">
+  <div class="panel-head"><h2>{% translate "Projects here" %}</h2></div>
+  {% if projects %}
+  <table class="table stack">
+    <thead><tr><th>{% translate "Project" %}</th><th>{% translate "Period" %}</th><th>{% translate "Status" %}</th></tr></thead>
+    <tbody>
+    {% for project in projects %}
+      <tr>
+        <td><a href="{% url 'projects:overview' project.pk %}">{{ project.number }} {{ project.name }}</a>{% if project.parent_id %}<div class="muted small">{{ project|part_of }}</div>{% endif %}</td>
+        <td data-label="{% translate 'Period' %}">{{ project.start|date:"d.m.Y" }} – {{ project.end|date:"d.m.Y" }}</td>
+        <td data-label="{% translate 'Status' %}"><span class="badge {{ project.status|status_colour }}">{{ project.get_status_display }}</span></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<div class="empty">{% translate "No project names this venue yet." %}</div>{% endif %}
+</section>
+{% endif %}
+{% if can.delete.customers %}
+<form method="post" action="{% url 'customers:venue_delete' venue.pk %}" class="section no-print">{% csrf_token %}<button class="btn danger" type="submit" data-confirm="{% translate 'Delete this venue?' %}">{% icon "trash" %}{% translate "Delete venue" %}</button></form>
+{% endif %}
+{% include "core/_history.html" %}
+{% endblock %}

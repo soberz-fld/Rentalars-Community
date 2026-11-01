@@ -1,0 +1,10 @@
+{% load i18n rentalars %}
+{% comment %}
+  Incoming invoices: the sum of the Kontierung under the rows, worked out while typing (htmx, incoming:kontierung_sum;
+  nothing is saved). Expects: sum (rentalars.incoming.views.KontierungSum).
+{% endcomment %}
+<p class="purchase-sum small" id="kontierung-sum" aria-live="polite">
+  {% blocktranslate with sum=sum.net|money %}The Kontierungen add up to {{ sum }} net.{% endblocktranslate %}
+  {% if sum.tax is not None %} {% blocktranslate with tax=sum.tax|money gross=sum.gross|money %}Tax {{ tax }}, gross {{ gross }}.{% endblocktranslate %}{% endif %}
+  {% if sum.difference is not None %}{% if sum.difference %}<span class="purchase-sum-off">{% blocktranslate with difference=sum.difference|money %}Difference to the total net: {{ difference }}.{% endblocktranslate %}</span>{% else %}<span class="purchase-sum-ok">{% translate "That is the total net of the invoice." %}</span>{% endif %}{% endif %}
+</p>

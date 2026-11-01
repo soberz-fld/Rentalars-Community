@@ -1,0 +1,101 @@
+{% load i18n rentalars %}
+{% comment %}
+The calendar links on the own profile (PER-022, PER-023, PER-031). Expects: person, feeds, feed_form, caldav_form,
+caldav_password_set, subscription_url.
+{% endcomment %}
+<section class="panel" id="calendars">
+  <div class="panel-head"><h2>{% translate "Calendars" %}</h2></div>
+  <div class="panel-body calendar-links">
+
+    <div class="calendar-block">
+      <h3>{% translate "Busy times from your calendars" %}</h3>
+      <p class="muted">{% translate "Enter the private links (ICS) of your calendars – as many as you keep. Appointments marked as busy count as “not available” in the planning – only the times, never the titles. Rentalars reads each calendar every 30 minutes; together they are one layer “busy in the linked calendar”." %}</p>
+      {# PER-031: several linked calendars, each with its own state. #}
+      {% if feeds %}
+      <ul class="feed-list">
+        {% for feed in feeds %}
+        <li class="feed-row">
+          <span class="feed-name">{{ feed.name }}</span>
+          <span class="calendar-state">{% include "personnel/_feed_state.html" %}</span>
+          <form method="post" action="{% url 'personnel:own_feed_remove' feed.pk %}" class="inline-form">{% csrf_token %}<button class="link-btn" type="submit" data-confirm="{% translate 'Remove the link? The busy times taken from it disappear.' %}">{% translate "remove" %}</button></form>
+          <span class="feed-address">{{ feed.url }}</span>
+        </li>
+        {% endfor %}
+      </ul>
+      <form method="post" action="{% url 'personnel:own_calendar_sync' %}" class="btn-row calendar-now">{% csrf_token %}<input type="hidden" name="what" value="feed"><button class="btn secondary small" type="submit">{% icon "refresh" %}{% translate "Read now" %}</button></form>
+      {% endif %}
+      <form method="post" action="{% url 'personnel:own_feed' %}" class="inline-fields feed-add" novalidate>
+        {% csrf_token %}
+        <div class="field grow"><label for="{{ feed_form.url.id_for_label }}">{% if feeds %}{% translate "Link another calendar (ICS link)" %}{% else %}{{ feed_form.url.label }}{% endif %}</label>{{ feed_form.url }}</div>
+        <div class="field label-field"><label for="{{ feed_form.label.id_for_label }}">{{ feed_form.label.label }}{% include "core/_required_mark.html" with field=feed_form.label %}</label>{{ feed_form.label }}</div>
+        <button class="btn secondary" type="submit">{% translate "Link calendar" %}</button>
+      </form>
+      <details class="calendar-help">
+        <summary>{% translate "Where do I find the link?" %}</summary>
+        <ul>
+          <li>{% translate "Google Calendar: Settings → your calendar → “Secret address in iCal format”." %}</li>
+          <li>{% translate "Outlook / Microsoft 365: Settings → Calendar → Shared calendars → “Publish a calendar”, then the ICS link." %}</li>
+          <li>{% translate "iCloud: share the calendar as a “Public calendar” and copy the link (webcal:// works too)." %}</li>
+          <li>{% translate "Nextcloud: calendar menu → “Share” → “Share link”, then the link for subscribing." %}</li>
+        </ul>
+        <p class="help-line">{% translate "The link gives access to your appointments. Rentalars keeps it to itself; personnel planning only sees that a calendar is linked." %}</p>
+      </details>
+    </div>
+
+    <div class="calendar-block">
+      <h3>{% translate "Your deployments in your calendar" %}</h3>
+      <p class="muted">{% translate "Your deployments with job function, project, place, meeting point and times – no customer, no prices." %}</p>
+      <div class="btn-row"><a class="btn secondary small" href="{% url 'personnel:own_deployments_ics' %}">{% icon "download" %}{% translate "Download as .ics file" %}</a></div>
+
+      <h4>{% translate "Subscribe" %}</h4>
+      {% if subscription_url %}
+      <div class="field">
+        <label for="subscription-link">{% translate "Your subscription link" %}</label>
+        <div class="subscription-link"><input id="subscription-link" type="text" value="{{ subscription_url }}" readonly data-select-on-focus><button class="btn secondary small" type="button" data-copy="{{ subscription_url }}">{% icon "copy" %}{% translate "Copy" %}</button></div>
+      </div>
+      <p class="help-line">{% translate "Add it in your calendar program as a subscribed calendar (“From URL”, “Subscribe to calendar”). It works without login – keep it to yourself. Your calendar program must reach Rentalars over the internet for it." %}</p>
+      <form method="post" action="{% url 'personnel:own_subscription' %}" class="btn-row calendar-now">{% csrf_token %}
+        <button class="btn secondary small" type="submit" data-confirm="{% translate 'Create a new link? The old link stops working at once.' %}">{% icon "refresh" %}{% translate "New link" %}</button>
+        <button class="btn secondary small" type="submit" name="remove" value="1">{% translate "Switch the link off" %}</button>
+      </form>
+      {% else %}
+      <p class="help-line">{% translate "A secret link that calendar programs subscribe to; they then show your deployments and keep them up to date." %}</p>
+      <form method="post" action="{% url 'personnel:own_subscription' %}" class="btn-row">{% csrf_token %}<button class="btn secondary small" type="submit">{% translate "Create subscription link" %}</button></form>
+      {% endif %}
+
+      <h4>{% translate "Write into a CalDAV calendar" %}</h4>
+      <p class="help-line">{% translate "When Rentalars is not reachable from the internet, it writes your deployments into a calendar of your own on the internet, e.g. Nextcloud, iCloud, mailbox.org or Posteo. Rentalars writes there after every change and removes cancelled deployments; better use a calendar of its own for it." %}</p>
+      {% if person.caldav_url %}
+      <p class="calendar-state">{% if person.caldav_error %}<span class="avail short">{% translate "Problem" %}</span> {{ person.caldav_error }}{% elif person.caldav_synced_at %}<span class="avail ok">{% translate "connected" %}</span> {% blocktranslate with when=person.caldav_synced_at|date:"d.m.Y H:i" %}last compared {{ when }}{% endblocktranslate %}{% else %}<span class="avail unchecked">{% translate "connected" %}</span> {% translate "will be written within the next minutes" %}{% endif %}</p>
+      {% endif %}
+      <form method="post" action="{% url 'personnel:own_caldav' %}" class="form wide" novalidate>
+        {% csrf_token %}
+        {% include "core/_field.html" with field=caldav_form.caldav_url %}
+        <div class="form-grid">
+          {% include "core/_field.html" with field=caldav_form.caldav_username %}
+          <div class="field">
+            <label for="{{ caldav_form.caldav_password.id_for_label }}">{{ caldav_form.caldav_password.label }}{% include "core/_required_mark.html" with field=caldav_form.caldav_password %}</label>
+            {{ caldav_form.caldav_password }}
+            <div class="help" id="{{ caldav_form.caldav_password.auto_id }}_helptext">{% if caldav_password_set %}{% translate "A password is stored. Leave empty to keep it." %}{% else %}{% translate "Often an app password: Nextcloud (Settings → Security), iCloud (app-specific password of your Apple ID)." %}{% endif %}</div>
+          </div>
+        </div>
+        <div class="btn-row">
+          <button class="btn secondary" type="submit">{% translate "Save and write" %}</button>
+          {% if person.caldav_url %}<button class="btn secondary" type="submit" name="remove" value="1" data-confirm="{% translate 'Stop writing into this calendar? What was written stays there.' %}">{% translate "Disconnect" %}</button>{% endif %}
+        </div>
+      </form>
+      {% if person.caldav_url %}
+      <form method="post" action="{% url 'personnel:own_calendar_sync' %}" class="btn-row calendar-now">{% csrf_token %}<input type="hidden" name="what" value="caldav"><button class="btn secondary small" type="submit">{% icon "refresh" %}{% translate "Compare now" %}</button></form>
+      {% endif %}
+      <details class="calendar-help">
+        <summary>{% translate "Which address do I enter?" %}</summary>
+        <ul>
+          <li>{% translate "Nextcloud: in the calendar app, the menu of a calendar → “Copy internal link”, e.g. https://cloud.example.de/remote.php/dav/calendars/anna/rentalars/. Or just https://cloud.example.de/remote.php/dav – Rentalars then uses the calendar “Rentalars” and creates it if needed." %}</li>
+          <li>{% translate "iCloud: https://caldav.icloud.com with your Apple ID and an app-specific password (appleid.apple.com → Sign-In and Security). Rentalars creates the calendar “Rentalars” there." %}</li>
+          <li>{% translate "mailbox.org: https://dav.mailbox.org; Posteo: https://posteo.de:8443 – each with the address of the calendar or just the server." %}</li>
+          <li>{% translate "Google Calendar cannot be written this way (it needs a sign-in Rentalars does not support). Subscribe to the subscription link above instead – if your Rentalars is reachable from the internet." %}</li>
+        </ul>
+      </details>
+    </div>
+  </div>
+</section>

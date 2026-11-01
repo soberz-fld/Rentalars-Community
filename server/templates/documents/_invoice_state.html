@@ -1,0 +1,38 @@
+{% load i18n rentalars %}
+{% comment %}
+  DOK-015: the invoice of a project. With invoices made in Rentalars the invoice itself, else the tick box
+  "Rechnung gestellt"; in both cases "Keine Rechnung" for a project that is never invoiced. Changing it needs the
+  right to edit the project – also once it is closed.
+{% endcomment %}
+{% if shown %}
+<div class="invoice-state no-print" id="invoice-state">
+  {% icon "invoice" %}
+  {% if state == "invoiced" and invoice %}
+    <span class="badge green">{% blocktranslate with number=invoice.number %}Invoice {{ number }}{% endblocktranslate %}</span>
+    <span class="muted small">{{ invoice.issued_on|date:"d.m.Y" }}</span>
+  {% elif state == "invoiced" %}
+    <span class="badge green">{% translate "Invoice issued" %}</span>
+  {% elif state == "not_needed" %}
+    <span class="badge">{% translate "No invoice" %}</span>
+  {% else %}
+    <span class="badge {% if finished %}yellow{% endif %}">{% translate "Invoice open" %}</span>
+  {% endif %}
+  {% if may_change %}
+    {% if not invoices_on and state != "not_needed" and not invoice %}
+    {# The tick box: ticking sends the form at once; without scripts the button does. #}
+    <form method="post" action="{% url 'documents:invoice_mark' project.pk %}" class="inline-form invoice-mark">
+      {% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}">
+      <label class="check"><input type="checkbox" name="invoice_status" value="issued"{% if mark == "issued" %} checked{% endif %} data-autosubmit> {% translate "Invoice issued" %}</label>
+      <noscript><button class="btn secondary small" type="submit">{% translate "Save" %}</button></noscript>
+    </form>
+    {% elif invoices_on and mark == "issued" and not invoice %}
+    <form method="post" action="{% url 'documents:invoice_mark' project.pk %}" class="inline-form">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><input type="hidden" name="invoice_status" value=""><button class="link-btn small" type="submit">{% translate "Undo" %}</button></form>
+    {% endif %}
+    {% if state == "open" %}
+    <form method="post" action="{% url 'documents:invoice_mark' project.pk %}" class="inline-form">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><input type="hidden" name="invoice_status" value="not_needed"><button class="link-btn small" type="submit" title="{% translate 'Free of charge, or billed with another project: no reminders' %}">{% translate "No invoice needed" %}</button></form>
+    {% elif state == "not_needed" %}
+    <form method="post" action="{% url 'documents:invoice_mark' project.pk %}" class="inline-form">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><input type="hidden" name="invoice_status" value=""><button class="link-btn small" type="submit">{% translate "Undo" %}</button></form>
+    {% endif %}
+  {% endif %}
+</div>
+{% endif %}

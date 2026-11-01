@@ -1,0 +1,41 @@
+{% load i18n %}
+{% comment %}
+  LOG-017: the route service, read-only – set up by the operator on the server (deploy/route.sh,
+  rentalars.core.routing.route_status). Without it the kilometres of the vehicles on trips are typed in by hand.
+{% endcomment %}
+<section class="panel" id="route-service" aria-labelledby="route-service-title">
+  <div class="panel-head"><h2 id="route-service-title">{% translate "Route service" %}</h2></div>
+  <div class="panel-body settings-stack">
+    <p class="muted small">{% translate "Suggests the planned kilometres of a vehicle on a trip from the route – always changeable. The route is reckoned on this server or by a routing server of the operator's or in Germany; the places are located as on the maps." %}</p>
+    {% if route.error %}<p class="note red">{{ route.error }}</p>{% endif %}
+    <dl class="facts">
+      <dt>{% translate "Status" %}</dt>
+      <dd>{% if route.service %}<span class="badge green">{% translate "set up" %}</span>{% else %}<span class="badge outline">{% translate "not set up" %}</span>{% endif %}</dd>
+      {% with service=route.service %}{% if service %}
+      {% if service.kind == "osrm" %}
+      <dt>{% translate "Kind" %}</dt>
+      <dd>{% translate "OSRM routing server" %}</dd>
+      <dt>{% translate "Server" %}</dt>
+      <dd>{{ service.url }}</dd>
+      {% else %}
+      <dt>{% translate "Kind" %}</dt>
+      <dd>{% translate "Routino on this server, map of OpenStreetMap" %}</dd>
+      <dt>{% translate "Region" %}</dt>
+      <dd>{{ service.region_label|default:_("own map file") }}</dd>
+      <dt>{% translate "Map data of" %}</dt>
+      <dd>{% if service.data_date %}{{ service.data_date|date:"SHORT_DATE_FORMAT" }} <span class="muted small">({% blocktranslate count days=service.age_days %}{{ days }} day old{% plural %}{{ days }} days old{% endblocktranslate %})</span>{% else %}–{% endif %}
+        {% if service.is_old %}<div class="small">{% translate "Roads change: the operator updates the map on the server with:" %} <code class="command copy" data-copy="{{ route.update_command }}">{{ route.update_command }}</code></div>{% endif %}</dd>
+      {% endif %}
+      {% endif %}{% endwith %}
+    </dl>
+    {% if route.service %}
+    <p class="muted small">{% translate "Removed on the server with:" %} <code class="command copy" data-copy="{{ route.remove_command }}">{{ route.remove_command }}</code> {% translate "Afterwards the kilometres are typed in by hand again." %}</p>
+    {% else %}
+    <p>{% translate "Without a route service the kilometres are typed in by hand." %}</p>
+    <h3>{% translate "Setting up the route service" %}</h3>
+    <p>{% translate "The operator sets it up on the server via SSH, with one command:" %} <code class="command copy" data-copy="{{ route.install_command }}">{{ route.install_command }}</code></p>
+    <p class="muted small">{% blocktranslate with regions=route.regions|join:", " %}Instead of BUNDESLAND the state of the company: {{ regions }} – or germany for all of Germany, which needs much more memory, disk space and time. The command installs the router Routino and the map of OpenStreetMap; with --dry-run it only shows what it would do.{% endblocktranslate %}</p>
+    <p class="muted small">{% translate "A routing server of your own or one hosted in Germany (OSRM) is named instead with:" %} <code class="command">{{ route.register_command }}</code></p>
+    {% endif %}
+  </div>
+</section>

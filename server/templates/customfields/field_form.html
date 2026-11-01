@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% if field %}{{ field.name }}{% else %}{% translate "New custom field" %}{% endif %}{% endblock %}
+{% block content %}
+{% comment %}
+  MAT-071: one definition. Without scripts every field shows; with app.js the unit only for numbers, the
+  options only for a choice list and the check pattern only for the types it applies to (data-show-if).
+{% endcomment %}
+<div class="page-head"><div><div class="breadcrumb"><a href="{% url 'core:administration' %}">{% translate "Settings" %}</a> / <a href="{% url 'customfields:field_list' %}">{% translate "Custom fields" %}</a></div>
+<h1>{% if field %}{{ field.name }}{% else %}{% translate "New custom field" %}{% endif %}</h1>
+{% if field %}<p class="lead">{% blocktranslate count count=value_count %}{{ count }} item has a value.{% plural %}{{ count }} items have a value.{% endblocktranslate %}{% if fieldsets %} {% translate "Part of:" %} {% for fieldset in fieldsets %}<a href="{% url 'customfields:fieldset_edit' fieldset.pk %}">{{ fieldset.name }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}{% endif %}</p>{% endif %}</div></div>
+<div class="panel"><div class="panel-body">
+  <form method="post" class="form" novalidate>
+    {% csrf_token %}
+    {% include "core/_form_errors.html" %}
+    {% include "core/_field.html" with field=form.name %}
+    {% include "core/_field.html" with field=form.field_type %}
+    <div data-show-if="field_type=number">{% include "core/_field.html" with field=form.unit %}</div>
+    <div data-show-if="field_type=choice">{% include "core/_field.html" with field=form.options %}</div>
+    <div data-show-if="field_type=text|long_text|number|url|email">{% include "core/_field.html" with field=form.pattern %}</div>
+    {% include "core/_field.html" with field=form.help_text %}
+    <fieldset>
+      <legend>{% translate "Properties" %}</legend>
+      {% include "core/_field.html" with field=form.show_in_lists %}
+      {% include "core/_field.html" with field=form.is_unique %}
+      {% include "core/_field.html" with field=form.is_sensitive %}
+    </fieldset>
+    {% if value_count %}<p class="note">{% translate "Items have values already: a new type, other options, a check pattern or “unique” are taken only if every stored value fits them." %}</p>{% endif %}
+    <div class="btn-row"><button class="btn" type="submit">{% translate "Save custom field" %}</button><a class="btn secondary" href="{% url 'customfields:field_list' %}">{% translate "Cancel" %}</a></div>
+  </form>
+</div></div>
+{% if field and can.delete.administration %}
+<section class="panel">
+  <div class="panel-head"><h2>{% translate "Delete custom field" %}</h2></div>
+  <form method="post" action="{% url 'customfields:field_delete' field.pk %}" class="panel-body">
+    {% csrf_token %}
+    {% if value_count %}
+    <p>{% blocktranslate count count=value_count %}{{ count }} item has a value in this field. Deleting the field deletes this value, too; the history of the item keeps it.{% plural %}{{ count }} items have a value in this field. Deleting the field deletes these values, too; the history of each item keeps them.{% endblocktranslate %}</p>
+    <div class="field"><div class="check"><input type="checkbox" id="with-values" name="with_values" value="1" required><label for="with-values">{% blocktranslate count count=value_count %}Delete the value of {{ count }} item, too{% plural %}Delete the values of {{ count }} items, too{% endblocktranslate %}</label></div></div>
+    {% else %}
+    <p class="muted">{% translate "No item has a value in this field yet. It leaves its fieldsets." %}</p>
+    {% endif %}
+    <button class="btn danger" type="submit" data-confirm="{% translate 'Delete this custom field?' %}">{% icon "trash" %}{% translate "Delete custom field" %}</button>
+  </form>
+</section>
+{% endif %}
+{% endblock %}

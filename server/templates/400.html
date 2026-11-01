@@ -1,0 +1,6 @@
+{% load i18n %}{% get_current_language as LANGUAGE_CODE %}<!doctype html>
+<html lang="{% if LANGUAGE_CODE == 'en' %}en-GB{% else %}{{ LANGUAGE_CODE|default:'de' }}{% endif %}">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>{% translate "Request refused" %} – Rentalars</title>
+<style>body{font-family:system-ui,sans-serif;background:#141414;color:#eeeeee;display:grid;place-items:center;min-height:100vh;margin:0;padding:16px}main{max-width:520px}a{color:#f47b4a}</style></head>
+<body><main><h1>{% translate "Request refused" %}</h1><p>{% translate "Rentalars could not understand the request. Please open the page again from the start." %}</p><p><a href="/">{% translate "To the start page" %}</a></p></main></body>
+</html>

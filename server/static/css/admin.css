@@ -1,0 +1,97 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
+/*
+ * Colours for the master data pages (Django's administration interface, ADM-007).
+ *
+ * Django's own stylesheet takes all its colours from the variables below. Setting
+ * them here gives these pages the dark theme and the house colours of the
+ * application (UIX-008); see the head of app.css for the palette and its rules.
+ * "html:root" outweighs Django's ":root" and "html[data-theme]".
+ */
+html:root {
+  color-scheme: dark;
+
+  --primary: #ee591f;
+  --secondary: #0d0d0d;
+  --accent: #eeeeee;
+  --primary-fg: #141414;
+
+  --body-fg: #eeeeee;
+  --body-bg: #141414;
+  --body-quiet-color: #a8a8a8;
+  --body-medium-color: #c8c8c8;
+  --body-loud-color: #ffffff;
+
+  --header-color: #eeeeee;
+  --header-branding-color: #eeeeee;
+  --header-bg: #0d0d0d;
+  --header-link-color: #eeeeee;
+
+  --breadcrumbs-fg: #a8a8a8;
+  --breadcrumbs-link-fg: #eeeeee;
+  --breadcrumbs-bg: #1e1e1e;
+
+  --link-fg: #f47b4a;
+  --link-hover-color: #ff9a70;
+  --link-selected-fg: #eeeeee;
+
+  --hairline-color: #353535;
+  --border-color: #727272;
+
+  --error-fg: #f0506e;
+  --message-success-bg: #17301f;
+  --message-warning-bg: #383010;
+  --message-error-bg: #3d1820;
+
+  --darkened-bg: #1e1e1e;
+  --selected-bg: #282828;
+  --selected-row: #3b2116;
+
+  --button-fg: #141414;
+  --button-bg: #ee591f;
+  --button-hover-bg: #ff7340;
+  --default-button-bg: #ee591f;
+  --default-button-hover-bg: #ff7340;
+  --close-button-bg: #3a3a3a;
+  --close-button-hover-bg: #727272;
+  --delete-button-bg: #f0506e;
+  --delete-button-hover-bg: #ff6f89;
+
+  --object-tools-fg: #eeeeee;
+  --object-tools-bg: #3a3a3a;
+  --object-tools-hover-bg: #727272;
+}
+
+/* The table of contents of a module is set in the primary colour; with orange it needs dark text. */
+.module h2, .module caption, .inline-group h2 { color: var(--primary-fg); }
+.module caption a.section:link, .module caption a.section:visited, div.breadcrumbs a.section:link { color: inherit; }
+#header { border-bottom: 1px solid var(--hairline-color); }
+.delete-button, .deletelink, .button.deletelink, input[type="submit"].deletelink { color: #141414; }
+.close-button, a.closelink, .object-tools a { color: #eeeeee; }
+
+/* UIX-040: the master data lists as tables – columns, groups and CSV above the list (core/admin_tables.py). */
+.admin-table-tools { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; margin: 0 0 12px; font-size: 0.875rem; }
+.admin-table-tools .column-chooser { position: relative; }
+.admin-table-tools .column-chooser > summary { cursor: pointer; color: var(--link-fg); }
+.admin-table-tools .column-chooser-panel { position: absolute; z-index: 20; top: calc(100% + 4px); left: 0; min-width: 240px; padding: 12px; background: var(--body-bg); border: 1px solid var(--border-color); }
+.admin-table-tools fieldset { border: 0; margin: 0 0 8px; padding: 0; display: grid; gap: 4px; }
+.admin-table-tools legend { font-weight: 600; margin-bottom: 4px; }
+.admin-table-tools .group-chooser { display: flex; gap: 6px; align-items: center; }
+/* UIX-051 (UIX-035): Django marks the label of a required field with the class "required"; the red
+   asterisk as everywhere in Rentalars, not read out – the field itself says it is required. */
+form label.required::after { content: " *"; content: " *" / ""; color: var(--error-fg); }
+.required-note { margin: 0 0 12px; font-size: 0.8125rem; color: var(--body-quiet-color); }
+.required-note .required { color: var(--error-fg); }
+/* UIX-050: entries per page – the links, and a field for any number from 5 to 1,000. */
+.admin-table-tools .page-sizes { display: inline-flex; gap: 6px; align-items: center; }
+.admin-table-tools .page-sizes strong { padding: 0 4px; background: var(--primary); color: var(--primary-fg); }
+.admin-table-tools .page-size-form { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.admin-table-tools .page-size-form input[type="number"] { width: 6em; }
+.admin-table-tools .page-size-form .error { flex-basis: 100%; color: var(--error-fg); }
+.admin-table-tools .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+#result_list tr.table-group th { background: var(--darkened-bg); color: var(--body-fg); font-weight: 600; text-transform: none; }
+#result_list .table-group-count { margin-left: 8px; color: var(--body-quiet-color); font-weight: 400; }
+/* UIX-040 (found by axe on the master data lists): the headings of the modules stand on the primary colour,
+   as the dark text above them expects – Django puts them on the dark colour of its header, where they could not be
+   read (in the side navigation of every list, and on the start page of the master data). */
+.module h2, .module caption, .inline-group h2 { background: var(--primary); }
+#nav-sidebar .module.current-app caption a.section:link, #nav-sidebar .module.current-app caption a.section:visited { color: var(--primary-fg); }

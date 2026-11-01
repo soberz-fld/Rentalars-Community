@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Settings" %}{% endblock %}
+{% block content %}
+{% comment %}
+  UIX-046: the settings sorted by what they are about – the company, users and rights, processes that run by
+  themselves, projects and personnel, e-mail, documents and accounting, master data, import and export, interfaces,
+  and operation and security. Each box keeps its links in the
+  order they are needed most.
+{% endcomment %}
+<div class="page-head"><div><h1>{% translate "Settings" %}</h1><p class="lead">{{ company.name }}</p></div></div>
+<div class="columns settings-groups">
+  <section class="panel" aria-labelledby="settings-company">
+    <div class="panel-head"><h2 id="settings-company">{% icon "company" %}{% translate "Company" %}</h2></div>
+    <table class="table"><tbody>
+      <tr><td><a href="{% url 'core:company_settings' %}">{% translate "Company data and settings" %}</a></td><td class="muted">{% translate "Address, logo, buffer times, password rules" %}</td></tr>
+      <tr><td><a href="{% url 'core:number_ranges' %}">{% translate "Number ranges" %}</a></td><td class="muted">{% translate "Projects, customers, material IDs, documents" %}</td></tr>
+      {# MAT-056 #}<tr><td><a href="{% url 'material:label_settings' %}">{% translate "Labels" %}</a></td><td class="muted">{% translate "Logo, name, phone, web address, text and QR code of the labels" %}</td></tr>
+    </tbody></table>
+  </section>
+  <section class="panel" aria-labelledby="settings-users">
+    <div class="panel-head"><h2 id="settings-users">{% icon "user" %}{% translate "Users and rights" %}</h2></div>
+    <table class="table"><tbody>
+      <tr><td><a href="{% url 'accounts:user_list' %}">{% translate "Users" %}</a></td><td class="muted">{% blocktranslate count count=user_count %}{{ count }} active account{% plural %}{{ count }} active accounts{% endblocktranslate %}</td></tr>
+      <tr><td><a href="{% url 'accounts:role_list' %}">{% translate "Roles" %}</a></td><td class="muted">{% translate "Which role may do what" %}</td></tr>
+      {# AUT-029 #}<tr><td><a href="{% url 'accounts:ldap_settings' %}">{% translate "Directory (LDAP)" %}</a></td><td class="muted">{% translate "Login with the company directory (OpenLDAP, Active Directory); groups give roles" %}</td></tr>
+    </tbody></table>
+  </section>
+  <section class="panel" aria-labelledby="settings-processes">
+    <div class="panel-head"><h2 id="settings-processes">{% icon "bolt" %}{% translate "Processes" %}</h2></div>
+    <table class="table"><tbody>
+      {# ADM-013 #}<tr><td><a href="{% url 'automations:list' %}">{% translate "Automations" %}</a></td><td class="muted">{% translate "If something happens, Rentalars does something: confirmation of receipt, notification, a service case of a defect report" %}</td></tr>
+      {# VFG-036, DOK-015 #}<tr><td><a href="{% url 'notifications:company_settings' %}">{% translate "Notifications" %}</a></td><td class="muted">{% translate "When and how far ahead shortages are reported, and the reminders of invoices still to be written" %}</td></tr>
+      {# EML-040, ADM-017 #}<tr><td><a href="{% url 'ai:settings' %}">{% translate "AI" %}</a></td><td class="muted">{% translate "Summaries of the correspondence with a local AI, interfaces to language models" %}</td></tr>
+    </tbody></table>
+  </section>
+  <section class="panel" aria-labelledby="settings-projects">
+    <div class="panel-head"><h2 id="settings-projects">{% icon "projects" %}{% translate "Projects and personnel" %}</h2></div>
+    <table class="table"><tbody>
+      {# PER-009 #}<tr><td><a href="{% url 'core:time_surcharges' %}">{% translate "Surcharges" context "time surcharge" %}</a></td><td class="muted">{% translate "Night, Sunday and holidays – only on crew lines, for price and costs" %}</td></tr>
+      {# PER-038 #}<tr><td><a href="{% url 'personnel:offer_settings' %}">{% translate "Price offers of freelancers" %}</a></td><td class="muted">{% translate "Whether freelancers may name their own price for a deployment request, within which limits" %}</td></tr>
+      <tr><td><a href="{% url 'products:scale_list' %}">{% translate "Rental scales" %}</a></td><td class="muted">{% translate "Rental days and factors" %}</td></tr>
+      {# ADM-018: the prices and costs per hour asked for when Rentalars was set up live here. #}
+      {% if can.read.personnel %}<tr><td><a href="{% url 'personnel:job_function_list' %}">{% translate "Job functions" %}</a></td><td class="muted">{% translate "Price and internal costs per hour of each job function" %}</td></tr>{% endif %}
+    </tbody></table>
+  </section>
+  {% if can.read.email %}
+  <section class="panel" aria-labelledby="settings-mail">
+    <div class="panel-head"><h2 id="settings-mail">{% icon "mail" %}{% translate "E-mail" %}</h2></div>
+    <table class="table"><tbody>
+      <tr><td><a href="{% url 'mail:settings' %}">{% translate "Mailboxes and signature" %}</a></td><td class="muted">{% translate "The mailboxes for receiving and sending with their roles, the signature of everybody" %}</td></tr>
+      <tr><td><a href="{% url 'mail:log' %}">{% translate "Mail log" %}</a></td><td class="muted">{% translate "Every mail in and out, with its result" %}</td></tr>
+    </tbody></table>
+  </section>
+  {% endif %}
+  <section class="panel" aria-labelledby="settings-documents">
+    <div class="panel-head"><h2 id="settings-documents">{% icon "file" %}{% translate "Documents and accounting" %}</h2></div>
+    <table class="table"><tbody>
+      <tr><td><a href="{% url 'admin:documents_documenttemplate_changelist' %}">{% translate "Document templates" %}</a></td><td class="muted">{% translate "Heading, introduction, closing text and footer per kind" %}</td></tr>
+      {# DOK-018 #}<tr><td><a href="{% url 'documents:template_defaults' %}">{% translate "Template texts in English or German" %}</a></td><td class="muted">{% translate "Take over the default texts of the document templates in English or German; own texts only when chosen" %}</td></tr>
+      <tr><td><a href="{% url 'admin:documents_textblock_changelist' %}">{% translate "Text blocks" %}</a></td><td class="muted">{% translate "Paragraphs to add when a document is made" %}</td></tr>
+      {# DOK-011 and DOK-012 #}{% if can.special.prices %}<tr><td><a href="{% url 'documents:accounting' %}">{% translate "Accounting" %}</a></td><td class="muted">{% translate "Invoices to Lexware Office, DATEV export for the tax adviser" %}</td></tr>{% endif %}
+      {# incoming invoices; DOK-055: bookkeeping #}{% if bookkeeping_on %}<tr><td><a href="{% url 'incoming:settings' %}">{% translate "Incoming invoices" %}</a></td><td class="muted">{% translate "Limit of a low-value asset (GWG), standard useful life of fixed assets" %}</td></tr>{% endif %}
+    </tbody></table>
+  </section>
+  <section class="panel" aria-labelledby="settings-masterdata">
+    <div class="panel-head"><h2 id="settings-masterdata">{% icon "list" %}{% translate "Master data" %}</h2></div>
+    <table class="table"><tbody>
+      <tr><td><a href="{% url 'admin:masterdata_category_changelist' %}">{% translate "Categories and codes" %}</a></td><td class="muted">{% translate "Shared by material and products" %}</td></tr>
+      {# MAT-071, MAT-072 #}<tr><td><a href="{% url 'customfields:field_list' %}">{% translate "Custom fields" %}</a></td><td class="muted">{% translate "Fields with a value per item, e.g. MAC address or inspection sticker" %}</td></tr>
+      <tr><td><a href="{% url 'customfields:fieldset_list' %}">{% translate "Fieldsets" %}</a></td><td class="muted">{% translate "Groups of custom fields; a material model gets one" %}</td></tr>
+      <tr><td><a href="{% url 'admin:masterdata_taxrate_changelist' %}">{% translate "Tax rates" %}</a></td><td class="muted"></td></tr>
+      {# #}<tr><td><a href="{% url 'admin:masterdata_taxaccount_changelist' %}">{% translate "Tax accounts" %}</a></td><td class="muted">{% translate "Numbers of the chart of accounts for the Kontierung of incoming documents, SKR 03 to begin with" %}</td></tr>
+      <tr><td><a href="{% url 'admin:masterdata_unit_changelist' %}">{% translate "Units" %}</a></td><td class="muted"></td></tr>
+      <tr><td><a href="{% url 'admin:masterdata_manufacturer_changelist' %}">{% translate "Manufacturers" %}</a></td><td class="muted"></td></tr>
+      <tr><td><a href="{% url 'admin:masterdata_supplier_changelist' %}">{% translate "Suppliers" %}</a></td><td class="muted"></td></tr>
+      <tr><td><a href="{% url 'admin:masterdata_storagelocation_changelist' %}">{% translate "Storage locations" %}</a></td><td class="muted">{# MAT-052 #}{% if default_location %}{% blocktranslate with location=default_location.path %}New items go to {{ location }}{% endblocktranslate %}{% else %}{% translate "No default for new items" %}{% endif %}</td></tr>
+      <tr><td><a href="{% url 'admin:masterdata_documenttype_changelist' %}">{% translate "Document types" %}</a></td><td class="muted">{% translate "Stage plan, rider, contract … for project files" %}</td></tr>
+      <tr><td><a href="{% url 'admin:material_inspectiontype_changelist' %}">{% translate "Inspection types" %}</a></td><td class="muted">{% translate "Inspections with their interval, per category or model" %}</td></tr>
+      {# MAT-067 #}<tr><td><a href="{% url 'material:audit_settings' %}">{% translate "Audits" %}</a></td><td class="muted">{% translate "Interval of the audits of material, quick picks for to-dos" %}</td></tr>
+      <tr><td><a href="{% url 'admin:personnel_qualificationtype_changelist' %}">{% translate "Qualification types" %}</a></td><td class="muted">{% translate "Licences, instructions, certificates of people" %}</td></tr>
+    </tbody></table>
+  </section>
+  <section class="panel" aria-labelledby="settings-import">
+    <div class="panel-head"><h2 id="settings-import">{% icon "download" %}{% translate "Import and export" %}</h2></div>
+    {# IMP-017: next to each import its export in the import's format, for whoever may read the list. The full export of all data is under "Backup" (IMP-006). #}
+    <table class="table"><tbody>
+      {% if can.read.material %}<tr><td>{% if can.write.material %}<a href="{% url 'material:import' %}">{% translate "Import material" %}</a>{% else %}{% translate "Material" %}{% endif %}<div class="muted small">{% translate "The material list, one row per item" %}</div></td><td><a href="{% url 'core:import_export' 'material' %}">{% icon "download" %}{% translate "Export in the import format" %}<span class="visually-hidden"> – {% translate "Material" %}</span></a></td></tr>{% endif %}
+      {% if can.read.products %}<tr><td>{% if can.write.products %}<a href="{% url 'core:import' 'products' %}">{% translate "Import products" %}</a>{% else %}{% translate "Products" %}{% endif %}</td><td><a href="{% url 'core:import_export' 'products' %}">{% icon "download" %}{% translate "Export in the import format" %}<span class="visually-hidden"> – {% translate "Products" %}</span></a></td></tr>{% endif %}
+      {% if can.read.customers %}<tr><td>{% if can.write.customers %}<a href="{% url 'core:import' 'customers' %}">{% translate "Import customers" %}</a>{% else %}{% translate "Customers" %}{% endif %}</td><td><a href="{% url 'core:import_export' 'customers' %}">{% icon "download" %}{% translate "Export in the import format" %}<span class="visually-hidden"> – {% translate "Customers" %}</span></a></td></tr>{% endif %}
+      {% if can.read.personnel %}<tr><td>{% if can.write.personnel %}<a href="{% url 'core:import' 'people' %}">{% translate "Import people" %}</a>{% else %}{% translate "People" %}{% endif %}</td><td><a href="{% url 'core:import_export' 'people' %}">{% icon "download" %}{% translate "Export in the import format" %}<span class="visually-hidden"> – {% translate "People" %}</span></a></td></tr>{% endif %}
+    </tbody></table>
+    <div class="panel-body"><p class="muted small">{% translate "The export in the import format is a CSV file with the columns of the import, in plain text – names instead of internal numbers. Imported again, it changes nothing; changed in a spreadsheet, it changes what was changed." %} {% url 'core:backup' as backup_url %}{% blocktranslate %}All data at once: <a href="{{ backup_url }}#export">Backup → Readable export of all data</a>.{% endblocktranslate %}</p></div>
+  </section>
+  <section class="panel" aria-labelledby="settings-interfaces">
+    <div class="panel-head"><h2 id="settings-interfaces">{% icon "link" %}{% translate "Interface for other programs" %}</h2></div>
+    <table class="table"><tbody>
+      <tr><td><a href="{% url 'api:docs' %}" target="_blank" rel="noopener">{% translate "API documentation" %}</a></td><td class="muted">{% translate "All functions as HTTP interface" %}</td></tr>
+      <tr><td><a href="{% url 'accounts:account' %}">{% translate "My API tokens" %}</a></td><td class="muted"></td></tr>
+      {# API-012 #}<tr><td><a href="{% url 'webhooks:list' %}">{% translate "Webhooks" %}</a></td><td class="muted">{% translate "Tell other systems about events: project status, material out and back, approved times" %}</td></tr>
+    </tbody></table>
+  </section>
+  <section class="panel" aria-labelledby="settings-operation">
+    <div class="panel-head"><h2 id="settings-operation">{% icon "shield" %}{% translate "Operation and security" %}</h2></div>
+    <table class="table"><tbody>
+      <tr><td><a href="{% url 'core:self_check' %}">{% translate "Self-check" %}</a></td><td class="muted">{% translate "Versions, database, backup, free space, security" %}</td></tr>
+      {# ADM-010 and ADM-009 #}<tr><td><a href="{% url 'core:backup' %}#backup">{% translate "Backup" %}</a></td><td class="muted">{% translate "Back up now and download; the last nightly backup; the readable export of all data" %}</td></tr>
+      <tr><td><a href="{% url 'core:backup' %}#encryption">{% translate "Encryption" %}</a></td><td class="muted">{% translate "Are database and backups encrypted – and how to switch it on" %}</td></tr>
+      {# ADM-016 #}<tr><td><a href="{% url 'core:server_address' %}">{% translate "Server address and certificate" %}</a></td><td class="muted">{% translate "The address of Rentalars and its certificate – change prepared here, applied on the server" %}</td></tr>
+      {# GWL-011 #}<tr><td><a href="{% url 'gateway:page' %}">{% translate "Gateway" %}</a></td><td class="muted">{% translate "Pair an app with the gateway, list the paired apps, lock one out" %}</td></tr>
+      <tr><td><a href="{% url 'core:audit_log' %}">{% translate "Change log" %}</a></td><td class="muted">{% translate "Who changed what and when" %}</td></tr>
+      <tr><td><a href="{% url 'accounts:security_log' %}">{% translate "Security log" %}</a></td><td class="muted">{% translate "Logins, failed logins, changes to users and roles" %}</td></tr>
+      {# AUT-028 #}<tr><td><a href="{% url 'core:access_log' %}">{% translate "Access log" %}</a></td><td class="muted">{% translate "Who opened, downloaded or exported customers, people and projects" %}</td></tr>
+    </tbody></table>
+  </section>
+</div>
+{% endblock %}

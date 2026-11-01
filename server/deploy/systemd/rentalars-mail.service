@@ -1,0 +1,23 @@
+# Runs every minute, started by rentalars-mail.timer: fetches every active
+# mailbox with the role "correspondence", one after the other (EML-005,
+# EML-041) – each only when the interval of the mail settings ("Regeln für
+# alle Postfächer") is over since its own last fetch, and nothing while no
+# such mailbox is set up. A mailbox that fails does not stop the others; the
+# command prints one line per mailbox and exits with 1 if one failed.
+# Mails are sent by the web application, not here. Tasks in the background
+# have a service of their own (rentalars-jobs.service).
+
+[Unit]
+Description=Rentalars – E-Mails abrufen
+After=network-online.target mariadb.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=rentalars
+Group=rentalars
+Environment=RENTALARS_CONFIG=/etc/rentalars/rentalars.conf
+ExecStart=/opt/rentalars/venv/bin/python /opt/rentalars/app/manage.py fetch_mail
+# Fetching must not slow down people who are working.
+Nice=5
+TimeoutStartSec=10min

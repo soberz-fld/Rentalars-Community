@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Correspondence" %} {{ project.number }}{% endblock %}
+{% block content %}
+{% include "projects/_head.html" %}
+{% comment %}
+  EML-019: the mails of the project, received and sent; EML-051: and the notes written between them – a
+  phone call, a talk – at the time they happened. EML-036: as a list, newest first, or as a
+  conversation, oldest first like a messenger – received on the left, sent on the right.
+  PRJ-044: a whole project lists the mails of its parts too, marked with the part's number; they open in the part.
+  EML-055: each message shows its lock; the crew and readers without the price right see the open ones only.
+{% endcomment %}
+{% load ai_tags %}{% if has_mails %}{% ai_summary_slot project %}{% endif %}{# EML-040, EML-044: overview and AI summary – for who reads every message (EML-055) #}
+<section class="panel">
+  <div class="panel-head"><h2>{% translate "Correspondence" %}</h2>
+    <div class="actions">
+      <div class="segmented" role="group" aria-label="{% translate 'View' %}">
+        <a class="btn secondary small{% if view == 'list' %} is-active{% endif %}" href="?view=list"{% if view == "list" %} aria-current="true"{% endif %}>{% icon "list" %}{% translate "List" %}</a>
+        <a class="btn secondary small{% if view == 'conversation' %} is-active{% endif %}" href="?view=conversation"{% if view == "conversation" %} aria-current="true"{% endif %}>{% icon "timeline" %}{% translate "Conversation" %}</a>
+      </div>
+      {# EML-051: a note – a phone call, a talk – with its time, between the mails. #}
+      {% if can_note %}<a class="btn secondary small" href="{% url 'mail:note_create' project.pk %}">{% icon "note" %}{% translate "Add note" %}</a>{% endif %}
+      {% if can_write %}<a class="btn small" href="{% url 'mail:compose' project.pk %}">{% icon "mail" %}{% translate "Write mail" %}</a>{% endif %}
+    </div>
+  </div>
+  {% if can_lock %}<p class="panel-body muted small mail-lock-legend">{% icon "lock" %}{% translate "Messages with lock are read only by those who may see prices and calculation; open ones by the crew of the project as well." %}</p>
+  {% elif not reads_all %}<p class="panel-body muted small mail-lock-legend">{% translate "You see the open messages. Those with lock are read only by those who may see prices and calculation." %}</p>{% endif %}
+  {% if not has_mails and not reads_all %}
+  <div class="empty"><strong>{% translate "No open messages." %}</strong>{% if can_note %} {% translate "A phone call or a talk can be added as a note." %}{% endif %}</div>
+  {% elif not has_mails %}
+  <div class="empty"><strong>{% translate "No mails yet." %}</strong>{% blocktranslate with tag=project.mail_tag %}Mails with {{ tag }} in the subject appear here – also answers to mails sent from here.{% endblocktranslate %}{% if can_note %} {% translate "A phone call or a talk can be added as a note." %}{% endif %}</div>
+  {% elif view == "conversation" %}
+  {% include "mail/_conversation.html" %}
+  {% else %}
+  <table class="table stack mails">
+    <thead><tr><th></th><th>{% translate "Subject" %}</th><th>{% translate "From / to" %}</th><th>{% translate "Date" %}</th></tr></thead>
+    <tbody>
+    {% for mail in mails %}
+      <tr>
+        <td class="nowrap">{% if mail.is_note %}<span class="badge is-note">{% translate "note" %}</span>{% elif mail.direction == "out" %}<span class="badge">{% translate "sent" %}</span>{% else %}<span class="badge accent">{% translate "received" %}</span>{% endif %}
+          {% include "mail/_lock.html" %}</td>
+        <td>{% if mail.project_id != project.pk %}<span class="badge part-mail" title="{{ mail.project.name }}">{{ mail.project.number }}</span> {% endif %}<a href="{% url 'mail:detail' mail.project_id mail.pk %}">{% if mail.is_note %}{{ mail.note_title }}{% else %}{{ mail.subject|default:_("(no subject)") }}{% endif %}</a>
+          {% if mail.is_automatic %} <span class="badge yellow">{{ mail.get_kind_display }}</span>{% endif %}
+          {% if mail.project_was_finished %} <span class="badge yellow">{% translate "arrived after the end" %}</span>{% endif %}
+          {% if mail.attachments.all %}<div class="muted small">{% icon "file" %}{% for item in mail.attachments.all %}{% if not item.is_inline %}{{ item.filename }}{% if not forloop.last %}, {% endif %}{% endif %}{% endfor %}</div>{% endif %}
+        </td>
+        <td data-label="{% translate 'From / to' %}">{% if mail.is_note %}{% blocktranslate with who=mail.sent_by|default:mail.sender_name|default:"–" %}noted by {{ who }}{% endblocktranslate %}{% elif mail.direction == "out" %}{% translate "to" %} {{ mail.to_addresses|truncatechars:60 }}{% if mail.sent_by %}<div class="muted small">{% blocktranslate with who=mail.sent_by %}by {{ who }}{% endblocktranslate %}</div>{% endif %}{% else %}{{ mail.sender_label }}{% endif %}</td>
+        <td class="nowrap" data-label="{% translate 'Date' %}">{{ mail.date|date:"d.m.Y H:i" }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "AI" %}{% endblock %}
+{% block content %}
+{% comment %}
+  EML-040, EML-044: the local AI on this server – installed by the operator with one command, switched on here for
+  summaries. ADM-017: which provider serves which use, the OpenAI-compatible interfaces, and the log of the calls
+  (never their content). Everything is off until switched on.
+{% endcomment %}
+<div class="page-head"><div><div class="breadcrumb"><a href="{% url 'core:administration' %}">{% translate "Settings" %}</a></div><h1>{% translate "AI" %}</h1>
+<p class="lead">{% translate "Summaries of the correspondence and further uses of language models. Everything stays off until you switch it on." %}</p></div></div>
+<div class="columns">
+  <section class="panel" id="local" aria-labelledby="local-title">
+    <div class="panel-head"><h2 id="local-title">{% translate "Local AI" %}</h2></div>
+    <div class="panel-body settings-stack">
+      <p class="muted small">{% translate "A small language model on this server. Mails sent to it do not leave the server, and it costs nothing per use." %}</p>
+      {% if local.error %}<p class="note red">{{ local.error }}</p>{% endif %}
+      <dl class="facts">
+        <dt>{% translate "Status" %}</dt>
+        <dd>{% if local.installed %}<span class="badge green">{% translate "installed" %}</span>{% if local.reachable %} <span class="badge green">{% translate "answers" %}</span>{% elif local.reachable is False %} <span class="badge red">{% translate "does not answer" %}</span><div class="small">{{ local.reach_error }}</div>{% endif %}{% else %}<span class="badge outline">{% translate "not installed" %}</span>{% endif %}</dd>
+        {% if local.installed %}
+        <dt>{% translate "Model" %}</dt>
+        <dd>{{ local.server.label }}{% if local.server.model_licence %} <span class="muted small">({% blocktranslate with licence=local.server.model_licence %}licence {{ licence }}{% endblocktranslate %})</span>{% endif %}{% if local.reachable and not local.model_offered %}<div class="small">{% blocktranslate with model=local.server.model %}The server does not offer the model “{{ model }}”.{% endblocktranslate %}</div>{% endif %}</dd>
+        <dt>{% translate "Server" %}</dt>
+        <dd>{{ local.server.server|default:"–" }} <span class="muted small">{{ local.server.url }}</span>{% if local.server.threads %}<div class="muted small">{% blocktranslate count count=local.server.threads %}{{ count }} thread – one per physical core{% plural %}{{ count }} threads – one per physical core{% endblocktranslate %}, {% blocktranslate with tokens=local.server.context %}context {{ tokens }} tokens{% endblocktranslate %}</div>{% endif %}</dd>
+        <dt>{% translate "Speed" %}</dt>
+        <dd>{# EML-040: reading and writing measured apart; updated by every summary #}{% if local.speed %}{% if local.speed.reading %}{% blocktranslate with reading=local.speed.reading|floatformat:1 writing=local.speed.writing|floatformat:1 %}reads {{ reading }}, writes {{ writing }} tokens per second{% endblocktranslate %}{% else %}{% blocktranslate with speed=local.speed.writing|floatformat:1 %}{{ speed }} tokens per second{% endblocktranslate %}{% endif %} <span class="muted small">({% blocktranslate with date=local.speed.measured_at|date:"SHORT_DATETIME_FORMAT" %}measured {{ date }}{% endblocktranslate %})</span>{% if local.typical %}<div class="small">{% blocktranslate count minutes=local.typical.minutes %}A summary of some 20 mails takes about {{ minutes }} minute.{% plural %}A summary of some 20 mails takes about {{ minutes }} minutes.{% endblocktranslate %}</div>{% endif %}{% else %}<span class="muted">{% translate "not measured yet" %}</span>{% endif %}</dd>
+        {% endif %}
+        <dt>{% translate "Processor" %}</dt>
+        <dd>{{ local.cpu.model|default:"–" }}{% if local.cpu.logical %}<div class="muted small">{% blocktranslate with physical=local.cpu.physical logical=local.cpu.logical %}{{ physical }} physical cores, {{ logical }} logical{% endblocktranslate %}{% if local.cpu.in_vm %} · {% translate "virtual machine" %}{% endif %}</div>{% endif %}{% if local.cpu.missing %}<div><span class="badge yellow">{% blocktranslate with missing=local.cpu.missing|join:", " %}without {{ missing }}{% endblocktranslate %}</span></div>{% elif local.cpu.is_x86 and local.cpu.flags %}<div><span class="badge green">{% translate "AVX2 and FMA" %}</span></div>{% endif %}</dd>
+        <dt>{% translate "Summaries with local AI" %}</dt>
+        <dd>{% if summary_source == "local" %}<span class="badge green">{% translate "on" %}</span>{% else %}<span class="badge outline">{% translate "off" %}</span>{% endif %}</dd>
+      </dl>
+      {% if local.advice.texts %}
+      <div class="note ai-advice">{% for text in local.advice.texts %}<p>{{ text }}</p>{% endfor %}
+        {% if local.advice.command %}<p>{% translate "On the server, the operator runs:" %} <code class="command copy" data-copy="{{ local.advice.command }}">{{ local.advice.command }}</code></p>{% endif %}
+      </div>
+      {% endif %}
+      {% if can_write %}
+      <div class="btn-row ai-local-actions">
+        <form method="post" action="{% url 'ai:local_summaries' %}" class="inline-form">{% csrf_token %}
+          {% if summary_source == "local" %}<input type="hidden" name="on" value="0"><button class="btn secondary" type="submit">{% translate "Switch summaries with local AI off" %}</button>
+          {% else %}<input type="hidden" name="on" value="1"><button class="btn" type="submit"{% if not local.installed %} disabled{% endif %}>{% translate "Switch summaries with local AI on" %}</button>{% endif %}
+        </form>
+        {% if local.installed %}<form method="post" action="{% url 'ai:local_speed_test' %}" class="inline-form">{% csrf_token %}<button class="btn secondary" type="submit">{% icon "clock" %}{% translate "Measure the speed" %}</button></form>{% endif %}
+      </div>
+      {% endif %}
+      {% if not local.installed %}
+      <h3>{% translate "Installing the local AI" %}</h3>
+      <p>{% translate "The operator installs it on the server via SSH, with one command:" %} <code class="command copy" data-copy="{{ install_command }}">{{ install_command }}</code></p>
+      <p class="muted small">{% translate "The command installs the inference server llama.cpp, chooses a model by memory, processor cores and processor (Qwen, licence Apache 2.0: Qwen3 1.7B, about 1.3 GB; with 6 GB of memory, four cores and AVX2 Qwen3 4B, about 2.5 GB), checks it and starts it as the service rentalars-ai, reachable only on this server. With --dry-run it only shows what it would do; --model qwen3-1.7b or --model qwen3-4b chooses the model." %}</p>
+      {% else %}
+      <p class="muted small">{% translate "Removed on the server with:" %} <code class="command copy" data-copy="{{ remove_command }}">{{ remove_command }}</code></p>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="panel" id="uses" aria-labelledby="uses-title">
+    <div class="panel-head"><h2 id="uses-title">{% translate "Uses" %}</h2></div>
+    <div class="panel-body">
+      <form method="post" class="form" novalidate>
+        {% csrf_token %}
+        {% include "core/_form_errors.html" %}
+        {% include "core/_field.html" with field=form.summary %}
+        {% if summary_provider and summary_provider.leaves_company %}<p class="note red">{% blocktranslate with name=summary_provider.name %}“{{ name }}” is on the internet: the mails of the projects leave the company when they are summarised.{% endblocktranslate %}</p>{% endif %}
+        {% if summary_source == "local" and not local.installed %}<p class="note">{% translate "The local AI is not installed yet: “Summarise” says so until the operator installs it." %}</p>{% endif %}
+        {% include "core/_field.html" with field=form.draft %}
+        {% if draft_provider and draft_provider.leaves_company %}<p class="note red">{% blocktranslate with name=draft_provider.name %}“{{ name }}” is on the internet: the mails of a conversation leave the company when a draft is suggested.{% endblocktranslate %}</p>{% endif %}
+        {# MAT-062: reading an uploaded invoice in “Enter a purchase”. #}
+        {% include "core/_field.html" with field=form.invoice %}
+        {% if invoice_provider and invoice_provider.leaves_company %}<p class="note red">{% blocktranslate with name=invoice_provider.name %}“{{ name }}” is on the internet: the text of an uploaded invoice leaves the company when it is read.{% endblocktranslate %}</p>{% endif %}
+        <div class="field"><p><strong>{% translate "Suggestions for templates" %}</strong></p><p class="muted small">{% translate "Later: suggestions for project templates from earlier projects." %}</p></div>
+        {% if can_write %}<div><button class="btn" type="submit">{% translate "Save uses" %}</button></div>{% endif %}
+      </form>
+    </div>
+  </section>
+
+  {# The nightly summaries have a page of their own (opt-in, caps, data classes, runs). #}
+  <section class="panel" id="automatic" aria-labelledby="automatic-title">
+    <div class="panel-head"><h2 id="automatic-title">{% translate "Automatic summaries" %}</h2><a class="btn secondary small" href="{% url 'ai:auto_settings' %}">{% translate "Open" %}</a></div>
+    <div class="panel-body settings-stack">
+      <p class="muted small">{% translate "At night, projects and service cases with new mails get a new summary. Off until you switch it on and confirm where the data go." %}</p>
+      <p>{% if auto_state == "ok" %}<span class="badge green">{% translate "on" %}</span>{% elif auto_state == "changed" %}<span class="badge red">{% translate "stopped: other provider" %}</span>{% elif auto_state == "unavailable" %}<span class="badge yellow">{% translate "no provider" %}</span>{% else %}<span class="badge outline">{% translate "off" %}</span>{% endif %}
+        {% if last_run %}<span class="muted small">{% blocktranslate with date=last_run.started_at|date:"SHORT_DATETIME_FORMAT" count count=last_run.summarised %}Last run {{ date }}: {{ count }} summary.{% plural %}Last run {{ date }}: {{ count }} summaries.{% endblocktranslate %}{% if last_run.failed %} <span class="badge red">{% blocktranslate with count=last_run.failed %}{{ count }} failed{% endblocktranslate %}</span>{% endif %}</span>{% endif %}</p>
+    </div>
+  </section>
+
+  <section class="panel" id="providers" aria-labelledby="providers-title">
+    <div class="panel-head"><h2 id="providers-title">{% translate "Interfaces (OpenAI-compatible)" %}</h2>
+      {% if can_write %}<a class="btn small" href="{% url 'ai:provider_create' %}">{% icon "plus" %}{% translate "New interface" %}</a>{% endif %}</div>
+    <div class="panel-body">
+      <p class="muted small">{% translate "For servers in the company network (Ollama, LM Studio, vLLM) and for cloud services. Off at first: an interface is only used for the uses chosen above." %}</p>
+    </div>
+    {% if providers %}
+    <table class="table stack">
+      <thead><tr><th>{% translate "Name" %}</th><th>{% translate "Address and model" %}</th><th>{% translate "API key" %}</th><th><span class="visually-hidden">{% translate "Actions" %}</span></th></tr></thead>
+      <tbody>{% for provider in providers %}
+        <tr>
+          <td>{% if can_write %}<a href="{% url 'ai:provider_edit' provider.pk %}">{{ provider.name }}</a>{% else %}{{ provider.name }}{% endif %}{% if provider.leaves_company %} <span class="badge red">{% translate "cloud – data leaves the company" %}</span>{% else %} <span class="badge outline">{% translate "in the company network" %}</span>{% endif %}</td>
+          <td data-label="{% translate 'Address and model' %}"><span class="small">{{ provider.base_url }}</span><div class="muted small">{{ provider.model }}</div></td>
+          <td data-label="{% translate 'API key' %}">{% if not provider.has_api_key %}<span class="muted">{% translate "none" %}</span>{% elif provider.api_key_readable %}{% translate "stored" %}{% else %}<span class="badge red">{% translate "unreadable – enter it again" %}</span>{% endif %}</td>
+          <td class="actions">{% if can_write %}<form method="post" action="{% url 'ai:provider_check' provider.pk %}" class="inline-form">{% csrf_token %}<button class="btn secondary small" type="submit">{% translate "Check" %}</button></form>{% endif %}</td>
+        </tr>{% endfor %}
+      </tbody>
+    </table>
+    {% else %}<div class="empty">{% translate "No interface yet." %}</div>{% endif %}
+  </section>
+
+  <section class="panel" id="calls" aria-labelledby="calls-title">
+    <div class="panel-head"><h2 id="calls-title">{% translate "Log of the AI calls" %}</h2><a class="btn secondary small" href="{% url 'ai:calls' %}">{% translate "All calls" %}</a></div>
+    <div class="panel-body"><p class="muted small">{% translate "Which use called which model, how long it took and how much text went there – never the content. Kept for a year." %}</p></div>
+    {% include "ai/_call_table.html" %}
+  </section>
+</div>
+{% endblock %}

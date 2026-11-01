@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Inspect several items" %}{% endblock %}
+{% block content %}
+{% comment %}MAT-082: one inspection for the items ticked in Materialverwaltung → Prüfungen. Day, inspector and (electrical) the
+test device are asked once; every item gets its result, a note and – electrical – its values. All or nothing.{% endcomment %}
+<div class="page-head"><div><h1>{% translate "Inspect several items" %}</h1><p class="muted">{% blocktranslate count count=rows|length %}{{ count }} item chosen.{% plural %}{{ count }} items chosen.{% endblocktranslate %}</p></div></div>
+{% include "material/_tabs.html" %}
+<form method="post" action="{% url 'material:inspection_batch' %}" class="panel" autocomplete="off">
+  {% csrf_token %}
+  {% for pk in item_ids %}<input type="hidden" name="items" value="{{ pk }}">{% endfor %}
+  <div class="panel-body">
+    {% include "core/_form_errors.html" %}
+    <div class="inline-fields batch-common">
+      {% include "core/_field.html" with field=form.inspection_type %}
+      {% include "core/_field.html" with field=form.date %}
+      {% include "core/_field.html" with field=form.inspector %}
+      {% if form.electrical_condition %}<div data-show-if="{{ form.electrical_condition }}"{% if not form.preselected_electrical %} class="hidden"{% endif %}>{% include "core/_field.html" with field=form.test_device %}</div>{% endif %}
+    </div>
+    {% if form.electrical_condition %}<p class="help batch-help{% if not form.preselected_electrical %} hidden{% endif %}" data-show-if="{{ form.electrical_condition }}">{% translate "Electrical inspection: tick the visual inspection of the items that passed it, leave the result on “by the values” and the verdict follows from the measured values. Leave a value empty where it was not measured or does not apply to the protection class." %}</p>{% endif %}
+  </div>
+  <div class="table-scroll">
+    <table class="table dense batch-table">
+      <thead><tr>
+        <th scope="col">{% translate "Item" %}</th>
+        <th scope="col">{% translate "Result" %}</th>
+        <th scope="col">{% translate "Note" %}</th>
+        {% if form.electrical_condition %}
+        <th scope="col" data-show-if="{{ form.electrical_condition }}"><label class="check-all"><input type="checkbox" data-check-all="visual" aria-label="{% translate 'Choose all on this page' %}"> {% translate "Visual inspection passed" %}</label></th>
+        <th scope="col" data-show-if="{{ form.electrical_condition }}">{{ rows.0.form.protection_class.label }}</th>
+        <th scope="col" data-show-if="{{ form.electrical_condition }}">{{ rows.0.form.cord_length_m.label }}</th>
+        {% for measurement in measurements %}<th scope="col" data-show-if="{{ form.electrical_condition }}">{{ measurement.label }} {{ measurement.symbol_html }} ({{ measurement.unit }})</th>{% endfor %}
+        <th scope="col" data-show-if="{{ form.electrical_condition }}">{{ rows.0.form.function_test_passed.label }}</th>
+        {% endif %}
+      </tr></thead>
+      <tbody>
+      {% for row in rows %}
+      <tr>
+        <th scope="row"><a href="{% url 'material:item_inspections' row.item.pk %}">{{ row.item.display_id }}</a> <span class="muted small">{{ row.item.material_model.name }}</span>{{ row.form.non_field_errors }}</th>
+        <td>{{ row.form.result }}{{ row.form.result.errors }}</td>
+        <td>{{ row.form.note }}{{ row.form.note.errors }}</td>
+        {% if form.electrical_condition %}
+        <td class="c-check" data-show-if="{{ form.electrical_condition }}"><input type="checkbox" name="visual" value="{{ row.item.pk }}" aria-label="{% translate 'Visual inspection passed' %} {{ row.item.display_id }}"{% if row.visual %} checked{% endif %}></td>
+        <td data-show-if="{{ form.electrical_condition }}">{{ row.form.protection_class }}{{ row.form.protection_class.errors }}</td>
+        <td data-show-if="{{ form.electrical_condition }}">{{ row.form.cord_length_m }}{{ row.form.cord_length_m.errors }}</td>
+        {% for field in row.form.measurement_fields %}<td data-show-if="{{ form.electrical_condition }}">{{ field }}{{ field.errors }}</td>{% endfor %}
+        <td data-show-if="{{ form.electrical_condition }}">{{ row.form.function_test_passed }}{{ row.form.function_test_passed.errors }}</td>
+        {% endif %}
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="panel-body actions">
+    <button class="btn" type="submit" name="save" value="1">{% icon "check" %}{% translate "Record inspections" %}</button>
+    <a class="btn secondary" href="{% url 'material:inspections' %}{% if type_id %}?type={{ type_id }}{% endif %}">{% translate "Cancel" %}</a>
+  </div>
+</form>
+{% endblock %}

@@ -1,0 +1,15 @@
+{% load i18n rentalars %}
+{# The head of every page of a material model with its tabs. Expects: model, tab, picture. #}
+<div class="page-head">
+  <div class="head-with-picture">
+    {% if picture %}<a href="{% url 'material:file' picture.pk %}"><img src="{% url 'material:file_small' picture.pk %}" alt="{{ model.name }}" class="thumb"></a>{% endif %}
+    <div><div class="breadcrumb"><a href="{% url 'material:model_list' %}">{% translate "Material models" %}</a></div><h1>{{ model.name }}</h1>
+    <p class="lead">{{ model.category.path }}{% if model.manufacturer %}, {{ model.manufacturer }}{% endif %}{% with owner=model.default_product.owner %}{% if owner %}{# PRD-043 #} · {% blocktranslate with owner=owner.name %}Owned by {{ owner }}{% endblocktranslate %} <span class="badge accent">{% translate "customer material" %}</span>{% endif %}{% endwith %}</p></div>
+  </div>
+  <div class="actions">{% if can.write.material %}<a class="btn" href="{% url 'material:item_create' model.pk %}">{% icon "plus" %}{% if model.is_bulk %}{% translate "New stock row" %}{% else %}{% translate "New items" %}{% endif %}</a>{# MAT-061: this model in the first row #}<a class="btn secondary" href="{% url 'material:purchase' %}?model={{ model.pk }}">{% icon "invoice" %}{% translate "Enter a purchase" %}</a><a class="btn secondary" href="{% url 'material:model_edit' model.pk %}">{% icon "edit" %}{% translate "Edit model" %}</a>{# MAT-064: a new model on the basis of this one #}<a class="btn secondary" href="{% url 'material:model_create' %}?copy={{ model.pk }}">{% icon "duplicate" %}{% translate "Duplicate" %}</a>{% endif %}{# MAT-066: the labels of all its items, settings as on the page of the labels #}{% if model.items.exists %}<a class="btn secondary" href="{% url 'material:labels' %}?model={{ model.pk }}">{% icon "tag" %}{% translate "Labels" %}</a>{% endif %}</div>
+</div>
+<nav class="tabs" aria-label="{% translate 'Material model' %}">
+  <a href="{% url 'material:model_detail' model.pk %}"{% if tab == "model" %} aria-current="page"{% endif %}>{% translate "Model" %}</a>
+  {% if can.special.availability %}<a href="{% url 'material:model_timeline' model.pk %}"{% if tab == "timeline" %} aria-current="page"{% endif %}>{% translate "Timeline" %}</a>{% endif %}{# AUT-032 #}
+  <a href="{% url 'material:model_files' model.pk %}"{% if tab == "files" %} aria-current="page"{% endif %}>{% translate "Files" %}</a>
+</nav>

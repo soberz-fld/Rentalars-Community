@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}{% if mapping %}{% translate "Edit assignment" %}{% else %}{% translate "New assignment" %}{% endif %}{% endblock %}
+{% block content %}
+{# AUT-029: a group of the directory and the roles its members get. #}
+<div class="page-head"><div><div class="breadcrumb"><a href="{% url 'accounts:ldap_settings' %}#assignments">{% translate "Directory (LDAP)" %}</a></div>
+<h1>{% if mapping %}{% translate "Edit assignment" %}{% else %}{% translate "New assignment" %}{% endif %}</h1>
+<p class="lead">{% translate "Members of this group of the directory get the roles chosen here." %}</p></div></div>
+<form method="post" class="form wide" novalidate autocomplete="off">
+  {% csrf_token %}
+  {% include "core/_form_errors.html" %}
+  <div class="panel"><div class="panel-body form">
+    {% include "core/_field.html" with field=form.group %}
+    {% include "core/_field.html" with field=form.roles %}
+    <div class="form-grid">{% include "core/_field.html" with field=form.priority %}{% include "core/_field.html" with field=form.note %}</div>
+    {% include "core/_field.html" with field=form.last_match %}
+  </div></div>
+  <div class="btn-row"><button class="btn" type="submit">{% translate "Save assignment" %}</button><a class="btn secondary" href="{% url 'accounts:ldap_settings' %}#assignments">{% translate "Cancel" %}</a></div>
+</form>
+{% endblock %}

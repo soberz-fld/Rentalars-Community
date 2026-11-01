@@ -1,0 +1,21 @@
+{% load i18n %}
+{# IMP-003: the report of a dry run or an import of products, customers or people. #}
+<div class="panel">
+  <div class="panel-head"><h2>{% if report.dry_run %}{% translate "Result of the dry run" %}{% else %}{% translate "Result of the import" %}{% endif %}</h2></div>
+  <div class="panel-body">
+    {% if report.errors %}
+      <div class="note red"><strong>{% blocktranslate count count=report.errors|length %}{{ count }} error – nothing was written.{% plural %}{{ count }} errors – nothing was written.{% endblocktranslate %}</strong> {% translate "Correct the file or the column assignment and try again." %}</div>
+      <ul>{% for issue in report.errors|slice:":50" %}<li>{{ issue.text }}</li>{% endfor %}</ul>{% if report.errors|length > 50 %}<p class="muted small">{% blocktranslate count count=report.errors|length|add:"-50" %}… and {{ count }} more error, listed with its row below.{% plural %}… and {{ count }} more errors, listed with their rows below.{% endblocktranslate %}</p>{% endif %}
+    {% else %}
+      <dl class="facts">
+        <dt>{% translate "Rows read" %}</dt><dd>{{ report.rows_read }}</dd>
+        <dt>{% translate "Records" %}</dt><dd>{% blocktranslate with created=report.created updated=report.updated unchanged=report.unchanged %}{{ created }} new, {{ updated }} changed, {{ unchanged }} unchanged{% endblocktranslate %}</dd>
+      </dl>
+      {% if report.notes %}<ul class="small">{% for note in report.notes %}<li>{{ note }}</li>{% endfor %}</ul>{% endif %}
+    {% endif %}
+    {% if report.warnings %}
+      <h3 class="section">{% translate "Notes" %}</h3>
+      <ul>{% for issue in report.warnings|slice:":50" %}<li>{{ issue.text }}</li>{% endfor %}</ul>{% if report.warnings|length > 50 %}<p class="muted small">{% blocktranslate count count=report.warnings|length|add:"-50" %}… and {{ count }} more note, listed with its row below.{% plural %}… and {{ count }} more notes, listed with their rows below.{% endblocktranslate %}</p>{% endif %}
+    {% endif %}
+  </div>
+</div>

@@ -1,0 +1,12 @@
+# Looks for waiting tasks in the background every minute (NFA-041).
+
+[Unit]
+Description=Rentalars – Aufgaben im Hintergrund (Zeitplan)
+
+[Timer]
+OnBootSec=2min
+OnUnitInactiveSec=1min
+AccuracySec=10s
+
+[Install]
+WantedBy=timers.target

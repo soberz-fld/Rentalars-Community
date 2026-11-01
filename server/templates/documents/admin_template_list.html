@@ -1,0 +1,7 @@
+{% extends "admin/table_change_list.html" %}
+{% load i18n %}
+{% comment %}
+  DOK-018: the list of the document templates leads to taking over the default texts in English or German
+  (documents/template_views.py). Templates are changed, not added: there is no "add" button to keep.
+{% endcomment %}
+{% block object-tools-items %}{{ block.super }}<li><a href="{% url 'documents:template_defaults' %}" class="viewlink">{% translate "Template texts in English or German" %}</a></li>{% endblock %}

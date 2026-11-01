@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}{% blocktranslate with phase=phase.label %}Personnel for {{ phase }}{% endblocktranslate %} {{ project.number }}{% endblock %}
+{% block content %}
+{# PRJ-080: the dialog of the page "Zeitplanung" on a page of its own, for a browser without scripts – in two steps (PRJ-120): job functions with places, then the people. #}
+<div class="page-head"><div><div class="breadcrumb"><a href="{% url 'projects:course' project.pk %}">{{ project.number }} {{ project.name }}</a></div><h1>{{ phase.label }}</h1></div></div>
+<div class="panel dialog-page">{% include "projects/_phase_crew_form.html" %}</div>
+{% endblock %}

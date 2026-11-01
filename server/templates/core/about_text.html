@@ -1,0 +1,14 @@
+{% extends base_template %}
+{% load i18n %}
+{% block title %}{{ title }}{% endblock %}
+{% block card_class %} wide{% endblock %}
+{% block content %}
+{# V21: a full text of the legal notices as a page of the program – with the viewport of every page, lines that wrap, headings and tables set. #}
+<div class="page-head"><div><h1>{{ title }}</h1><p class="lead"><a href="{% url 'core:about' %}">{% translate "About Rentalars" %}</a> · <a href="{% url 'core:about_text' name %}">{% translate "plain text" %}</a></p></div></div>
+<section class="{% if public %}about-plain{% else %}panel{% endif %} manual">
+  <div class="panel-body about-text">
+    {% if plain %}<pre class="legal-text" tabindex="0">{{ plain }}</pre>{% else %}<div class="rendered-text">{{ html|safe }}</div>{% endif %}
+  </div>
+</section>
+{% if public %}<p class="about-back"><a class="btn secondary" href="{% url 'core:about' %}">{% translate "Back" %}</a> <a class="btn secondary" href="{% url 'accounts:login' %}">{% translate "To the login" %}</a></p>{% endif %}
+{% endblock %}

@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Asset register" %}{% endblock %}
+{% block content %}
+{% comment %}
+  Depreciation ("Mit Restbuchwert"): Buchhaltung → Anlagenspiegel / Restbuchwerte. The assets (fixed assets and low-value (MAT-086)
+  assets; merchandise and items not recorded on request) with acquisition cost, depreciation and book value on a day or at the end
+  of a year – a table of core/tables.py (material/asset_tables.py): columns, sorting, groups, CSV. Below it the sums. There is
+  deliberately no DATEV export. Simplified standard setting, no tax advice.
+{% endcomment %}
+<div class="page-head">
+  <div><h1>{% translate "Accounting" %}</h1></div>
+</div>
+{% include "documents/_accounting_tabs.html" %}
+<div class="panel">
+  <div class="panel-head"><h2>{% translate "Asset register and book values" %}</h2><span class="muted small">{% blocktranslate with date=day|date:"d.m.Y" %}Values on {{ date }}. Fixed assets are written off in a straight line by month, low-value assets (GWG) completely at the end of the year of purchase. A simplified standard setting, no tax advice.{% endblocktranslate %}{% if memory %} {% translate "A memory value of 1 € is kept." %}{% endif %}</span></div>
+  <form method="get" class="filters">
+    <div class="field grow"><label for="f-q">{% translate "ID, model, serial number or note" %}</label><input type="search" id="f-q" name="q" value="{{ filters.text }}"></div>
+    {% filterpanel "assets" %}
+    <div class="field"><label for="f-kind">{% translate "Kind of asset" %}</label>
+      <select id="f-kind" name="kind" data-autosubmit>{% for value, label in kind_choices %}<option value="{{ value }}"{% if filters.kind == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+    <div class="field"><label for="f-location">{% translate "Storage location" %}</label>
+      <select id="f-location" name="location" data-autosubmit><option value="">{% translate "All" %}</option>{% for location in locations %}<option value="{{ location.pk }}"{% if filters.location == location.pk %} selected{% endif %}>{{ location.path }}</option>{% endfor %}</select></div>
+    <div class="field"><label for="f-model">{% translate "Model" %}</label>
+      <select id="f-model" name="model" data-autosubmit><option value="">{% translate "All" %}</option>{% for model in models %}<option value="{{ model.pk }}"{% if filters.model == model.pk %} selected{% endif %}>{{ model.name }}</option>{% endfor %}</select></div>
+    <div class="field"><label for="f-year">{% translate "Balance-sheet year (31 December)" %}</label>
+      <select id="f-year" name="year" data-autosubmit><option value="">{% translate "Today" %}</option>{% for each in years %}<option value="{{ each }}"{% if filters.year == each %} selected{% endif %}>{{ each }}</option>{% endfor %}</select></div>
+    <div class="field"><label for="f-as-of">{% translate "Or on this day" %}</label><input type="date" id="f-as-of" name="as_of" value="{{ filters.as_of|date:'Y-m-d' }}"></div>
+    <div class="field"><div class="check"><input type="checkbox" id="f-left" name="left" value="1"{% if filters.left %} checked{% endif %} data-autosubmit><label for="f-left">{% translate "Also items that left the stock" %}</label></div></div>
+    <button class="btn secondary" type="submit">{% translate "Filter" %}</button>
+    {% endfilterpanel %}
+  </form>
+  {% include "core/_table_tools.html" %}
+  {% if rows %}
+  {% include "core/_table.html" with stack=True %}
+  {% else %}
+  <div class="empty"><strong>{% translate "No assets match." %}</strong>{% translate "An item becomes an asset when it is booked in from an incoming invoice – or when you record it on its page, in the card “Asset accounting”." %}</div>
+  {% endif %}
+  {% include "core/_pagination.html" %}
+</div>
+{% if summary.total.count or summary.unvalued or summary.not_yet or summary.left %}
+<section class="panel" aria-labelledby="asset-sums">
+  <div class="panel-head"><h2 id="asset-sums">{% translate "Sums" %}</h2><span class="muted small">{% blocktranslate with date=day|date:"d.m.Y" %}Of all items of the filter on {{ date }}, not only of this page.{% endblocktranslate %}</span></div>
+  <table class="table stack">
+    <thead><tr><th scope="col">{% translate "Kind of asset" %}</th><th scope="col" class="num">{% translate "Items" %}</th><th scope="col" class="num">{% translate "Acquisition cost (net)" %}</th><th scope="col" class="num">{% translate "Depreciation so far" %}</th><th scope="col" class="num">{% blocktranslate %}Depreciation in {{ year }}{% endblocktranslate %}</th><th scope="col" class="num">{% translate "Book value" %}</th></tr></thead>
+    <tbody>
+      {% for kind, label, sums in kind_sums %}
+      <tr><th scope="row" data-label="{% translate 'Kind of asset' %}">{{ label }}</th><td class="num" data-label="{% translate 'Items' %}">{{ sums.count|thousands }}</td><td class="num" data-label="{% translate 'Acquisition cost (net)' %}">{{ sums.cost|money }}</td><td class="num" data-label="{% translate 'Depreciation so far' %}">{{ sums.accumulated|money }}</td><td class="num" data-label="{% blocktranslate %}Depreciation in {{ year }}{% endblocktranslate %}">{{ sums.this_year|money }}</td><td class="num" data-label="{% translate 'Book value' %}">{{ sums.book_value|money }}</td></tr>
+      {% endfor %}
+      <tr class="total"><th scope="row" data-label="{% translate 'Kind of asset' %}">{% translate "Total" %}</th><td class="num" data-label="{% translate 'Items' %}">{{ summary.total.count|thousands }}</td><td class="num" data-label="{% translate 'Acquisition cost (net)' %}">{{ summary.total.cost|money }}</td><td class="num" data-label="{% translate 'Depreciation so far' %}">{{ summary.total.accumulated|money }}</td><td class="num" data-label="{% blocktranslate %}Depreciation in {{ year }}{% endblocktranslate %}">{{ summary.total.this_year|money }}</td><td class="num" data-label="{% translate 'Book value' %}"><strong>{{ summary.total.book_value|money }}</strong></td></tr>
+    </tbody>
+  </table>
+  {% if summary.unvalued %}<p class="muted small">{% blocktranslate count counter=summary.unvalued %}{{ counter }} item has no book value (the cost, the date of purchase or the useful life is missing) and is not in the sums.{% plural %}{{ counter }} items have no book value (the cost, the date of purchase or the useful life is missing) and are not in the sums.{% endblocktranslate %}</p>{% endif %}
+  {% if summary.not_yet %}<p class="muted small">{% blocktranslate count counter=summary.not_yet %}{{ counter }} item was bought only after this day and is left out.{% plural %}{{ counter }} items were bought only after this day and are left out.{% endblocktranslate %}</p>{% endif %}
+  {% if summary.left %}<p class="muted small">{% blocktranslate count counter=summary.left %}{{ counter }} item had left the stock by this day and is not in the sums.{% plural %}{{ counter }} items had left the stock by this day and are not in the sums.{% endblocktranslate %}</p>{% endif %}
+</section>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,12 @@
+{% load i18n rentalars %}
+{# PRJ-115: customers or project managers with their figures. Expects: groups, shown. #}
+{% if groups %}
+<table class="table stack report-table">
+  <thead><tr><th scope="col">{% translate "Name" %}</th><th scope="col" class="num">{% translate "Projects" %}</th><th scope="col" class="num">{% translate "Calculated revenue net" %}</th>{% if shown.margin %}<th scope="col" class="num">{% translate "Calculated profit" %}</th><th scope="col" class="num">{% translate "Calculated margin" %}</th>{% endif %}</tr></thead>
+  <tbody>
+  {% for group in groups %}{% with f=group.figures %}
+    <tr><td>{{ group.label }}</td><td class="num" data-label="{% translate 'Projects' %}">{{ f.projects }}</td><td class="num" data-label="{% translate 'Revenue net' %}">{{ f.revenue|money }}</td>{% if shown.margin %}<td class="num{% if f.margin < 0 %} is-loss{% endif %}" data-label="{% translate 'Profit' %}">{{ f.margin|money }}</td><td class="num" data-label="{% translate 'Margin' %}">{% if f.margin_percent is not None %}{{ f.margin_percent|number }} %{% endif %}</td>{% endif %}</tr>
+  {% endwith %}{% endfor %}
+  </tbody>
+</table>
+{% else %}<div class="empty">{% translate "No projects in this period." %}</div>{% endif %}

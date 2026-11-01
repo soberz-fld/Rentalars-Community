@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Products" %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>{% translate "Material management" %}</h1></div>
+  <div class="actions">
+    {% include "material/_item_jump.html" %}{# MAT-063: open an item by its ID, in every tab of the material management #}
+    {# MAT-074: no import button here – the import is under Einstellungen → Import und Export; "Kauf einpflegen" (MAT-061) as on the tabs Modelle and Exemplare. #}
+    {% if can.write.products %}<a class="btn" href="{% url 'products:create' %}">{% icon "plus" %}{% translate "New product" %}</a>{% endif %}{% if can.write.material %}<a class="btn secondary" href="{% url 'material:purchase' %}">{% icon "invoice" %}{% translate "Enter a purchase" %}</a>{% endif %}
+  </div>
+</div>
+{% include "material/_tabs.html" with tab="products" %}
+<p class="lead tab-lead">{% translate "What is planned, rented and sold. The stock is counted from the assigned material." %}</p>
+<div class="panel">
+  <form method="get" class="filters">
+    <div class="field grow"><label for="f-q">{% translate "Article number, name or GTIN" %}</label><input type="search" id="f-q" name="q" value="{{ q }}"></div>
+    {% filterpanel "products" %}
+    <div class="field"><label for="f-category">{% translate "Category" %}</label>
+      <select id="f-category" name="category" data-autosubmit><option value="">{% translate "All" %}</option>{% for category in categories %}<option value="{{ category.pk }}"{% if category_id == category.pk|stringformat:"s" %} selected{% endif %}>{% if category.code %}{{ category.code }} – {% endif %}{{ category.path }}</option>{% endfor %}</select></div>
+    <div class="field"><label for="f-kind">{% translate "Kind" %}</label>
+      <select id="f-kind" name="kind" data-autosubmit><option value="">{% translate "All" %}</option>{% for value, label in kinds %}<option value="{{ value }}"{% if kind == value %} selected{% endif %}>{{ label|capfirst }}</option>{% endfor %}</select></div>
+    {# PRD-043: own material, customer material, or the material of one customer. #}
+    <div class="field"><label for="f-owner">{% translate "Owner" %}</label>
+      <select id="f-owner" name="owner" data-autosubmit><option value="">{% translate "All" %}</option><option value="own"{% if owner == "own" %} selected{% endif %}>{% translate "Own material" %}</option><option value="customers"{% if owner == "customers" %} selected{% endif %}>{% translate "Customer material" %}</option>{% for customer in owners %}<option value="{{ customer.pk }}"{% if owner == customer.pk|stringformat:"s" %} selected{% endif %}>{{ customer.name }}</option>{% endfor %}</select></div>
+    <div class="field"><div class="check"><input type="checkbox" id="f-inactive" name="inactive" value="1"{% if request.GET.inactive %} checked{% endif %} data-autosubmit><label for="f-inactive">{% translate "Show deactivated too" %}</label></div></div>
+    <div class="field"><div class="check"><input type="checkbox" id="f-low" name="below_minimum" value="1"{% if request.GET.below_minimum %} checked{% endif %} data-autosubmit><label for="f-low">{% translate "Below the minimum stock" %}</label></div></div>
+    <button class="btn secondary" type="submit">{% translate "Filter" %}</button>
+    {% endfilterpanel %}
+  </form>
+  {% include "core/_table_tools.html" %}
+  {% if rows %}
+  {% include "core/_table.html" with stack=True %}
+  {% else %}
+  <div class="empty"><strong>{% translate "No products match." %}</strong>{% translate "Create a product, then assign material to it." %}</div>
+  {% endif %}
+  {% include "core/_pagination.html" %}
+</div>
+{% endblock %}

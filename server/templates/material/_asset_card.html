@@ -1,0 +1,61 @@
+{% load i18n rentalars %}
+{% comment %}
+  Depreciation, used sale from stock ("Mit Restbuchwert"): the card "Anlagevermögen" of an item – its kind of asset, (MAT-086)
+  useful life, acquisition cost, depreciation so far, book value today and the schedule per year; the form to record an
+  old item as an asset; the way to "Gebrauchtverkauf aus Bestand" and the sales so far. Only with the right to see
+  purchase prices (asset_context in material/asset_views.py). Expects: item, asset (the valuation of today), asset_state,
+  asset_cost, asset_form, asset_may_change, asset_may_sell, asset_sales.
+{% endcomment %}
+<section class="panel" id="asset" aria-labelledby="asset-title">
+  <div class="panel-head">
+    <h2 id="asset-title">{% translate "Asset accounting" %}</h2>
+    {% if asset_may_sell %}<div class="actions"><a class="btn secondary small" href="{% url 'material:item_sell' item.pk %}">{% icon "invoice" %}{% translate "Sell from stock" %}</a></div>{% endif %}
+  </div>
+  <div class="panel-body">
+    {% if item.asset_kind %}
+    <dl class="facts">
+      <dt>{% translate "Kind of asset" %}</dt><dd>{{ item.get_asset_kind_display }}{% if item.asset_kind == "fixed_asset" and item.useful_life_months %} · {% blocktranslate with months=item.useful_life_months %}useful life {{ months }} months{% endblocktranslate %}{% endif %}</dd>
+      <dt>{% translate "Date of purchase" %}</dt><dd>{{ item.purchase_date_text|default:"–" }}{% if item.purchase_date and item.purchase_date_precision != "day" %} <span class="muted small">({% translate "the depreciation starts with the first month of the known period" %})</span>{% endif %}</dd>
+      <dt>{% translate "Acquisition cost (net)" %}</dt><dd>{{ asset_cost|money|default:"–" }}{% if item.material_model.is_bulk %} <span class="muted small">({% translate "of the whole row" %})</span>{% endif %}</dd>
+      {% if asset.accumulated is not None %}<dt>{% blocktranslate with date=asset.as_of|date:"d.m.Y" %}Depreciation until {{ date }}{% endblocktranslate %}</dt><dd>{{ asset.accumulated|money }}</dd>{% endif %}
+      <dt>{% blocktranslate with date=asset.as_of|date:"d.m.Y" %}Book value on {{ date }}{% endblocktranslate %}</dt><dd>{% if asset.book_value is not None %}<strong>{{ asset.book_value|money }}</strong>{% else %}–{% endif %}</dd>
+      <dt>{% translate "State" %}</dt><dd>{{ asset_state|default:"–" }}</dd>
+    </dl>
+    {% if asset.rows %}
+    <h3>{% translate "Depreciation per year" %}</h3>
+    <table class="table stack">
+      <thead><tr><th scope="col">{% translate "Year" %}</th><th scope="col" class="num">{% translate "Months" %}</th><th scope="col" class="num">{% translate "Depreciation" %}</th><th scope="col" class="num">{% translate "Depreciation so far" %}</th><th scope="col" class="num">{% translate "Book value on 31 December" %}</th></tr></thead>
+      <tbody>{% for row in asset.rows %}
+        <tr><th scope="row" data-label="{% translate 'Year' %}">{{ row.year }}</th><td class="num" data-label="{% translate 'Months' %}">{% if row.months %}{{ row.months }}{% else %}–{% endif %}</td><td class="num" data-label="{% translate 'Depreciation' %}">{{ row.depreciation|money }}</td><td class="num" data-label="{% translate 'Depreciation so far' %}">{{ row.accumulated|money }}</td><td class="num" data-label="{% translate 'Book value on 31 December' %}">{{ row.book_value|money }}</td></tr>
+      {% endfor %}</tbody>
+    </table>
+    {% endif %}
+    <p class="muted small">{% translate "Simplified standard setting, no tax advice: fixed assets are written off in a straight line by month (the month of purchase counts in full), low-value assets completely at the end of the year of purchase. Degressive depreciation and special depreciation are not covered." %}</p>
+    {% else %}
+    <p class="muted">{% translate "This item is not recorded as an asset, so it has no book value. Items booked in from an incoming invoice are recorded automatically; for an older item you can do it here." %}</p>
+    {% endif %}
+
+    {% if asset_sales %}
+    <h3>{% translate "Sales from stock" %}</h3>
+    <ul class="plain-list">{% for sale in asset_sales %}
+      <li><a href="{% url 'material:sale_detail' sale.pk %}">{{ sale.sold_on|date:"d.m.Y" }}</a> – {{ sale.buyer_name }}, {{ sale.net_price|money }}{% if sale.is_cancelled %} <span class="badge">{% translate "reversed" %}</span>{% endif %}</li>
+    {% endfor %}</ul>
+    {% endif %}
+
+    {% if asset_form %}
+    <details class="section"{% if asset_form.errors %} open{% endif %}>
+      <summary>{% if item.asset_kind %}{% translate "Change the asset data" %}{% else %}{% translate "Record as asset" %}{% endif %}</summary>
+      <form method="post" action="{% url 'material:item_asset' item.pk %}" class="form" autocomplete="off" novalidate>
+        {% csrf_token %}{% include "core/_required_note.html" with form=asset_form %}
+        <div class="form-grid">
+          {% include "core/_field.html" with field=asset_form.asset_kind %}
+          {% include "core/_field.html" with field=asset_form.useful_life_months %}
+          {% include "core/_field.html" with field=asset_form.ancillary_cost_net %}
+          {% include "core/_field.html" with field=asset_form.acquisition_cost_net %}
+        </div>
+        <div class="btn-row"><button class="btn" type="submit">{% translate "Save asset data" %}</button></div>
+      </form>
+    </details>
+    {% endif %}
+  </div>
+</section>

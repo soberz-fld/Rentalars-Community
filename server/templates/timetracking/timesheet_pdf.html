@@ -1,0 +1,66 @@
+{% load i18n rentalars %}<!doctype html>
+{% get_current_language as LANGUAGE_CODE %}<html lang="{% if LANGUAGE_CODE == 'en' %}en-GB{% else %}{{ LANGUAGE_CODE }}{% endif %}">
+<head>
+<meta charset="utf-8">
+<title>{% translate "Timesheet" %}</title>
+<style>
+  /* The timesheet on paper (ZEI-017). Rendered to PDF by WeasyPrint. */
+  @font-face { font-family: "Barlow"; font-weight: 400; src: url("{{ fonts.regular }}"); }
+  @font-face { font-family: "Barlow"; font-weight: 600; src: url("{{ fonts.semibold }}"); }
+  @font-face { font-family: "Barlow Condensed"; font-weight: 600; src: url("{{ fonts.condensed }}"); }
+  @page {
+    size: A4; margin: 16mm 14mm 18mm;
+    @bottom-left { content: "{{ company.name|css_string }}"; font: 8pt "Barlow"; color: #555; }
+    @bottom-right { content: "{% translate 'Page' %} " counter(page) " / " counter(pages); font: 8pt "Barlow"; color: #555; }
+  }
+  body { font-family: "Barlow", sans-serif; font-size: 10pt; color: #111; line-height: 1.35; }
+  h1 { font-family: "Barlow Condensed", sans-serif; font-size: 24pt; margin: 0; line-height: 1; }
+  .head { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1.5pt solid #111; padding-bottom: 4mm; margin-bottom: 4mm; }
+  .head .company { text-align: right; font-size: 9pt; color: #444; }
+  h2 { font-family: "Barlow Condensed", sans-serif; font-size: 13pt; margin: 6mm 0 1mm; border-bottom: 0.5pt solid #999; padding-bottom: 0.5mm; break-after: avoid; }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; font-size: 8pt; font-weight: 600; color: #555; padding: 1mm 1.5mm; border-bottom: 0.5pt solid #999; }
+  td { padding: 1.4mm 1.5mm; border-bottom: 0.3pt solid #ccc; vertical-align: top; }
+  tr { break-inside: avoid; }
+  .num { text-align: right; white-space: nowrap; }
+  .sum td { font-weight: 600; border-top: 0.5pt solid #111; border-bottom: 0; }
+  .note { color: #444; font-size: 9pt; }
+  /* ZEI-018: hints at conspicuous entries, printed under the entry. */
+  .hint { color: #7a4b00; font-size: 8pt; }
+  .total { margin-top: 6mm; text-align: right; font-size: 12pt; font-weight: 600; }
+  .sign { margin-top: 14mm; display: grid; grid-template-columns: 1fr 1fr; gap: 12mm; break-inside: avoid; }
+  .sign div { border-top: 0.5pt solid #111; padding-top: 1mm; font-size: 8pt; color: #555; }
+</style>
+</head>
+<body>
+  <div class="head">
+    <div><h1>{% translate "Timesheet" %}</h1>{% if period %}<div>{{ period }}</div>{% endif %}</div>
+    <div class="company"><strong>{{ company.name }}</strong><br>{% translate "Printed" %} {{ printed_at|date:"d.m.Y H:i" }}</div>
+  </div>
+  {% for row in report.rows %}
+  <h2>{{ row.label }}</h2>
+  <table>
+    <thead><tr><th>{% translate "Day" %}</th>{% if report.group_by != "person" %}<th>{% translate "Person" %}</th>{% endif %}{% if report.group_by != "project" %}<th>{% translate "Project" %}</th>{% endif %}<th>{% translate "Job function" %}</th><th>{% translate "Time" %}</th><th class="num">{% translate "Break" %}</th><th class="num">{% translate "Hours" %}</th><th>{% translate "Status" %}</th></tr></thead>
+    <tbody>
+    {% for entry in row.entries %}
+      <tr>
+        <td>{{ entry.start|date:"D d.m.Y" }}</td>
+        {% if report.group_by != "person" %}<td>{{ entry.person.name }}</td>{% endif %}
+        {% if report.group_by != "project" %}<td>{{ entry.project_label }}</td>{% endif %}
+        <td>{{ entry.job_function.name }}{% if entry.note %}<div class="note">{{ entry.note }}</div>{% endif %}{% for hint in entry.hints %}<div class="hint">{% translate "Hint:" %} {{ hint.message }}</div>{% endfor %}</td>
+        <td>{{ entry.start|date:"H:i" }} – {{ entry.end|date:"H:i" }}</td>
+        <td class="num">{% if entry.break_minutes %}{{ entry.break_minutes }} min{% endif %}</td>
+        <td class="num">{{ entry.hours|number }}</td>
+        <td>{{ entry.get_status_display }}</td>
+      </tr>
+    {% endfor %}
+      <tr class="sum"><td colspan="{% if report.group_by == "person" or report.group_by == "project" %}5{% else %}6{% endif %}">{% translate "Sum" %}{% if row.amount is not None %} ({{ row.amount|money }}){% endif %}</td><td class="num">{{ row.hours|number }}</td><td></td></tr>
+    </tbody>
+  </table>
+  {% empty %}
+  <p>{% translate "No times in this selection." %}</p>
+  {% endfor %}
+  {% if report.rows %}<div class="total">{% translate "Total" %}: {{ report.total_hours|number }} {% translate "h" %}{% if report.total_amount is not None %} – {{ report.total_amount|money }}{% endif %}</div>{% endif %}
+  <div class="sign"><div>{% translate "Date, signature" %}</div><div>{% translate "Approved by, date" %}</div></div>
+</body>
+</html>

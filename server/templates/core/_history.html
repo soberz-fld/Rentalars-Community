@@ -1,0 +1,19 @@
+{% load i18n %}
+{# Expects "history": a list of core.history.HistoryItem #}
+{% if history %}
+<ul class="history">
+  {% for item in history %}
+  <li>
+    <div><div class="when">{{ item.entry.timestamp|date:"d.m.Y H:i" }}</div><div class="who">{{ item.actor }}</div></div>
+    <div>
+      <div><span class="muted">{{ item.object_label }}</span> {{ item.object_name }}: {{ item.summary }}</div>
+      {% for change in item.changes %}
+      <div class="change">{{ change.label }}: <del>{{ change.old }}</del> → {{ change.new }}</div>
+      {% endfor %}
+    </div>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<div class="empty">{% translate "No changes recorded yet." %}</div>
+{% endif %}

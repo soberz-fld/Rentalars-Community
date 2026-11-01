@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}{% if product %}{{ product.article_number }}{% else %}{% translate "New product" %}{% endif %}{% endblock %}
+{% block content %}
+<div class="page-head"><div><div class="breadcrumb"><a href="{% url 'products:list' %}">{% translate "Products" %}</a></div><h1>{% if product %}<span class="artno">{{ product.article_number }}</span> {{ product.name }}{% else %}{% translate "New product" %}{% endif %}</h1>
+{% if duplicate_of %}<p class="lead">{% blocktranslate with number=duplicate_of.article_number name=duplicate_of.name %}A copy of {{ number }} {{ name }}, with the next free article number. Nothing is saved before “Save product”.{% endblocktranslate %}</p>
+{% elif not product %}<p class="lead">{% translate "Choose the kind first, then the category: it suggests the next free article number and sensible presets." %}</p>{% endif %}</div></div>
+<form method="post" class="form wide" novalidate>
+  {% csrf_token %}
+  {% include "core/_form_errors.html" %}
+  {# PRD-048: the product the new one is made from – its kit components are taken over on saving. #}
+  {% if duplicate_of %}<input type="hidden" name="duplicate" value="{{ duplicate_of.pk }}">{% endif %}
+  <div class="panel"><div class="panel-body">
+    <div class="form-grid">
+      {# PRD-046: the kind first, then the category – those that preset the kind come first. #}
+      {% include "core/_field.html" with field=form.kind %}
+      <div class="field{% if form.category.errors %} has-error{% endif %}">
+        <label for="{{ form.category.id_for_label }}">{{ form.category.label }} <span class="required" aria-hidden="true">*</span></label>
+        {# PRD-049: in the form of an existing product (e.g. made from a model, MAT-051) the category brings its article number. #}
+        <select name="{{ form.category.html_name }}" id="{{ form.category.id_for_label }}"{% if not product %} data-reload-fields="kind category owner{% if duplicate_of %} duplicate{% endif %}"{% else %} hx-get="{% url 'products:article_number' product.pk %}" hx-trigger="change" hx-target="#article-number-field" hx-swap="outerHTML"{% endif %}>
+          <option value=""{% if not form.category.value %} selected{% endif %}>{% translate "– please choose –" %}</option>
+          {% for group, choices in form.category_groups %}{% if group %}<optgroup label="{{ group }}">{% endif %}
+          {% for value, label in choices %}<option value="{{ value }}"{% if form.category.value|stringformat:"s" == value|stringformat:"s" %} selected{% endif %}>{{ label }}</option>{% endfor %}
+          {% if group %}</optgroup>{% endif %}{% endfor %}
+        </select>
+        {{ form.category.errors }}
+      </div>
+      {% include "products/_article_number.html" %}
+      {% include "core/_field.html" with field=form.name %}
+      {# PRD-043: customer material – the customer it belongs to, typed with suggestions. #}
+      <div data-show-if="{{ form.customer_material_condition }}"{% if not form.shows_customer_material %} class="hidden"{% endif %}>{% url 'customers:suggest' as customer_url %}{% translate "Name, number or city" as customer_placeholder %}{% include "core/_typeahead_field.html" with field=form.owner url=customer_url text=form.owner_text placeholder=customer_placeholder %}</div>
+      {% include "core/_field.html" with field=form.unit %}
+      {% include "core/_field.html" with field=form.gtin %}
+    </div>
+  </div></div>
+
+  {# PRD-043: customer material has no price; it is taken along to the owner's projects. #}
+  <div class="panel{% if not form.shows_customer_material %} hidden{% endif %}" data-show-if="{{ form.customer_material_condition }}">
+    <div class="panel-head"><h2>{% translate "Customer material" %}</h2></div>
+    <div class="panel-body"><p class="note">{% translate "This material belongs to the customer named above. It has no price, is planned only in that customer's projects and appears on offers and packing lists as taken along, without charge." %}</p></div>
+  </div>
+  <div class="panel{% if form.shows_customer_material %} hidden{% endif %}" data-show-if="{{ form.own_material_condition }}">
+    <div class="panel-head"><h2>{% translate "Price and billing" %}</h2></div>
+    <div class="panel-body">
+      {% if not form.price %}<p class="note">{% translate "Your account cannot see or set prices. Ask someone with the price right to enter them." %}</p>{% endif %}
+      <div class="form-grid">
+        {# LOG-002, LOG-005: a vehicle of the fleet – a motor vehicle per kilometre, a trailer per day or per kilometre. #}
+        {% with conditions=form.vehicle_conditions %}
+        <div data-show-if="{{ conditions.vehicle }}">{% include "core/_field.html" with field=form.vehicle_type %}</div>
+        <div data-show-if="{{ conditions.trailer }}">{% include "core/_field.html" with field=form.trailer_billing %}</div>
+        {% if form.price_per_km %}<div data-show-if="{{ conditions.vehicle }}">{% include "core/_field.html" with field=form.price_per_km %}</div>{% endif %}
+        {% if form.trailer_surcharge_per_km %}<div data-show-if="{{ conditions.car }}">{% include "core/_field.html" with field=form.trailer_surcharge_per_km %}</div>{% endif %}
+        {% if form.price %}
+          {# PRD-047: a sale product has its sale price, every other product its price. #}
+          <div data-show-if="{{ conditions.price }}">{% include "core/_field.html" with field=form.price %}</div>
+          <div data-show-if="kind=sale"{% if form.kind.value != "sale" %} class="hidden"{% endif %}>{% include "core/_field.html" with field=form.sale_price %}</div>
+        {% endif %}
+        {# LOG-010: what a kilometre or a day of a trailer costs the company – with the right to see purchase prices. #}
+        {% if form.cost_per_km %}<div data-show-if="{{ conditions.vehicle }}">{% include "core/_field.html" with field=form.cost_per_km %}</div>{% endif %}
+        {% if form.cost_per_day %}<div data-show-if="{{ conditions.trailer }}">{% include "core/_field.html" with field=form.cost_per_day %}</div>{% endif %}
+        {% include "core/_field.html" with field=form.tax_rate %}
+        <div data-show-if="{{ conditions.billing_mode }}">{% include "core/_field.html" with field=form.billing_mode %}</div>
+        <div data-show-if="{{ conditions.rental_scale_mode }}">{% include "core/_field.html" with field=form.rental_scale_mode %}</div>
+        {% endwith %}
+        <div data-show-if="rental_scale_mode=custom">{% include "core/_field.html" with field=form.rental_scale %}</div>
+        <div data-show-if="kind=surcharge">{% include "core/_field.html" with field=form.surcharge_type %}</div>
+        {% if form.surcharge_percent %}<div data-show-if="surcharge_type=percent">{% include "core/_field.html" with field=form.surcharge_percent %}</div>{% endif %}
+        {% if form.max_discount_percent %}{% include "core/_field.html" with field=form.max_discount_percent %}{% endif %}
+        {# PER-035: hour tiers per day – only for services billed by the hour. #}
+        {% if form.hours_limit %}<div data-show-if="kind=service">{% include "core/_field.html" with field=form.hours_limit %}</div>{% endif %}
+        {% if form.price_above_limit %}<div data-show-if="kind=service">{% include "core/_field.html" with field=form.price_above_limit %}</div>{% endif %}
+        {# PER-009: a service can exclude its crew lines from the surcharges for night, Sunday and holidays. #}
+        {% if form.time_surcharges %}<div data-show-if="kind=service">{% include "core/_field.html" with field=form.time_surcharges %}</div>{% endif %}
+      </div>
+      {# LOG-001: vehicles are planned under "Logistik"; their vehicles are the items of their material models. #}
+      <p class="note{% if form.kind.value != "vehicle" %} hidden{% endif %}" data-show-if="kind=vehicle">{% translate "A vehicle is planned under Logistics in the project, not as material. Its vehicles and trailers are the items of the material models assigned to it; they are listed under Material → Fleet." %}</p>
+      {# PRD-044: a service belongs to exactly one job function of the same name. #}
+      <p class="note{% if form.kind.value != "service" %} hidden{% endif %}" data-show-if="kind=service">{% if product and product.service_job_function %}{% blocktranslate with function=product.service_job_function.name %}This service belongs to the job function {{ function }}: it is planned under Personnel, and its crew lines take price, tax rate and the limit of hours per day from here.{% endblocktranslate %}{% else %}{% translate "A service belongs to exactly one job function of the personnel: saving creates the job function with the same name. Services are planned under Personnel, not as material." %}{% endif %}</p>
+      {% if form.calculation_note %}{% include "core/_field.html" with field=form.calculation_note %}{% endif %}
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head"><h2>{% translate "Texts and availability" %}</h2></div>
+    <div class="panel-body">
+      {% include "core/_field.html" with field=form.description %}
+      {% include "core/_field.html" with field=form.note %}
+      <div class="form-grid">
+        {% include "core/_field.html" with field=form.buffer_before_hours %}
+        {% include "core/_field.html" with field=form.buffer_after_hours %}
+        {% include "core/_field.html" with field=form.minimum_stock %}
+        <div data-show-if="kind=rental|sale"{% if form.kind.value != "rental" and form.kind.value != "sale" %} class="hidden"{% endif %}>{% include "core/_field.html" with field=form.pieces_per_product %}</div>
+        {% include "core/_field.html" with field=form.is_active %}
+      </div>
+    </div>
+  </div>
+  {% if duplicate_components %}{# PRD-048: the components of a kit come along when saving. #}
+  <div class="panel">
+    <div class="panel-head"><h2>{% translate "Components of the kit" %}</h2></div>
+    <div class="panel-body"><p class="note">{% translate "Saving takes over the components of the kit as well:" %} {% for component in duplicate_components %}{{ component.quantity }} × <span class="artno">{{ component.component.article_number }}</span> {{ component.component.name }}{% if not forloop.last %}, {% endif %}{% endfor %}</p></div>
+  </div>
+  {% endif %}
+  <div class="btn-row"><button class="btn" type="submit">{% translate "Save product" %}</button><a class="btn secondary" href="{% if product %}{% url 'products:detail' product.pk %}{% elif duplicate_of %}{% url 'products:detail' duplicate_of.pk %}{% else %}{% url 'products:list' %}{% endif %}">{% translate "Cancel" %}</a></div>
+</form>
+{% endblock %}

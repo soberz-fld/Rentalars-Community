@@ -1,0 +1,30 @@
+{% load static i18n %}{% get_current_language as LANGUAGE_CODE %}<!doctype html>
+<html lang="{% if LANGUAGE_CODE == 'en' %}en-GB{% else %}{{ LANGUAGE_CODE }}{% endif %}" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  {# The dark theme in the house colours (UIX-008); "light" is prepared in app.css. #}
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#0d0d0d">
+  <title>{% block title %}Rentalars{% endblock %} – Rentalars</title>
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+  {# UIX-016: the logo of Rentalars, also as the icon of the tab and of the home screen. #}
+  <link rel="icon" href="{% static 'img/favicon.svg' %}" type="image/svg+xml">
+  <link rel="icon" href="{% static 'img/favicon-32.png' %}" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="{% static 'img/apple-touch-icon.png' %}">
+</head>
+<body>
+<div class="public">
+  {# Logo, box and footer stand in one column as wide as the window allows; each is centred in it (fix). #}
+  <div class="public-column">
+    <div class="public-brand"><img src="{% static 'img/logo-128.png' %}" srcset="{% static 'img/logo-256.png' %} 2x" width="88" height="88" alt="Rentalars"></div>
+    <div class="public-card{% block card_class %}{% endblock %}">
+      {% include "core/_messages.html" %}
+      {% block content %}{% endblock %}
+    </div>
+    {# UIX-031: the version, and who made Rentalars – NFA-075: an author attribution under GPL section 7 b, see ADDITIONAL-TERMS.md. #}
+    <p class="public-foot">Rentalars {{ rentalars_version }} · {% include "core/_credit.html" %} · <a href="{% url 'core:about' %}">{% translate "About" context "credit" %}</a></p>
+  </div>
+</div>
+</body>
+</html>

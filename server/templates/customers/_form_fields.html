@@ -1,0 +1,22 @@
+{% load i18n %}{# The fields of a customer, on the page and in the dialog of the project form (PRJ-070). #}
+<div class="form-grid">
+  {% include "core/_field.html" with field=form.kind %}
+  {% include "core/_field.html" with field=form.name %}
+  {% include "core/_field.html" with field=form.name_addition %}
+  {% include "core/_field.html" with field=form.street %}
+  {% include "core/_field.html" with field=form.postal_code %}
+  {% include "core/_field.html" with field=form.city %}
+  {% include "core/_field.html" with field=form.country %}
+  {% include "core/_field.html" with field=form.email %}
+  {% include "core/_field.html" with field=form.phone %}
+</div>
+{% if form.confirm_duplicate %}<div id="duplicates" aria-live="polite">{% include "customers/_duplicates.html" %}</div>{% endif %}
+<h3 class="spaced">{% translate "Commercial details" %}</h3>
+<div class="form-grid">
+  {% include "core/_field.html" with field=form.vat_id %}
+  {% include "core/_field.html" with field=form.tax_number %}
+  {% include "core/_field.html" with field=form.buyer_reference %}
+  {% include "core/_field.html" with field=form.payment_terms_days %}
+  {% if form.default_discount_percent %}{% include "core/_field.html" with field=form.default_discount_percent %}{% endif %}
+</div>
+{% include "core/_field.html" with field=form.note %}

@@ -1,0 +1,15 @@
+{% comment %}
+  One group in the tree of the planning (PRJ-037): its own section, its subgroups, and – if it has any – its
+  subtotal with the subgroups below them. Expects: group (PlannedGroup). Includes itself for the subgroups.
+  The section and the subtotal carry ids of their own, so that a patch can replace them one by one without
+  touching the subgroups (see _planning_patch.html); the wrapper elements stay in place.
+{% endcomment %}
+<div class="group-node" data-group-node="{{ group.group.pk }}" data-depth="{{ group.depth }}">
+  {% include "projects/_group.html" %}
+  {% if group.children or can_edit and group.can_take_subgroups %}
+  <div class="group-children" id="group-children-{{ group.group.pk }}" data-group-tree data-parent="{{ group.group.pk }}">
+    {% for child in group.children %}{% include "projects/_group_node.html" with group=child %}{% endfor %}
+  </div>
+  {% endif %}
+  {% if group.children %}{% include "projects/_group_total.html" %}{% endif %}
+</div>

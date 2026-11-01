@@ -1,0 +1,51 @@
+{% load i18n rentalars maps %}
+{% comment %}
+  PRJ-097: the trips of the project, determined from its phases and addresses (projects/trips.py) – warehouse to the
+  venue and back at setup and teardown, the pickup at the suppliers of subrentals marked "picked up at the
+  supplier" at packing and their return at the follow-up work. Every trip has a route link into Google Maps
+  (UIX-033); no distance is computed. Below, the map of the places (UIX-034). Shown on "Zeitplanung" and on
+  "Überblick" for the drivers.
+  PRJ-111: on "Zeitplanung", whoever may change the project (can_change_trips) changes a trip in a dialog,
+  removes it, resets a changed one, brings a removed one back and adds trips of their own; changed and own trips are
+  marked, a note goes to the drivers as well.
+{% endcomment %}
+<section class="panel trips-panel" id="trips">
+  <div class="panel-head"><h2>{% translate "Trips" %}</h2>{% if can_change_trips %}<a class="btn secondary small" href="{% url 'projects:trip_add' project.pk %}" hx-get="{% url 'projects:trip_add' project.pk %}" hx-target="#dialog">{% icon "plus" %}{% translate "Add trip" %}</a>{% endif %}</div>
+  {% if trips %}
+  <table class="table stack trips">
+    <thead><tr><th>{% translate "When" %}</th><th>{% translate "Trip" %}</th><th>{% translate "Route" %}</th><th><span class="visually-hidden">{% translate "Route in Google Maps" %}</span></th>{% if can_change_trips %}<th><span class="visually-hidden">{% translate "Change" %}</span></th>{% endif %}</tr></thead>
+    <tbody>
+    {% for trip in trips %}
+      <tr data-trip="{{ trip.key }}">
+        <td class="nowrap">{{ trip.start|date:"D d.m. H:i" }}</td>
+        <td data-label="{% translate 'Trip' %}"><strong>{{ trip.title }}</strong>{% if trip.is_own %} <span class="badge">{% translate "own trip" %}</span>{% elif trip.is_changed %} <span class="badge yellow">{% translate "changed" context "trip" %}</span>{% endif %}{% if trip.phase %}<div class="muted small">{% translate "Phase" %}: {{ trip.phase.label }}</div>{% endif %}{% if trip.note %}<div class="small trip-note">{{ trip.note|linebreaksbr }}</div>{% endif %}{% for vehicle in trip.vehicles %}<div class="small trip-vehicle-name">{% icon "route" %}{{ vehicle }}</div>{% endfor %}</td>
+        <td data-label="{% translate 'Route' %}">
+          <span class="trip-route">{% for place in trip.places %}<span class="trip-stop">{{ place.label }}</span>{% if not forloop.last %} <span aria-hidden="true">→</span><span class="visually-hidden">{% translate "then" %}</span> {% endif %}{% endfor %}</span>
+          {% if not for_crew %}{% for problem in trip.problems %}<div class="small trip-problem">{% icon "alert" %}{{ problem }}</div>{% endfor %}{% endif %}
+        </td>
+        <td>{% if trip.route_url %}<a class="route-link" href="{{ trip.route_url }}" target="_blank" rel="noopener noreferrer">{% icon "route" %}{% translate "Route in Google Maps" %}<span class="visually-hidden"> {% blocktranslate with trip=trip.title %}for “{{ trip }}” (opens Google Maps in a new tab){% endblocktranslate %}</span></a>{% endif %}</td>
+        {% if can_change_trips %}
+        <td class="actions">
+          <a class="icon-btn" href="{% url 'projects:trip_edit' project.pk trip.key %}" hx-get="{% url 'projects:trip_edit' project.pk trip.key %}" hx-target="#dialog" aria-label="{% blocktranslate with trip=trip.title %}Change trip “{{ trip }}”{% endblocktranslate %}" title="{% translate 'Change trip' %}">{% icon "edit" %}</a>
+          {% if trip.is_changed %}<form method="post" action="{% url 'projects:trip_reset' project.pk trip.key %}" class="inline-form">{% csrf_token %}<button class="link-btn small" type="submit" data-confirm="{% translate 'Bring back the trip as Rentalars determines it? Your changes are lost.' %}">{% translate "Reset" %}</button></form>{% endif %}
+          <form method="post" action="{% url 'projects:trip_remove' project.pk trip.key %}" class="inline-form">{% csrf_token %}<button class="icon-btn" type="submit" aria-label="{% blocktranslate with trip=trip.title %}Remove trip “{{ trip }}”{% endblocktranslate %}" title="{% translate 'Remove trip' %}" data-confirm="{% if trip.is_own %}{% translate 'Remove this trip for good?' %}{% else %}{% translate 'Remove this trip? It stays removed until you bring it back.' %}{% endif %}">{% icon "trash" %}</button></form>
+        </td>
+        {% endif %}
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty"><strong>{% translate "No trips yet." %}</strong>{% translate "Trips come from the phases setup and teardown with their place, and from subrentals picked up at the supplier – fetched at packing, brought back at the follow-up work." %}</div>
+  {% endif %}
+  {% if removed_trips %}
+  {# PRJ-111: removed trips stay removed, however the phases change – until they are brought back. #}
+  <div class="panel-body removed-trips">
+    <p class="small"><strong>{% translate "Removed trips" %}:</strong></p>
+    <ul class="removed-trip-list small">
+      {% for trip in removed_trips %}<li><span class="muted">{{ trip.start|date:"D d.m. H:i" }}</span> {{ trip.title }} <form method="post" action="{% url 'projects:trip_reset' project.pk trip.key %}" class="inline-form">{% csrf_token %}<button class="link-btn" type="submit">{% translate "Bring back" %}</button></form></li>{% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+  {% if has_places %}<div class="panel-body">{% map_box "project" project.pk %}</div>{% endif %}
+</section>

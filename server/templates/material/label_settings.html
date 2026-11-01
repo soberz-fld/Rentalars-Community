@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Labels" %}{% endblock %}
+{% block content %}
+{% comment %}
+  MAT-056: Einstellungen → Etiketten. What the labels small (17 × 54 mm), large (29 × 90 mm) and cable
+  (29 mm roll) show – logo, names, phone, web address, the text for finders, the text around a cable and where the
+  QR code leads. The layout is that of the operator's P-touch templates; the preview shows the item 0427.
+{% endcomment %}
+<div class="page-head"><div><div class="breadcrumb"><a href="{% url 'core:administration' %}">{% translate "Settings" %}</a></div><h1>{% translate "Labels" %}</h1></div>
+  <div class="actions"><a class="btn secondary" href="{% url 'material:labels' %}">{% icon "tag" %}{% translate "Make labels" %}</a></div>
+</div>
+<p class="tab-lead">{% translate "Three labels for Brother label printers are ready: small 17 × 54 mm (DK-11204), large 29 × 90 mm (DK-11201) and the cable label on the 29 mm roll (DK-22210). They are printed straight from the browser. Here you set what they show." %}</p>
+<div class="label-settings">
+<form method="post" enctype="multipart/form-data" class="form panel" novalidate>
+  {% csrf_token %}
+  <div class="panel-body">
+    {% include "core/_form_errors.html" %}
+    <fieldset{% if not can_write %} disabled{% endif %}>
+      <div class="form-grid">
+        {% include "core/_field.html" with field=form.company_name %}
+        {% include "core/_field.html" with field=form.cable_name %}
+      </div>
+      {% include "core/_field.html" with field=form.logo %}
+      <div class="form-grid">
+        {% include "core/_field.html" with field=form.phone_caption %}
+        {% include "core/_field.html" with field=form.phone %}
+        {% include "core/_field.html" with field=form.id_caption %}
+        {% include "core/_field.html" with field=form.url %}
+      </div>
+      {% include "core/_field.html" with field=form.notice %}
+      {% include "core/_field.html" with field=form.wrap_text %}
+      {% include "core/_field.html" with field=form.qr_target %}
+      <div class="form-grid">
+        {% include "core/_field.html" with field=form.default_kind %}
+        {% include "core/_field.html" with field=form.cable_length_mm %}
+      </div>
+    </fieldset>
+  </div>
+  {% if can_write %}<div class="panel-body btn-row"><button class="btn" type="submit">{% translate "Save" %}</button></div>{% endif %}
+</form>
+<section class="panel" aria-labelledby="label-preview-title">
+  <div class="panel-head"><h2 id="label-preview-title">{% translate "Preview" %}</h2><span class="muted small">{% translate "Item 0427, as saved" %}</span></div>
+  <div class="panel-body label-previews">
+    {% for kind, name, label in previews %}
+    <figure class="label-preview-figure">
+      <figcaption>{{ name }}</figcaption>
+      <div class="label-preview-frame kind-{{ kind }}" style="--label-width: {{ label.width_mm|stringformat:'g' }}mm; --label-height: {{ label.height_mm|stringformat:'g' }}mm;">
+        <div class="label-preview">{% include "material/_label_parts.html" %}{% if label.printable %}<div class="printable-area" style="{{ label.printable.style }}" aria-hidden="true"></div>{% endif %}</div>
+      </div>
+      {# MAT-065: the blank start of the cable label, as in the template – shortened only on a short label. #}
+      {% if label.lead_in_mm %}<p class="muted small label-lead-in">{% blocktranslate with length=label.lead_in_mm|floatformat:0 %}Blank start (the first wrap, covered by the next ones): {{ length }} mm.{% endblocktranslate %}{% if label.lead_in_shortened %} {% translate "Shortened – the label is too short for the 18 mm of the template; a longer label keeps it." %}{% endif %}</p>{% endif %}
+    </figure>
+    {% endfor %}
+    {# MAT-065: the printable area of the Brother printer – every part lies inside it. #}
+    <p class="muted small">{% translate "The dashed line marks what the label printer can print; it is not printed." %}</p>
+  </div>
+</section>
+</div>
+{% endblock %}

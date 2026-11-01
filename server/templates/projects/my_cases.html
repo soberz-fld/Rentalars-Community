@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "My service cases" %}{% endblock %}
+{% block content %}
+{% comment %}
+  PRJ-108: My area → Service cases – the cases the user takes part in or is responsible for; not done, with "done"
+  and – PRJ-112 – the backlog not due yet on request. A table of core.tables: columns, sorting, CSV, grouping by status.
+{% endcomment %}
+<div class="page-head"><div><h1>{% translate "My area" %}</h1></div></div>
+{% include "personnel/_my_tabs.html" with tab="cases" %}
+<p class="tab-lead">{% translate "The service cases you take part in or are responsible for. Record your times on them under “My times”." %}</p>
+<div class="panel">
+  <form method="get" class="filters">
+    {% for name, value in table.kept_parameters %}{% if name != "done" and name != "backlog" %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endif %}{% endfor %}
+    {% if table.group %}<input type="hidden" name="{{ table.group_param }}" value="{{ table.group.key }}">{% endif %}
+    {% filterpanel "my-cases" %}
+    <div class="field"><label class="check"><input type="checkbox" name="done" value="1"{% if with_done %} checked{% endif %} data-autosubmit> {% translate "also done ones" %}</label></div>
+    {# PRJ-112: the backlog shows here only once its follow-up is due – or with this. #}
+    <div class="field"><label class="check"><input type="checkbox" name="backlog" value="1"{% if with_backlog %} checked{% endif %} data-autosubmit> {% translate "also the backlog" %}</label></div>
+    <button class="btn secondary" type="submit">{% translate "Filter" %}</button>
+    {% endfilterpanel %}
+  </form>
+  {% include "core/_table_tools.html" %}
+  {% if rows %}
+  {% if bulk_may %}{% include "core/_table.html" with stack=True bulk_extra="projects/_bulk_cases.html" %}{% else %}{% include "core/_table.html" with stack=True %}{% endif %}
+  {% else %}
+  <div class="empty">{% translate "You take part in no open service case." %}</div>
+  {% endif %}
+  {% include "core/_pagination.html" %}
+</div>
+{% endblock %}

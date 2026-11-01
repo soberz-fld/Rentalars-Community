@@ -1,0 +1,11 @@
+{% load i18n %}
+{% comment %}
+  PRJ-072: on every page of a project that is not confirmed yet: products were changed after the lines
+  took them over. The planning lists the changes and takes them over.
+{% endcomment %}
+{% if count %}
+<p class="note price-hint" data-product-change-hint="{{ count }}">
+  {% blocktranslate count count=count %}{{ count }} line differs from its product: the product has been changed since it was planned.{% plural %}{{ count }} lines differ from their products: the products have been changed since they were planned.{% endblocktranslate %}
+  <a href="{% url 'projects:detail' project.pk %}#product-changes">{% translate "Check and take over in the planning" %}</a>
+</p>
+{% endif %}

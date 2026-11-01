@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}{% if case %}{{ case.number }}{% else %}{% translate "New service case" %}{% endif %}{% endblock %}
+{% block content %}
+{% comment %}
+  PRJ-090: a service case with a few fields – what it is about, the customer (required, typed with
+  suggestions as in the project form), the contact or whoever reported it, a description (optional) and who takes care
+  of it. From an inquiry (Projekte → Anfragen) the mail goes into the case when it is saved.
+{% endcomment %}
+<div class="page-head"><div>
+  <div class="breadcrumb"><a href="{% url 'projects:cases' %}">{% translate "Service cases" %}</a>{% if case %} / <a href="{% url 'projects:case_detail' case %}">{{ case.number }} {{ case.name }}</a>{% endif %}</div>
+  <h1>{% if case %}{% translate "Edit service case" %}{% else %}{% translate "New service case" %}{% endif %}</h1>
+  {% if defect %}<p class="lead">{% blocktranslate with item=defect.item %}From the defect report of {{ item }}. The photo of the report goes into the files of the case.{% endblocktranslate %}</p>
+  {% elif unknown.is_manual %}<p class="lead">{% blocktranslate with subject=unknown.subject|default:"–" sender=unknown.sender|default:"–" %}From the inquiry “{{ subject }}” of {{ sender }}, noted by hand. Saving puts it as a note into the correspondence of the new case.{% endblocktranslate %}</p>{# EML-053 #}
+  {% elif unknown %}<p class="lead">{% blocktranslate with subject=unknown.subject|default:"–" sender=unknown.sender %}From the mail “{{ subject }}” of {{ sender }}. Saving takes the mail out of the inbox into the new case.{% endblocktranslate %}</p>
+  {% elif not case %}<p class="lead">{% translate "The number comes from the range of the projects. Mails with its tag in the subject land in the case." %}</p>{% endif %}
+</div></div>
+<form method="post" class="form wide" novalidate>
+  {% csrf_token %}
+  {% if unknown %}<input type="hidden" name="inquiry" value="{{ unknown.pk }}">{% elif defect %}<input type="hidden" name="defect" value="{{ defect.pk }}">{% endif %}
+  {% include "core/_form_errors.html" %}
+  <div class="panel"><div class="panel-body">
+    <div class="form-grid">
+      {% include "core/_field.html" with field=form.name %}
+      {% include "core/_field.html" with field=form.manager %}
+      {# AUT-033, AUT-034: the customer's side only for who may see customers, as on the page of the case. #}
+      {% if form.shows_customer %}<div data-show-if="is_internal=">{% url 'customers:suggest' as customer_url %}{% translate "Name, number or city" as customer_placeholder %}{% include "core/_typeahead_field.html" with field=form.customer url=customer_url text=form.customer_text placeholder=customer_placeholder refresh=request.get_full_path %}</div>{% endif %}
+    </div>
+    {% if form.shows_customer %}
+    {# MAT-057: an internal case – our own material – has no customer and no contact of one. #}
+    {% include "core/_field.html" with field=form.is_internal %}
+    {# The contacts follow the chosen customer at once. #}
+    <div id="customer-dependants" class="form-grid">
+      <div data-show-if="is_internal=">{% include "core/_field.html" with field=form.contact %}</div>
+      {% include "core/_field.html" with field=form.case_contact %}
+    </div>
+    {% endif %}
+    {% include "core/_field.html" with field=form.notes %}
+  </div></div>
+  <div class="btn-row"><button class="btn" type="submit">{% if case %}{% translate "Save service case" %}{% else %}{% translate "Create service case" %}{% endif %}</button><a class="btn secondary" href="{% if case %}{% url 'projects:case_detail' case %}{% elif unknown %}{% url 'mail:unknown_list' %}{% elif defect %}{% url 'material:item_detail' defect.item_id %}{% else %}{% url 'projects:cases' %}{% endif %}">{% translate "Cancel" %}</a></div>
+</form>
+{% endblock %}

@@ -1,0 +1,46 @@
+{% load i18n rentalars calendar_links %}
+{% comment %}
+  VFG-040: the box "Kalender-Link" on the page of a product, material model or item – none by default;
+  "Kalender-Link erstellen", then the address with "Kopieren", "Neuen Link erstellen" and "Link deaktivieren".
+  Plain forms, back to the page (#calendar-link); copying uses data-copy-block of app.js (ZEI-026) and says
+  "Kopiert" in the live region. Expects: subject (the product, model or item); request and csrf_token of the page.
+  The state comes from the tag (schedule.templatetags.calendar_links), so the views of the pages know nothing of it.
+  The address only for whoever may change the link (calendar.url is empty otherwise); a reader sees
+  that a link is active – an address without login that he could not end stays with those who can.
+{% endcomment %}
+{% calendar_link_box subject as calendar %}
+{% if calendar.shown %}
+<section class="panel" id="calendar-link" aria-labelledby="calendar-link-title">
+  <div class="panel-head"><h2 id="calendar-link-title">{% translate "Calendar link" %}</h2><span class="muted small">{% translate "iCalendar (.ics)" %}</span></div>
+  <div class="panel-body calendar-block" data-copy-scope>
+    <p class="muted">{{ calendar.shows }} {% translate "No prices, no customers, no contact data." %}</p>
+    {% if calendar.link %}
+    {% if calendar.url %}
+    <div class="field">
+      <label for="calendar-link-address">{% translate "Address for calendar programs" %}</label>
+      <div class="subscription-link"><input id="calendar-link-address" type="text" value="{{ calendar.url }}" readonly data-select-on-focus><button class="btn secondary small" type="button" data-copy-block="{{ calendar.url }}" data-copied-text="{% translate 'Copied' %}" data-failed-text="{% translate 'Copying did not work.' %}">{% icon "copy" %}{% translate "Copy" %}</button></div>
+    </div>
+    <p class="visually-hidden" role="status" aria-live="polite" data-copy-status></p>
+    <p class="help-line">{% translate "Add it in your calendar program as a subscribed calendar (“From URL”, “Subscribe to calendar”); the program must reach Rentalars for it. The address works without login – whoever knows it sees these dates. Treat it like a password; if it got into the wrong hands, create a new link." %}</p>
+    {% else %}
+    <p><strong>{% translate "A calendar link is active." %}</strong></p>
+    <p class="help-line">{% translate "Its address is shown only to those who may change the link: it works without login, and only they can end it." %}</p>
+    {% endif %}
+    {% if calendar.link.created_at %}<p class="muted small">{% if calendar.link.created_by %}{% blocktranslate with when=calendar.link.created_at|date:"d.m.Y H:i" who=calendar.link.created_by %}Created {{ when }} by {{ who }}.{% endblocktranslate %}{% else %}{% blocktranslate with when=calendar.link.created_at|date:"d.m.Y H:i" %}Created {{ when }}.{% endblocktranslate %}{% endif %}</p>{% endif %}
+    {% if calendar.may_manage %}
+    <form method="post" action="{{ calendar.action }}" class="btn-row">{% csrf_token %}
+      <button class="btn secondary small" type="submit" name="action" value="renew" data-confirm="{% translate 'Create a new link? The old address stops working at once.' %}">{% icon "refresh" %}{% translate "Create a new link" %}</button>
+      <button class="btn secondary small" type="submit" name="action" value="deactivate" data-confirm="{% translate 'Deactivate the calendar link? Its address stops working at once.' %}">{% translate "Deactivate link" %}</button>
+    </form>
+    {% endif %}
+    {% elif calendar.unavailable %}
+    <p class="help-line">{{ calendar.unavailable }}</p>
+    {% else %}
+    <p class="help-line">{% translate "No calendar link is active. Once created, it is a secret address that calendar programs subscribe to; they then show these dates and keep them up to date." %}</p>
+    {% if calendar.may_manage %}
+    <form method="post" action="{{ calendar.action }}" class="btn-row">{% csrf_token %}<button class="btn secondary small" type="submit" name="action" value="create">{% icon "calendar" %}{% translate "Create calendar link" %}</button></form>
+    {% endif %}
+    {% endif %}
+  </div>
+</section>
+{% endif %}

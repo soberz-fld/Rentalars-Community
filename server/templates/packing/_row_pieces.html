@@ -1,0 +1,13 @@
+{% load i18n %}
+{% comment %}
+  Products of several pieces: a piece of this row stands for several items ("10-pack"). The items are chosen
+  one by one (PCK-022); here it says how far that got, and that a piece with fewer items than it needs is not
+  complete. Ticking and issuing still count whole pieces – nothing depends on the choice (PCK-020).
+{% endcomment %}
+{% if row.consists_of_pieces and not row.is_subrental and not row.is_bulk %}
+<div class="meta pieces">
+  <span class="badge">{% blocktranslate with count=row.pieces_per_unit %}{{ count }} items each{% endblocktranslate %}</span>
+  {% if row.chosen %}<span class="badge{% if row.pieces_chosen < row.pieces_required %} yellow{% else %} solid{% endif %}">{% blocktranslate with chosen=row.pieces_chosen needed=row.pieces_required %}{{ chosen }} of {{ needed }} items chosen{% endblocktranslate %}</span>
+  {% if row.pieces_missing_for_next %}<span class="badge yellow">{% blocktranslate with complete=row.units_chosen total=row.required|floatformat:"0" open=row.pieces_missing_for_next count=row.pieces_per_unit %}{{ complete }} of {{ total }} complete, the next one has {{ open }} of {{ count }} items{% endblocktranslate %}</span>{% endif %}{% endif %}
+</div>
+{% endif %}

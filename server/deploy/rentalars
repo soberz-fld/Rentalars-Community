@@ -1,0 +1,115 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+# The command "rentalars" on the server – one entry point for everything an
+# administrator does on the command line. /usr/local/bin/rentalars runs it
+# (lib.sh, install_cli); the scripts below are run through bash, so a lost
+# execute bit does not stop them (NFA-069).
+#
+#   sudo rentalars backup                  write a backup now
+#   sudo rentalars restore FILE            restore a backup
+#   sudo rentalars update FILE-OR-FOLDER   install a new version
+#   sudo rentalars rollback                go back to the version before the last update
+#   sudo rentalars status                  is everything running?
+#   sudo rentalars encryption …            encryption of database and backups (status, enable,
+#                                          show-key, decrypt-backup)
+#   sudo rentalars move-database …         move the data to another database (--help)
+#   sudo rentalars nginx-site              write the NGINX site anew from the current template
+#   sudo rentalars address apply TOKEN     change address and certificate as prepared in the settings
+#                                          (ADM-016; --dry-run only shows what it would do)
+#   sudo rentalars ai install|remove|status|refresh   the local AI for summaries of the correspondence
+#                                          (EML-040; --dry-run only shows what it would do; "refresh"
+#                                          takes over the settings of a new version – every update runs it)
+#   sudo rentalars route install|update|register|remove|status   the route service that suggests the
+#                                          kilometres of trips (LOG-017; --dry-run only shows what it would do)
+#   sudo rentalars gateway connect|disconnect|status|pair|devices|revoke|rekey   the link to the Rentalars Gateway:
+#                                          the apps reach the server from the internet through the gateway;
+#                                          the direct way keeps working (docs/betrieb/gateway.md)
+#   sudo rentalars uninstall --dry-run|--keep-data|--purge   take Rentalars off this server: --dry-run only
+#                                          shows what would be removed; --keep-data removes the application and keeps
+#                                          database, files, backups and configuration; --purge removes those too,
+#                                          after explicit confirmation. Without a choice nothing happens.
+#   sudo rentalars prepare_setup           print the one-time address of the first-run setup
+#   sudo rentalars import_material FILE    import the material list (dry run without --commit)
+#   sudo rentalars help                    all commands of the application
+#
+# Everything else is passed on to the application's own "manage.py" and runs
+# as the service user, never as root.
+set -euo pipefail
+# shellcheck source=deploy/lib.sh
+source "/opt/rentalars/app/deploy/lib.sh"
+
+command="${1:-help}"
+shift || true
+
+case "${command}" in
+    backup)   exec bash "${APP_DIR}/deploy/backup.sh" "$@" ;;
+    restore)  exec bash "${APP_DIR}/deploy/restore.sh" "$@" ;;
+    update)   # The update replaces the program folder, so it must not run from inside it.
+              updater="$(mktemp)"
+              cp "${APP_DIR}/deploy/update.sh" "${updater}"
+              chmod 700 "${updater}"
+              RENTALARS_LIB="${APP_DIR}/deploy/lib.sh" exec bash "${updater}" "$@" ;;
+    rollback) updater="$(mktemp)"
+              cp "${APP_DIR}/deploy/update.sh" "${updater}"
+              chmod 700 "${updater}"
+              RENTALARS_LIB="${APP_DIR}/deploy/lib.sh" exec bash "${updater}" --rollback "$@" ;;
+    # The program folder is removed by this command, so it must not run from inside it either.
+    uninstall)     remover="$(mktemp)"
+                   cp "${APP_DIR}/deploy/uninstall.sh" "${remover}"
+                   chmod 700 "${remover}"
+                   RENTALARS_UNINSTALL_COPY="${remover}" RENTALARS_LIB="${APP_DIR}/deploy/lib.sh" exec bash "${remover}" "$@" ;;
+    encryption)    exec bash "${APP_DIR}/deploy/encryption.sh" "$@" ;;
+    move-database) exec bash "${APP_DIR}/deploy/move-database.sh" "$@" ;;
+    nginx-site)    exec bash "${APP_DIR}/deploy/nginx-site.sh" "$@" ;;
+    ai)            exec bash "${APP_DIR}/deploy/ai.sh" "$@" ;;  # EML-040, EML-044
+    route)         exec bash "${APP_DIR}/deploy/route.sh" "$@" ;;  # LOG-017
+    gateway)       exec bash "${APP_DIR}/deploy/gateway.sh" "$@" ;;  # the Rentalars Gateway
+    # ADM-016: the system's Python, isolated; deploy/address.py runs the application's part as the service user.
+    address)       require_root
+                   exec python3 -I "${APP_DIR}/deploy/address.py" "$@" ;;
+    status)
+        require_root
+        say "Rentalars $(version_of "${APP_DIR}")"
+        # On a Raspberry Pi: the device, and what lies on its SD card (NFA-070).
+        model="$(device_model "${DEVICE_MODEL_FILE}")"
+        if is_raspberry_pi "${model}"; then
+            # UIX-029: German or English, as the operator reads (lib.sh, t).
+            row 28 "$(t "Gerät" "Device")" "${model}, $(memory_text "$(memory_mb "${MEMORY_INFO_FILE}")") $(t "Arbeitsspeicher" "memory")"
+            mapfile -t on_sd_card < <(installation_places_on_sd_card)
+            if (( ${#on_sd_card[@]} > 0 )); then
+                row 28 "$(t "auf der SD-Karte" "on the SD card")" "${on_sd_card[*]} $(t "– eine SSD wäre sicherer" "– an SSD would be safer")"
+            else
+                row 28 "$(t "auf der SD-Karte" "on the SD card")" "$(t "nichts von Rentalars" "nothing of Rentalars")"
+            fi
+        fi
+        units=(rentalars nginx)
+        database_is_local && units+=(mariadb)
+        # EML-040: the local AI, where the operator installed it.
+        systemctl is-enabled --quiet rentalars-ai 2> /dev/null && units+=(rentalars-ai)
+        # The link to the Rentalars Gateway, where an administrator connected one.
+        systemctl is-enabled --quiet rentalars-gateway-link 2> /dev/null && units+=(rentalars-gateway-link)
+        for unit in "${units[@]}"; do
+            row 28 "${unit}" "$(systemctl is-active "${unit}" 2>/dev/null || true)"
+        done
+        if ! database_is_local; then
+            if database_answers; then answer="$(t "antwortet" "answers")"; else answer="$(t "ANTWORTET NICHT" "DOES NOT ANSWER")"; fi
+            row 28 "$(t "Datenbank" "Database") $(config_get database host)" "${answer}"
+        fi
+        for timer in $(rentalars_timers); do
+            row 28 "${timer}" "$(systemctl is-active "${timer}" 2>/dev/null || true)"
+        done
+        backup_dir="$(config_get backup directory "${DEFAULT_BACKUP_DIR}")"
+        newest="$(find "${backup_dir}" -maxdepth 1 \( -name 'rentalars-*.tar.gz' -o -name 'rentalars-*.tar.gz.enc' \) -printf '%T@ %p\n' 2>/dev/null | sort -n | tail -n 1 | cut -d' ' -f2-)"
+        row 28 "$(t "letzte Sicherung" "last backup")" "${newest:-$(t keine none)}"
+        if backups_encrypted; then encryption="$(t "Sicherungen verschlüsselt" "backups encrypted")"; else encryption="$(t "Sicherungen unverschlüsselt" "backups not encrypted")"; fi
+        if database_is_local; then
+            if mariadb_encryption_active; then encryption="$(t "Datenbank und" "database and") ${encryption}"; else encryption="$(t "Datenbank unverschlüsselt," "database not encrypted,") ${encryption}"; fi
+        fi
+        row 28 "$(t "Verschlüsselung" "Encryption")" "${encryption} (rentalars encryption status)"
+        row 28 "$(t "freier Speicher (Daten)" "free space (data)")" "$(df -h --output=avail "$(config_get rentalars data_dir "${DEFAULT_DATA_DIR}")" | tail -n 1 | tr -d ' ')"
+        ;;
+    *)
+        require_root
+        manage "${command}" "$@"
+        ;;
+esac

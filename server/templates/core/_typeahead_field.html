@@ -1,0 +1,16 @@
+{% load i18n rentalars %}
+{% comment %}
+  A choice by typing with suggestions instead of a long list (PRJ-070). Parameters: field (a form field whose
+  widget is hidden), url (JSON suggestions), text (what the field shows for its current value), placeholder,
+  refresh (optional: an address that is loaded into #<field name>-dependants when the value changes).
+  UIX-035: the visible text field carries the requirement of the hidden one.
+{% endcomment %}
+<div class="field{% if field.errors %} has-error{% endif %}">
+  <label for="{{ field.auto_id }}_text">{{ field.label }}{% include "core/_required_mark.html" %}</label>
+  <div class="typeahead" data-typeahead data-url="{{ url }}">
+    <input type="search" id="{{ field.auto_id }}_text" data-typeahead-input value="{{ text|default:'' }}" placeholder="{{ placeholder|default:'' }}" autocomplete="off"{% if field.help_text %} aria-describedby="{{ field.auto_id }}_help"{% endif %}{% with need=field|required_condition %}{% if need == "always" %} aria-required="true"{% elif need %} data-require-if="{{ need }}"{% endif %}{% endwith %}>
+    <input type="hidden" name="{{ field.html_name }}" id="{{ field.auto_id }}" value="{{ field.value|default_if_none:'' }}" data-typeahead-value{% if refresh %} hx-get="{{ refresh }}" hx-trigger="change" hx-include="closest form" hx-target="#{{ field.html_name }}-dependants" hx-select="#{{ field.html_name }}-dependants" hx-swap="outerHTML"{% endif %}>
+  </div>
+  {% if field.help_text %}<div class="help" id="{{ field.auto_id }}_help">{{ field.help_text }}</div>{% endif %}
+  {{ field.errors }}
+</div>

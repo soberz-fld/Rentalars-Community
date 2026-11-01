@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Profit statement (EÜR)" %} {{ year }}{% endblock %}
+{% block content %}
+{% comment %}
+  DOK-045: Buchhaltung → EÜR. The cash-basis profit of a year, worked out from the payments (documents/euer.py): income by
+  tax rate, expenses by tax account, depreciation and the book value of assets sold, turnover tax apart. Prepared for the tax
+  adviser; it is no tax advice and no filing. The CSV file lists the lines behind every figure.
+{% endcomment %}
+<div class="page-head"><div><h1>{% translate "Accounting" %}</h1></div>
+  <div class="actions"><a class="btn secondary" href="?year={{ year }}&format=csv">{% icon "download" %}CSV</a></div></div>
+{% include "documents/_accounting_tabs.html" %}
+<form method="get" class="filter-bar" aria-label="{% translate 'Year' %}">
+  <label for="euer-year">{% translate "Year" %}</label>
+  <select id="euer-year" name="year" onchange="this.form.submit()">{% for y in years %}<option value="{{ y }}"{% if y == year %} selected{% endif %}>{{ y }}</option>{% endfor %}</select>
+  <noscript><button class="btn secondary small" type="submit">{% translate "Show" %}</button></noscript>
+</form>
+
+<div class="panel">
+  <div class="panel-head"><h2>{% blocktranslate %}Result {{ year }}{% endblocktranslate %}</h2>
+    <span class="muted small">{% if result.small_business %}{% translate "gross, small business" %}{% else %}{% translate "net, without turnover tax" %}{% endif %}</span></div>
+  <div class="panel-body">
+    <dl class="facts">
+      <dt>{% translate "Operating income" %}</dt><dd class="num">{{ result.income_net|money }}</dd>
+      <dt>{% translate "Operating expenses" %}</dt><dd class="num">{{ result.expense_net|money }}</dd>
+      <dt>{% translate "Depreciation (AfA, GWG)" %}</dt><dd class="num">{{ result.depreciation.net|money }}</dd>
+      <dt>{% translate "Book value of assets sold" %}</dt><dd class="num">{{ result.disposals.net|money }}</dd>
+      {% if result.small_business %}
+      <dt><strong>{% translate "Profit (surplus)" %}</strong></dt><dd class="num"><strong id="euer-profit">{{ result.profit|money }}</strong></dd>
+      {% else %}
+      {# The profit without turnover tax, and the surplus as the EÜR counts it – with the turnover tax received, the input tax and the payments to the tax office. #}
+      <dt>{% translate "Result without turnover tax" %}</dt><dd class="num"><span id="euer-profit">{{ result.profit|money }}</span></dd>
+      <dt>{% translate "Turnover tax still owed (negative: to come back)" %}</dt><dd class="num">{{ result.vat_still_owed|money }}</dd>
+      <dt><strong>{% translate "Surplus as the EÜR counts it (with turnover tax)" %}</strong></dt><dd class="num"><strong id="euer-surplus">{{ result.surplus|money }}</strong></dd>
+      {% endif %}
+    </dl>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="panel-head"><h2>{% translate "Income" %}</h2></div>
+  {% if result.income %}
+  <table class="table stack"><thead><tr><th scope="col">{% translate "Tax rate" %}</th><th scope="col" class="num">{% translate "Lines" %}</th><th scope="col" class="num">{% if result.small_business %}{% translate "Gross" %}{% else %}{% translate "Net" %}{% endif %}</th>{% if not result.small_business %}<th scope="col" class="num">{% translate "Turnover tax" %}</th>{% endif %}</tr></thead>
+    <tbody>{% for row in result.income %}<tr><td data-label="{% translate 'Tax rate' %}">{{ row.label }}</td><td class="num" data-label="{% translate 'Lines' %}">{{ row.count }}</td><td class="num" data-label="{% translate 'Net' %}">{{ row.net|money }}</td>{% if not result.small_business %}<td class="num" data-label="{% translate 'Turnover tax' %}">{{ row.tax|money }}</td>{% endif %}</tr>{% endfor %}</tbody></table>
+  {% else %}<div class="empty"><strong>{% translate "No payments received in this year." %}</strong></div>{% endif %}
+</div>
+
+<div class="panel">
+  <div class="panel-head"><h2>{% translate "Expenses" %}</h2></div>
+  {% if result.expenses %}
+  <table class="table stack"><thead><tr><th scope="col">{% translate "Account" %}</th><th scope="col" class="num">{% translate "Lines" %}</th><th scope="col" class="num">{% if result.small_business %}{% translate "Gross" %}{% else %}{% translate "Net" %}{% endif %}</th>{% if not result.small_business %}<th scope="col" class="num">{% translate "Input tax" %}</th>{% endif %}</tr></thead>
+    <tbody>{% for row in result.expenses %}<tr><td data-label="{% translate 'Account' %}">{{ row.label }}</td><td class="num" data-label="{% translate 'Lines' %}">{{ row.count }}</td><td class="num" data-label="{% translate 'Net' %}">{{ row.net|money }}</td>{% if not result.small_business %}<td class="num" data-label="{% translate 'Input tax' %}">{{ row.tax|money }}</td>{% endif %}</tr>{% endfor %}</tbody></table>
+  {% else %}<div class="empty"><strong>{% translate "No payments made in this year." %}</strong></div>{% endif %}
+</div>
+
+{% if not result.small_business %}
+<div class="panel">
+  <div class="panel-head"><h2>{% translate "Turnover tax (shown apart)" %}</h2></div>
+  <div class="panel-body"><dl class="facts">
+    <dt>{% translate "Turnover tax received" %}</dt><dd class="num">{{ result.tax_collected|money }}</dd>
+    <dt>{% translate "Input tax paid" %}</dt><dd class="num">{{ result.input_tax|money }}</dd>
+    <dt>{% translate "Balance" %}</dt><dd class="num"><strong>{{ result.tax_balance|money }}</strong></dd>
+    {% if result.tax_office_vat.count %}
+    <dt>{% translate "Paid to the tax office for turnover tax" %}</dt><dd class="num">{{ result.tax_office_vat.net|money }}</dd>
+    <dt>{% translate "Still owed to the tax office" %}</dt><dd class="num"><strong>{{ result.vat_still_owed|money }}</strong></dd>
+    {% endif %}
+  </dl>
+  <p class="muted small">{% translate "Payments to a supplier that is marked as a tax office are no expenses. The balance is no declaration." %}</p></div>
+</div>
+{% endif %}
+{% if result.small_business and result.tax_office_vat.count %}
+<div class="panel">
+  <div class="panel-head"><h2>{% translate "Turnover tax (shown apart)" %}</h2></div>
+  <div class="panel-body"><dl class="facts"><dt>{% translate "Paid to the tax office for turnover tax" %}</dt><dd class="num">{{ result.tax_office_vat.net|money }}</dd></dl>
+  <p class="muted small">{% translate "Payments to a supplier that is marked as a tax office are no expenses. The balance is no declaration." %}</p></div>
+</div>
+{% endif %}
+{% if result.tax_office_income.count %}
+<div class="panel">
+  <div class="panel-head"><h2>{% translate "Income tax and the like (not an operating expense)" %}</h2></div>
+  <div class="panel-body"><dl class="facts"><dt>{% translate "Paid to the tax office" %}</dt><dd class="num">{{ result.tax_office_income.net|money }}</dd></dl></div>
+</div>
+{% endif %}
+
+{% if result.warnings %}
+<div class="message warning" role="status"><strong>{% translate "Please note" %}</strong>
+  <ul>{% for warning in result.warnings %}<li>{{ warning }}</li>{% endfor %}</ul></div>
+{% endif %}
+<p class="muted small">{% translate "Rentalars prepares these figures from the payments for your tax adviser. It is no tax advice and no filing. Income counts on the day of the payment, expenses on the day they were paid; fixed assets and low-value assets come in as depreciation." %}</p>
+{% endblock %}

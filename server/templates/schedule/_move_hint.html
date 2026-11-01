@@ -1,0 +1,6 @@
+{% load i18n %}
+{% comment %}
+  VFG-026: how to move an appointment in a timeline – by mouse and by keyboard. Every movable bar points here with
+  aria-describedby; app.js reads the text it announces while a bar is moved with the arrow keys (data-text-pending).
+{% endcomment %}
+<p class="muted small tl-move-help" id="tl-move-hint" data-text-pending="{% translate 'Enter shows what follows, Escape takes it back.' %}">{% translate "Drag a bar to move it, or one of its ends to change the start or the end – in steps of 15 minutes. With the keyboard: ← and → move the chosen bar by 15 minutes, with Shift its end; Enter shows what follows, Escape takes it back." %}</p>

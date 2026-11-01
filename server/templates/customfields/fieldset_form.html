@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% if fieldset %}{{ fieldset.name }}{% else %}{% translate "New fieldset" %}{% endif %}{% endblock %}
+{% block content %}
+{# MAT-072: one fieldset – a row per custom field: part of the fieldset, its position, required there. #}
+<div class="page-head"><div><div class="breadcrumb"><a href="{% url 'core:administration' %}">{% translate "Settings" %}</a> / <a href="{% url 'customfields:fieldset_list' %}">{% translate "Fieldsets" %}</a></div>
+<h1>{% if fieldset %}{{ fieldset.name }}{% else %}{% translate "New fieldset" %}{% endif %}</h1>
+{% if assignments %}<p class="lead">{% translate "Material models with this fieldset:" %} {% for assignment in assignments %}{% if can.read.material %}<a href="{% url 'material:model_detail' assignment.material_model_id %}">{{ assignment.material_model.name }}</a>{% else %}{{ assignment.material_model.name }}{% endif %}{% if not forloop.last %}, {% endif %}{% endfor %}</p>{% endif %}</div></div>
+<form method="post" class="form wide" novalidate>
+  {% csrf_token %}
+  {% include "core/_form_errors.html" %}
+  <div class="panel"><div class="panel-body">
+    {% include "core/_field.html" with field=form.name %}
+    {% include "core/_field.html" with field=form.description %}
+  </div></div>
+  <section class="panel">
+    <div class="panel-head"><h2>{% translate "Fields" %}</h2></div>
+    {% if form.rows %}
+    <table class="table stack">
+      <thead><tr><th scope="col">{% translate "Field" %}</th><th scope="col">{% translate "Type" %}</th><th scope="col" class="num">{% translate "Position" context "order" %}</th><th scope="col">{% translate "Required" %}</th></tr></thead>
+      <tbody>
+      {% for row in form.rows %}
+        <tr>
+          <td><div class="check">{{ row.use }}<label for="{{ row.use.id_for_label }}">{{ row.field.name }}</label></div>{{ row.use.errors }}</td>
+          <td data-label="{% translate 'Type' %}">{{ row.field.get_field_type_display|capfirst }}{% if row.field.unit %} ({{ row.field.unit }}){% endif %}</td>
+          <td data-label="{% translate 'Position' context 'order' %}" class="num"><label class="visually-hidden" for="{{ row.position.id_for_label }}">{{ row.position.label }}</label>{{ row.position }}{{ row.position.errors }}</td>
+          <td data-label="{% translate 'Required' %}"><div class="check">{{ row.required }}<label for="{{ row.required.id_for_label }}"><span class="visually-hidden">{{ row.field.name }}: </span>{% translate "required" context "custom field" %}</label></div></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    <p class="muted small panel-body">{% translate "Tick the fields of the fieldset. The position decides the order in the forms and on the item page. A required field must have a value when one item is created or changed; creating several items at once may leave it empty." %}</p>
+    {% else %}
+    <div class="empty">{% translate "There are no custom fields yet." %} {% if can.write.administration %}<a href="{% url 'customfields:field_create' %}">{% translate "New custom field" %}</a>{% endif %}</div>
+    {% endif %}
+  </section>
+  <div class="btn-row"><button class="btn" type="submit">{% translate "Save fieldset" %}</button><a class="btn secondary" href="{% url 'customfields:fieldset_list' %}">{% translate "Cancel" %}</a></div>
+</form>
+{% if fieldset and can.delete.administration %}
+<form method="post" action="{% url 'customfields:fieldset_delete' fieldset.pk %}" class="section">{% csrf_token %}<button class="btn danger" type="submit" data-confirm="{% translate 'Delete this fieldset? Its fields and the values of the items stay.' %}">{% icon "trash" %}{% translate "Delete fieldset" %}</button>{% if assignments %} <span class="muted small">{% translate "Only possible once no material model has it." %}</span>{% endif %}</form>
+{% endif %}
+{% endblock %}

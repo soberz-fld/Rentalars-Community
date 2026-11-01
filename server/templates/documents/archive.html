@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Archive" %}{% endblock %}
+{% block content %}
+{% comment %}
+  DOK-043, DOK-046: Buchhaltung → Archiv. The vouchers with their checksums and retention periods, the result of the nightly
+  check, the export for an audit and the procedure documentation. Technical help for the GoBD, no certificate.
+{% endcomment %}
+<div class="page-head"><div><h1>{% translate "Accounting" %}</h1></div></div>
+{% include "documents/_accounting_tabs.html" %}
+
+<div class="panel">
+  <div class="panel-head"><h2>{% translate "Archive of vouchers" %}</h2>
+    {% if may_check %}<form method="post" action="{% url 'documents:archive_verify' %}" class="inline-form">{% csrf_token %}<button class="btn secondary small" type="submit">{% icon "refresh" %}{% translate "Check all files now" %}</button></form>{% endif %}</div>
+  <div class="panel-body">
+    <dl class="facts">
+      <dt>{% translate "Vouchers archived" %}</dt><dd id="archive-total">{{ info.total }} ({% blocktranslate with documents=info.documents incoming=info.incoming %}{{ documents }} outgoing, {{ incoming }} incoming{% endblocktranslate %})</dd>
+      <dt>{% translate "Unchanged" %}</dt><dd>{{ info.ok }}</dd>
+      <dt>{% translate "Changed" %}</dt><dd>{% if info.changed %}<strong class="text-danger">{{ info.changed }}</strong>{% else %}0{% endif %}</dd>
+      <dt>{% translate "Missing" %}</dt><dd>{% if info.missing %}<strong class="text-danger">{{ info.missing }}</strong>{% else %}0{% endif %}</dd>
+      <dt>{% translate "Deleted after the retention period" %}</dt><dd>{{ info.deleted }}</dd>
+      <dt>{% translate "Waiting for the next night" %}</dt><dd>{{ info.pending }}</dd>
+      <dt>{% translate "Last check" %}</dt><dd>{% if info.last_checked_at %}{{ info.last_checked_at|date:"d.m.Y H:i" }}{% else %}–{% endif %}</dd>
+    </dl>
+    <p class="muted small">{% translate "Every night new vouchers are archived and a part of the files is checked against its checksum. An incoming invoice is archived one day after the upload; before that it can still be deleted." %}</p>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="panel-head"><h2>{% translate "Export for an audit" %}</h2></div>
+  <div class="panel-body">
+    <form method="get" action="{% url 'documents:audit_export' %}" class="form-row">
+      <label for="export-year">{% translate "Period" %}</label>
+      <select id="export-year" name="year">{% for y in years %}<option value="{{ y }}">{{ y }}</option>{% endfor %}<option value="all">{% translate "all years" %}</option></select>
+      <button class="btn secondary" type="submit">{% icon "download" %}{% translate "Download ZIP" %}</button>
+    </form>
+    {# DOK-054: a large archive is made in the background; the ZIP is ready under "Tasks". #}
+    <form method="post" action="{% url 'documents:audit_export_start' %}" class="form-row">
+      {% csrf_token %}
+      <label for="export-year-job">{% translate "Period" %}</label>
+      <select id="export-year-job" name="year">{% for y in years %}<option value="{{ y }}">{{ y }}</option>{% endfor %}<option value="all">{% translate "all years" %}</option></select>
+      <button class="btn secondary" type="submit">{% icon "clock" %}{% translate "Make in the background" %}</button>
+    </form>
+    <p class="muted small">{% translate "Tables as CSV with a description (index.xml), the vouchers as stored and a list of checksums. With many vouchers make the ZIP in the background; you are told when it is ready. The description has not been tested with an audit program." %}</p>
+    <p><a class="btn secondary" href="{% url 'documents:procedure' %}">{% icon "file" %}{% translate "Procedure documentation" %}</a></p>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="panel-head"><h2>{% translate "Vouchers" %}</h2>
+    <form method="get" class="inline-form"><label for="archive-status" class="visually-hidden">{% translate "Status" %}</label>
+      <select id="archive-status" name="status" onchange="this.form.submit()"><option value="">{% translate "all" %}</option>{% for value, label in statuses %}<option value="{{ value }}"{% if value == status %} selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+      <noscript><button class="btn secondary small" type="submit">{% translate "Show" %}</button></noscript></form></div>
+  {% if records %}
+  <table class="table stack"><thead><tr><th scope="col">{% translate "Number" %}</th><th scope="col">{% translate "Kind" %}</th><th scope="col">{% translate "Date" %}</th><th scope="col">{% translate "Retain until" %}</th><th scope="col">{% translate "Status" %}</th><th scope="col">{% translate "Finding" %}</th></tr></thead>
+    <tbody>{% for record in records %}<tr>
+      <td data-label="{% translate 'Number' %}">{{ record.reference|default:"–" }}</td>
+      <td data-label="{% translate 'Kind' %}">{{ record.get_source_display }}</td>
+      <td data-label="{% translate 'Date' %}">{{ record.voucher_date|date:"d.m.Y" }}</td>
+      <td data-label="{% translate 'Retain until' %}">{{ record.retain_until|date:"d.m.Y" }}</td>
+      <td data-label="{% translate 'Status' %}"><span class="badge {% if record.status == 'ok' %}green{% elif record.status == 'deleted' %}{% else %}red{% endif %}">{{ record.get_status_display }}</span></td>
+      <td data-label="{% translate 'Finding' %}">{{ record.finding|default:"–" }}</td></tr>{% endfor %}</tbody></table>
+  {% else %}<div class="empty"><strong>{% translate "Nothing archived yet." %}</strong></div>{% endif %}
+</div>
+{% endblock %}

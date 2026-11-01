@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% if alias.pk %}{{ alias.address }}{% else %}{% translate "Add address" %}{% endif %}{% endblock %}
+{% block content %}
+{% comment %}
+  EML-047: a further address (alias) of a mailbox – what becomes of its mails without project tag, the role "only
+  for service cases" (mails of service cases go out with this address as sender), and who is responsible for the
+  service cases made of its mails. EML-052: the roles that may choose it as sender.
+{% endcomment %}
+<div class="page-head"><div><div class="breadcrumb"><a href="{% url 'core:administration' %}">{% translate "Settings" %}</a> / <a href="{% url 'mail:settings' %}">{% translate "Mailboxes and signature" %}</a> / <a href="{% url 'mail:mailbox_edit' mailbox.pk %}">{{ mailbox.name }}</a></div>
+<h1>{% if alias.pk %}{{ alias.address }}{% else %}{% translate "Add address" %}{% endif %}</h1>
+<p class="lead">{% blocktranslate with name=mailbox.name %}An address whose mails arrive in the mailbox “{{ name }}”.{% endblocktranslate %}</p></div></div>
+<form method="post" class="form wide" novalidate autocomplete="off">
+  {% csrf_token %}
+  {% include "core/_form_errors.html" %}
+  <div class="panel"><div class="panel-body">
+    <div class="form-grid">
+      {% include "core/_field.html" with field=form.address %}
+      {% include "core/_field.html" with field=form.untagged %}
+      <div data-show-if="untagged=service_case">{% include "core/_field.html" with field=form.case_manager %}</div>
+    </div>
+    {# EML-049: mails without tag only from a point in time, optionally only unread ones. #}
+    <div class="form-grid" data-show-if="untagged=inquiry|service_case">
+      {% include "core/_field.html" with field=form.untagged_since %}
+      {% include "core/_field.html" with field=form.untagged_unread_only %}
+    </div>
+    {% include "core/_field.html" with field=form.for_service_cases %}
+    {# EML-052: who may choose this address as sender of a mail written in a project. #}
+    {% include "core/_field.html" with field=form.sender_roles %}
+  </div></div>
+  <div class="btn-row"><button class="btn" type="submit">{% translate "Save address" %}</button><a class="btn secondary" href="{% url 'mail:mailbox_edit' mailbox.pk %}#addresses">{% translate "Cancel" %}</a></div>
+</form>
+{% endblock %}

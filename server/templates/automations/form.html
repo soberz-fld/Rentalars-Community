@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% if rule %}{% translate "Edit automation" %}{% else %}{% translate "New automation" %}{% endif %}{% endblock %}
+{% block content %}
+{% comment %}
+  ADM-013: one rule "if …, then …". Without scripts every field shows and the server says what does not fit; with
+  app.js (block "Automations") only the fields of the chosen trigger and action show, and the lists offer only
+  what fits the trigger.
+{% endcomment %}
+<div class="page-head"><div><div class="breadcrumb"><a href="{% url 'core:administration' %}">{% translate "Settings" %}</a> / <a href="{% url 'automations:list' %}">{% translate "Automations" %}</a></div>
+<h1>{% if rule %}{% translate "Edit automation" %}{% else %}{% translate "New automation" %}{% endif %}</h1>
+<p class="lead">{% translate "If something happens, Rentalars does something – for example answer every inquiry with a confirmation of receipt." %}</p></div></div>
+{% if rule.is_default %}{# ADM-019: a rule that came with Rentalars – changed and deleted like any other. #}
+<p class="note accent" id="default-note">{% if default_changed %}{% translate "This automation came with Rentalars and was changed since." %}{% else %}{% translate "This automation came with Rentalars." %}{% endif %}
+{% translate "Change it, switch it off or delete it like your own automations. Once deleted, “Restore default automations” in the list brings it back as it came." %}</p>
+{% endif %}
+<form method="post" class="form wide automation-form" novalidate data-automation-form data-actions-of="{{ actions_of_json }}" data-recipients-of="{{ recipients_of_json }}">
+  {% csrf_token %}
+  {% include "core/_form_errors.html" %}
+  <div class="panel"><div class="panel-body form">
+    {% include "core/_field.html" with field=form.name %}
+    {% include "core/_field.html" with field=form.is_active %}
+  </div></div>
+  <section class="panel">
+    <div class="panel-head"><h2>{% translate "If …" %}</h2></div>
+    <div class="panel-body form">
+      {% include "core/_field.html" with field=form.trigger %}
+      <div data-show-when="trigger:inquiry">{% include "core/_field.html" with field=form.mailbox %}</div>
+      <div data-show-when="trigger:project_status">{% include "core/_field.html" with field=form.status %}</div>
+      <div data-show-when="trigger:crew_answer">{% include "core/_field.html" with field=form.answer %}</div>
+      {# PRJ-112: the triggers of the service cases – the status of the case, and which communication counts. #}
+      <div data-show-when="trigger:case_follow_up,case_communication">{% include "core/_field.html" with field=form.case_status %}</div>
+      <div data-show-when="trigger:case_communication">{% include "core/_field.html" with field=form.communication %}</div>
+    </div>
+  </section>
+  <section class="panel">
+    <div class="panel-head"><h2>{% translate "… then" %}</h2></div>
+    <div class="panel-body form">
+      {% include "core/_field.html" with field=form.action %}
+      <div data-show-when="action:reply" class="automation-action">
+        <p class="note">{% translate "Rentalars never answers mails that were sent automatically – out-of-office replies, delivery failures, mailing lists, newsletters – nor mail systems, no-reply addresses or its own addresses, and each sender at most once a day per automation. The answer is marked as automatic and noted in the mail log." %}</p>
+        {% include "core/_field.html" with field=form.reply_subject %}
+        {% include "core/_field.html" with field=form.reply_text %}
+      </div>
+      <div data-show-when="action:notify" class="automation-action">
+        {% include "core/_field.html" with field=form.recipient %}
+        <div data-show-when="action:notify;recipient:user">{% include "core/_field.html" with field=form.user %}</div>
+        {% include "core/_field.html" with field=form.notify_title %}
+        {% include "core/_field.html" with field=form.notify_text %}
+      </div>
+      <div data-show-when="action:case_status" class="automation-action">
+        <p class="note">{% translate "A rule sets “Open”, “In progress” or “Done” – the other statuses need a follow-up. Setting a status starts no other rule." %}</p>
+        {% include "core/_field.html" with field=form.new_case_status %}
+      </div>
+      <div data-show-when="action:open_item" class="automation-action">
+        {% include "core/_field.html" with field=form.item_text %}
+      </div>
+      {# MAT-057: of a defect report a service case – internal, or for the owner of customer material. #}
+      <div data-show-when="action:create_case" class="automation-action">
+        <p class="note">{% translate "The service case is internal – our own material – or, for customer material, for its owner. The photo of the report goes into its files. One defect report makes one service case." %}</p>
+        {% include "core/_field.html" with field=form.case_title %}
+        {% include "core/_field.html" with field=form.case_text %}
+        {% include "core/_field.html" with field=form.case_manager %}
+      </div>
+      <div data-show-when="action:create_inquiry" class="automation-action">
+        <p class="note">{% translate "The defect report waits under Projects → Inquiries until somebody makes a service case of it or takes it off the list." %}</p>
+        {% include "core/_field.html" with field=form.inquiry_subject %}
+      </div>
+      <details class="automation-placeholders">
+        <summary>{% translate "Placeholders for the texts" %}</summary>
+        {% for trigger in triggers %}
+        <div data-show-when="trigger:{{ trigger.value }}">
+          <p class="muted small">{% blocktranslate with trigger=trigger.label %}If {{ trigger }}:{% endblocktranslate %}</p>
+          <dl class="facts">
+            {% for token, label in trigger.placeholders %}<dt><code>{{ token }}</code></dt><dd>{{ label }}</dd>{% endfor %}
+          </dl>
+        </div>
+        {% endfor %}
+      </details>
+    </div>
+  </section>
+  {# ADM-019: "Löschen" in the same row and of the same height; it sends the form below (forms do not nest). #}
+  <div class="btn-row"><button class="btn" type="submit">{% translate "Save automation" %}</button><a class="btn secondary" href="{% url 'automations:list' %}">{% translate "Cancel" %}</a>{% if rule %}<span class="spacer"></span><button class="btn danger" type="submit" form="delete-{{ rule.pk }}" data-confirm="{% blocktranslate with name=rule.name %}Delete the automation “{{ name }}”? Its runs stay listed.{% endblocktranslate %}{% if rule.is_default %} {% translate "“Restore default automations” brings it back as it came." %}{% endif %}">{% icon "trash" %}{% translate "Delete" %}</button>{% endif %}</div>
+</form>
+{% if rule %}<form id="delete-{{ rule.pk }}" method="post" action="{% url 'automations:delete' rule.pk %}" hidden>{% csrf_token %}</form>{% endif %}
+{% endblock %}

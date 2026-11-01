@@ -1,0 +1,14 @@
+{% load i18n rentalars %}
+{% comment %}
+  MAT-063 (ID field): in the head of every tab of the material management – type the ID of an item and go straight to
+  it: 0427, 427 or #0427 (IMP-015). A plain GET form, so it works without the page script; an ID nobody has leads to
+  the list of items, filtered by it (material.views.item_jump). For who may read the material.
+{% endcomment %}
+{% if can.read.material %}
+<form class="item-jump" method="get" action="{% url 'material:item_jump' %}" role="search" aria-label="{% translate 'Open an item by its ID' %}">
+  <label class="visually-hidden" for="item-jump-id">{% translate "ID of an item" %}</label>
+  <input type="search" id="item-jump-id" name="id" placeholder="{% translate 'Item ID' %}" autocomplete="off" required maxlength="300">
+  <button class="btn secondary" type="submit">{% icon "search" %}{% translate "Open" %}</button>
+  {% include "material/_scan.html" with scan_input="#item-jump-id" %}
+</form>
+{% endif %}

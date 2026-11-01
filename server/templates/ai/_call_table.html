@@ -1,0 +1,14 @@
+{% load i18n %}{# ADM-017: the calls to language models – never their content. #}
+{% if calls %}<table class="table stack ai-calls">
+  <thead><tr><th>{% translate "Time" %}</th><th>{% translate "Use" %}</th><th>{% translate "Provider and model" %}</th><th>{% translate "Duration" %}</th><th>{% translate "Characters sent / received" %}</th><th>{% translate "Result" %}</th></tr></thead>
+  <tbody>{% for call in calls %}
+    <tr>
+      <td class="nowrap">{{ call.timestamp|date:"SHORT_DATETIME_FORMAT" }}{% if call.user %}<div class="muted small">{{ call.user }}</div>{% endif %}</td>
+      <td data-label="{% translate 'Use' %}">{{ call.get_use_display }}{% if call.project %}<div class="muted small">{{ call.project.number }}</div>{% endif %}</td>
+      <td data-label="{% translate 'Provider and model' %}">{{ call.provider_label }}<div class="muted small">{{ call.model }}</div></td>
+      <td data-label="{% translate 'Duration' %}" class="nowrap">{% blocktranslate with seconds=call.duration_ms|floatformat:0 %}{{ seconds }} ms{% endblocktranslate %}</td>
+      <td data-label="{% translate 'Characters sent / received' %}" class="nowrap">{{ call.request_chars }} / {{ call.response_chars }}</td>
+      <td data-label="{% translate 'Result' %}">{% if call.ok %}<span class="badge green">{% translate "successful" %}</span>{% else %}<span class="badge red">{% translate "failed" %}</span><div class="small">{{ call.error }}</div>{% endif %}</td>
+    </tr>{% endfor %}
+  </tbody>
+</table>{% else %}<div class="empty">{% translate "No calls yet." %}</div>{% endif %}

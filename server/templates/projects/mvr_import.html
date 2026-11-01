@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Lighting plot from MVR" %} {{ project.number }}{% endblock %}
+{% block content %}
+{% include "projects/_head.html" %}
+{% comment %}
+  PRJ-077: take over a lighting plot from an MVR file. Step 1 reads the file and counts the fixtures per type;
+  step 2 assigns a product to each type (suggestions preselected) and adds the lines to a group of the planning.
+  PRJ-086: the page is called "MVR-Datei importieren"; the file is kept in the files of the project.
+{% endcomment %}
+{% if upload_form %}
+<section class="panel narrow">
+  <div class="panel-head"><h2>{% translate "Take over a lighting plot from an MVR file" %}</h2></div>
+  <div class="panel-body">
+    <p>{% translate "Upload the MVR file of the lighting plot. Rentalars counts the fixtures per type and suggests a product for each type. You check the assignment before any line is added." %}</p>
+    {# PRJ-086: the file is kept with the project. #}
+    <p class="muted small">{% translate "The file is kept in the files of the project; its name starts with the date and time of the import, e.g. 20261013-221530_Rig.mvr." %}</p>
+    <form method="post" enctype="multipart/form-data" class="form" novalidate>
+      {% csrf_token %}<input type="hidden" name="step" value="upload">{% include "core/_required_note.html" with form=upload_form %}
+      {% include "core/_field.html" with field=upload_form.file %}
+      <div class="btn-row">
+        <button class="btn" type="submit">{% icon "upload" %}{% translate "Read the file" %}</button>
+        <a class="btn secondary" href="{% url 'projects:detail' project.pk %}">{% translate "Cancel" %}</a>
+      </div>
+    </form>
+  </div>
+</section>
+{% else %}
+<form method="post" class="form wide mvr-import" autocomplete="off">
+  {% csrf_token %}
+  <section class="panel">
+    <div class="panel-head">
+      <h2>{% translate "Assign products to the fixture types" %}</h2>
+      <span class="muted">{{ plot.file_name }} · {% blocktranslate count count=plot.fixture_count %}{{ count }} fixture{% plural %}{{ count }} fixtures{% endblocktranslate %} · {% blocktranslate count count=plot.types|length %}{{ count }} type{% plural %}{{ count }} types{% endblocktranslate %}</span>
+    </div>
+    <div class="panel-body">
+      <p class="muted">{% translate "Each fixture type becomes one line with its count as quantity. Suggestions marked “remembered” were chosen for the same type before; the others resemble the type by name. Your choice is remembered for the next plot." %}</p>
+      {% if plot.skipped %}<p class="muted small">{% blocktranslate count count=plot.skipped %}{{ count }} object without GDTF file (truss, set piece …) was not counted.{% plural %}{{ count }} objects without GDTF file (trusses, set pieces …) were not counted.{% endblocktranslate %}</p>{% endif %}
+    </div>
+    <div class="table-scroll">
+      <table class="table stack mvr-table">
+        <thead><tr><th scope="col">{% translate "Fixture type" %}</th><th scope="col" class="num">{% translate "Quantity" %}</th><th scope="col">{% translate "Product" %}</th></tr></thead>
+        <tbody>
+        {% for row in rows %}{% include "projects/_mvr_type_row.html" %}{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head"><h2>{% translate "Where the lines go" %}</h2></div>
+    <div class="panel-body form-grid">
+      <div class="field">
+        <label for="mvr-group">{% translate "Group" %}</label>
+        <select id="mvr-group" name="group">
+          <option value="{{ new_group }}"{% if group_choice == new_group %} selected{% endif %}>{% translate "a new group" %}</option>
+          {% for group in groups %}<option value="{{ group.pk }}"{% if group_choice == group.pk|stringformat:"s" %} selected{% endif %}>{{ group.path }}</option>{% endfor %}
+          <option value=""{% if group_choice == "" %} selected{% endif %}>{% translate "without group" %}</option>
+        </select>
+      </div>
+      <div class="field" data-show-if="group={{ new_group }}">
+        <label for="mvr-group-name">{% translate "Name of the new group" %}</label>
+        <input id="mvr-group-name" type="text" name="group_name" value="{{ group_name }}" maxlength="120">
+      </div>
+    </div>
+    <div class="panel-body btn-row">
+      <button class="btn" type="submit" name="step" value="apply">{% icon "plus" %}{% translate "Add the lines" %}</button>
+      <button class="btn secondary" type="submit" name="step" value="discard" formnovalidate>{% translate "Choose another file" %}</button>
+      <a class="btn secondary" href="{% url 'projects:detail' project.pk %}">{% translate "Back to the planning" %}</a>
+    </div>
+  </section>
+</form>
+{% endif %}
+{% endblock %}

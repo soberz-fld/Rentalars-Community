@@ -1,0 +1,4 @@
+{% load i18n %}{% comment %}
+  The line "Preview: Dear Ms Berg," under the greeting settings of a contact (KND-004). Swapped in by htmx
+  while typing; the same fragment is rendered by the page first. aria-live: a screen reader announces the change.
+{% endcomment %}<div id="greeting-preview" class="help-line" aria-live="polite">{% if line %}{% translate "Preview:" %} <strong>{{ line }}</strong>{% endif %}</div>

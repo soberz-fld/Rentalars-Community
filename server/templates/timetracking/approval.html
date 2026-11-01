@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% load i18n rentalars subprojects %}
+{% block title %}{% translate "Approve times" %}{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>{% translate "Personnel" %}</h1></div></div>
+{% include "personnel/_tabs.html" with tab="approval" %}
+<div class="panel">
+  <form method="get" class="filters" novalidate>
+    {% filterpanel "time-approval" %}
+    <div class="field"><label for="{{ form.project.id_for_label }}">{{ form.project.label }}</label>{{ form.project }}</div>
+    <div class="field"><label for="{{ form.person.id_for_label }}">{{ form.person.label }}</label>{{ form.person }}</div>
+    <div class="field"><label for="{{ form.since.id_for_label }}">{{ form.since.label }}</label>{{ form.since }}</div>
+    <div class="field"><label for="{{ form.until.id_for_label }}">{{ form.until.label }}</label>{{ form.until }}</div>
+    <button class="btn secondary" type="submit">{% translate "Filter" %}</button>
+    {% endfilterpanel %}
+  </form>
+  {% comment %}
+    UIX-040: columns, sorting and the CSV file of all waiting times. The rows stay grouped by project – each project
+    is a form of its own with its sum and its buttons – so there is no "Gruppieren nach" here.
+  {% endcomment %}
+  {% if groups %}{% include "core/_table_tools.html" %}{% endif %}
+</div>
+{% for group in groups %}
+<form method="post" action="{% url 'timetracking:decide' %}" class="panel approval-group" autocomplete="off" data-reload-after-times>
+  {% csrf_token %}
+  <input type="hidden" name="query" value="{{ query }}">
+  <div class="panel-head">
+    <h2>{% if group.project %}{{ group.project|project_label }}{% else %}{% translate "Without project" %}{% endif %}</h2>
+    <strong class="num">{% if group.entries %}{{ group.hours|number }} {% translate "h" %}{% endif %}{% if group.entries and group.expenses %} · {% endif %}{% if group.expenses %}{{ group.expense_total|money }}{% endif %}</strong>
+  </div>
+  {% if not group.project %}<p class="panel-body help-line">{% translate "These times can only be approved once they belong to a project. Assign one in each row – the person sees it too." %}</p>{% endif %}
+  {% if group.entries %}
+  {# UIX-040: the rows of core/tables.py (timetracking/time_list_tables.py) – the columns, sorting within the project. #}
+  {% include "core/_table.html" with rows=group.rows stack=True no_bulk=True %}
+  {% endif %}
+  {% if group.expenses %}
+  {# ZEI-019: the expenses of the project waiting for approval, decided with the same buttons. #}
+  <h3 class="panel-body approval-expenses-head">{% translate "Expenses and travel costs" %}</h3>
+  <table class="table stack approval-expenses">
+    <thead><tr><th class="c-check"><span class="visually-hidden">{% translate "Choose" %}</span></th><th>{% translate "Person" %}</th><th>{% translate "Day" %}</th><th>{% translate "Kind" %}</th><th>{% translate "Note" %}</th><th class="num">{% translate "Amount" %}</th></tr></thead>
+    <tbody>
+    {% for expense in group.expenses %}
+      <tr>
+        <td class="c-check"><input type="checkbox" name="expense" value="{{ expense.pk }}" checked aria-label="{% translate 'Choose' %}"></td>
+        <td>{{ expense.person.name }}</td>
+        <td data-label="{% translate 'Day' %}">{{ expense.date|date:"D d.m.Y" }}</td>
+        <td data-label="{% translate 'Kind' %}">{{ expense.get_kind_display }}{% if expense.is_by_kilometre %}<div class="muted small">{{ expense.distance_label }} × {{ expense.km_rate|money }}</div>{% endif %}</td>
+        <td data-label="{% translate 'Note' %}">{{ expense.note }}{% if expense.receipt %}<div class="small"><a href="{% url 'timetracking:expense_receipt' expense.pk %}" target="_blank" rel="noopener">{% icon "file" %}{% translate "Receipt" %}</a></div>{% else %}<div class="muted small">{% translate "no receipt" %}</div>{% endif %}</td>
+        <td class="num" data-label="{% translate 'Amount' %}">{{ expense.amount|money }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+  <div class="panel-body btn-row">
+    {% if group.project %}<button class="btn" type="submit" name="decision" value="approve">{% icon "check" %}{% translate "Approve the ticked" %}</button>{% endif %}
+    <span class="spacer"></span>
+    <input type="text" name="reason" placeholder="{% translate 'Reason, if sent back' %}" aria-label="{% translate 'Reason for rejection' %}" class="reason">
+    <button class="btn secondary" type="submit" name="decision" value="reject">{% translate "Send back the ticked" %}</button>
+  </div>
+</form>
+{% if not group.project %}{% for entry in group.entries %}
+<form id="assign-{{ entry.pk }}" method="post" action="{% url 'timetracking:entry_assign' entry.pk %}" hidden>{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"></form>
+{% endfor %}{% endif %}
+{% empty %}
+<div class="panel"><div class="empty"><strong>{% translate "Nothing waits for approval." %}</strong>{% translate "Times and expenses appear here once they are handed in." %}</div></div>
+{% endfor %}
+{% endblock %}

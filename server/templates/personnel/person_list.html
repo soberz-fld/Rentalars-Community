@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Personnel" %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>{% translate "Personnel" %}</h1></div>
+  <div class="actions">{% if can.write.personnel %}<a class="btn secondary" href="{% url 'core:import' 'people' %}">{% icon "upload" %}{% translate "Import" %}</a><a class="btn" href="{% url 'personnel:person_create' %}">{% icon "plus" %}{% translate "New person" %}</a>{% endif %}</div>
+</div>
+{% include "personnel/_tabs.html" %}
+<div class="panel">
+  <form method="get" class="filters">
+    <div class="field grow"><label for="f-q">{% translate "Name, e-mail or company" %}</label><input type="search" id="f-q" name="q" value="{{ q }}"></div>
+    {% filterpanel "people" %}
+    <div class="field"><label for="f-kind">{% translate "Kind" %}</label>
+      <select id="f-kind" name="kind" data-autosubmit><option value="">{% translate "All" %}</option>{% for value, label in kinds %}<option value="{{ value }}"{% if kind == value %} selected{% endif %}>{{ label|capfirst }}</option>{% endfor %}</select></div>
+    <div class="field"><label for="f-function">{% translate "Job function" %}</label>
+      <select id="f-function" name="job_function" data-autosubmit><option value="">{% translate "All" %}</option>{% for function in job_functions %}<option value="{{ function.pk }}"{% if job_function_id == function.pk|stringformat:"s" %} selected{% endif %}>{{ function.name }}</option>{% endfor %}</select></div>
+    <div class="field"><div class="check"><input type="checkbox" id="f-inactive" name="inactive" value="1"{% if request.GET.inactive %} checked{% endif %} data-autosubmit><label for="f-inactive">{% translate "Show deactivated too" %}</label></div></div>
+    <button class="btn secondary" type="submit">{% translate "Filter" %}</button>
+    {% endfilterpanel %}
+  </form>
+  {% include "core/_table_tools.html" %}
+  {% if page.object_list %}
+  {% include "core/_table.html" with stack=True %}
+  {% include "accounts/_data_access_legend.html" %}{# AUT-034 #}
+  {% else %}
+  <div class="empty"><strong>{% translate "No people match." %}</strong>{% translate "Create the people who work on your projects, then give them their job functions." %}</div>
+  {% endif %}
+  {% include "core/_pagination.html" %}
+</div>
+{% endblock %}

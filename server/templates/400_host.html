@@ -1,0 +1,13 @@
+{% load i18n %}{% get_current_language as LANGUAGE_CODE %}<!doctype html>
+<html lang="{% if LANGUAGE_CODE == 'en' %}en-GB{% else %}{{ LANGUAGE_CODE|default:'de' }}{% endif %}">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>{% translate "Address not known" %} – Rentalars</title>
+<style>body{font-family:system-ui,sans-serif;background:#141414;color:#eeeeee;display:grid;place-items:center;min-height:100vh;margin:0;padding:16px}main{max-width:620px;line-height:1.5}a{color:#f47b4a}code{background:#2a2a2a;padding:1px 5px;border-radius:4px;overflow-wrap:anywhere}</style></head>
+<body><main>
+<h1>{% translate "Rentalars does not answer to this address" %}</h1>
+<p>{% blocktranslate with host=host %}You opened Rentalars under <code>{{ host }}</code>. This address is not entered in the configuration of the server.{% endblocktranslate %}</p>
+<p>{% blocktranslate with url=known_url %}The entered address is <a href="{{ url }}">{{ url }}</a>. Please open Rentalars there.{% endblocktranslate %}</p>
+<h2>{% translate "If the address of the server has changed" %}</h2>
+<p>{% translate "Whoever runs the server enters the new address in the configuration file (usually /etc/rentalars/rentalars.conf) under [rentalars] as allowed_hosts, for example allowed_hosts = 192.168.1.50, and restarts Rentalars (sudo systemctl restart rentalars). A changed web address with a certificate is changed with sudo rentalars address." %}</p>
+{% if own_addresses_on %}<p>{% translate "The IP addresses of the server itself need no entry; this one is none of them." %}</p>{% endif %}
+</main></body>
+</html>

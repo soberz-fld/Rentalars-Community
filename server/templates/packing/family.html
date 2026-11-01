@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Packing list" %} {{ family.whole.number }} – {% translate "whole project" %}{% endblock %}
+{% block content %}
+{% include "projects/_head.html" %}
+{# PCK-030: the parts as sub-tabs, as on the packlist of every part. #}
+{% include "packing/_tabs.html" %}
+{% comment %}
+  PRJ-048: the packlists of the whole project and of every part, read-only – part by part, or summed up per article
+  for the warehouse – with the progress of each part. Packing, issue and return happen on each part's own packlist.
+  PRJ-049: parts whose packlist the user may not see are left out; the page says how many.
+  PRJ-060: pieces taken over from another part are counted apart: they do not come from the warehouse.
+{% endcomment %}
+{% with figures=family.figures %}
+<div class="panel family-packlist">
+  <div class="panel-head">
+    <h2>{% translate "Whole project with all subprojects" %}</h2>
+    <span class="btn-row no-print">
+      <span class="segmented" role="group" aria-label="{% translate 'View' %}">
+        <a class="btn secondary small{% if view == 'parts' %} is-active{% endif %}" href="?view=parts">{% translate "By subproject" %}</a>
+        <a class="btn secondary small{% if view == 'articles' %} is-active{% endif %}" href="?view=articles">{% translate "Summed up by article" %}</a>
+      </span>
+      <a class="btn secondary small" href="{% url 'packing:family_pdf' project.pk %}?view={{ view }}" target="_blank" rel="noopener">{% icon "print" %}{% translate "PDF to print" %}</a>
+    </span>
+  </div>
+  <div class="panel-body">
+    <p class="muted small">{% translate "Read-only. Packing, issue, handover and return are booked on the packing list of each subproject." %}</p>
+    {# PCK-029: the same bar as on the packlist of every part. #}
+    {% include "packing/_bar.html" with bar=family.bar %}
+    {% if family.hidden %}<p class="note">{% blocktranslate count count=family.hidden %}{{ count }} subproject is not included: you may not see its packing list. The sums are without it.{% plural %}{{ count }} subprojects are not included: you may not see their packing lists. The sums are without them.{% endblocktranslate %}</p>{% endif %}
+  </div>
+  <table class="table stack family-pack-table">
+    <thead><tr>
+      <th>{% translate "Part" %}</th><th>{% translate "Packing lists" %}</th>
+      <th class="num">{% translate "Packed" %}</th><th class="num">{% translate "Issued" %}</th><th class="num">{% translate "Back" %}</th>
+      <th>{% translate "Between subprojects" %}</th>
+    </tr></thead>
+    <tbody>
+    {% for part in family.parts %}{% with p=part.project numbers=part.figures %}
+      <tr>
+        <td><a href="{% url 'packing:packlist' p.pk %}">{{ p.number }}</a> {% if part.is_whole %}<span class="muted">{% translate "own lines of the whole project" %}</span>{% else %}{{ p.name }}{% endif %}<div class="muted small">{{ p.start|date:"D d.m. H:i" }} – {{ p.end|date:"D d.m. H:i" }}</div></td>
+        <td data-label="{% translate 'Packing lists' %}">{% for overview in part.overviews %}<span class="badge {{ overview.packlist.status|status_colour }}">{% if part.overviews|length > 1 %}{{ overview.packlist.label }}: {% endif %}{{ overview.packlist.get_status_display }}</span> {% endfor %}{% include "packing/_bar.html" with bar=part.bar small=True %}</td>
+        <td class="num" data-label="{% translate 'Packed' %}">{{ numbers.packed|number }} / {{ numbers.required|number }}</td>
+        <td class="num" data-label="{% translate 'Issued' %}">{{ numbers.issued|number }} / {{ numbers.required|number }}</td>
+        <td class="num" data-label="{% translate 'Back' %}">{{ numbers.back|number }} / {{ numbers.out|number }}</td>
+        <td data-label="{% translate 'Between subprojects' %}">{% if numbers.taken_over %}<div>{% blocktranslate with handed=numbers.handed_in|number total=numbers.taken_over|number %}taken over: {{ handed }} of {{ total }} arrived{% endblocktranslate %}</div>{% endif %}{% if numbers.passing_on %}<div>{% blocktranslate with handed=numbers.handed_on|number total=numbers.passing_on|number %}going on: {{ handed }} of {{ total }} handed over{% endblocktranslate %}</div>{% endif %}{% if not numbers.taken_over and not numbers.passing_on %}<span class="muted">–</span>{% endif %}</td>
+      </tr>
+    {% endwith %}{% endfor %}
+    </tbody>
+    <tfoot>
+      <tr class="family-total">
+        <th>{% translate "Whole project with all parts" %}</th><td></td>
+        <td class="num" data-label="{% translate 'Packed' %}">{{ figures.packed|number }} / {{ figures.required|number }}</td>
+        <td class="num" data-label="{% translate 'Issued' %}">{{ figures.issued|number }} / {{ figures.required|number }}</td>
+        <td class="num" data-label="{% translate 'Back' %}">{{ figures.back|number }} / {{ figures.out|number }}</td>
+        <td data-label="{% translate 'Between subprojects' %}">{% if figures.taken_over %}{% blocktranslate with handed=figures.handed_in|number total=figures.taken_over|number %}taken over: {{ handed }} of {{ total }} arrived{% endblocktranslate %}{% endif %}</td>
+      </tr>
+    </tfoot>
+  </table>
+</div>
+{% endwith %}
+
+{% if view == "articles" %}
+<section class="panel">
+  <div class="panel-head"><h2>{% translate "Summed up by article" %}</h2></div>
+  {% if family.articles %}
+  <table class="table stack family-articles">
+    <thead><tr>
+      <th>{% translate "Article no." %}</th><th>{% translate "Name" %}</th>
+      <th class="num">{% translate "From the warehouse" %}</th><th class="num">{% translate "Taken over" %}</th>
+      <th class="num">{% translate "Packed" %}</th><th class="num">{% translate "Issued" %}</th><th class="num">{% translate "Back in the warehouse" %}</th>
+      <th>{% translate "Subprojects" %}</th>
+    </tr></thead>
+    {% for section in family.article_sections %}
+    <tbody>
+      <tr class="family-section"><th colspan="8">{{ section.title }}</th></tr>
+      {% for article in section.articles %}
+      <tr{% if article.is_packed %} class="is-done"{% endif %}>
+        <td><span class="artno">{{ article.product.article_number }}</span></td>
+        <td data-label="{% translate 'Name' %}">{{ article.product.name }}</td>
+        <td class="num" data-label="{% translate 'From the warehouse' %}"><strong>{{ article.from_warehouse|number }}</strong> <span class="muted small">{{ article.product.unit.abbreviation }}</span></td>
+        <td class="num" data-label="{% translate 'Taken over' %}">{% if article.taken_over %}{{ article.taken_over|number }}{% else %}<span class="muted">–</span>{% endif %}</td>
+        <td class="num" data-label="{% translate 'Packed' %}">{{ article.packed|number }}</td>
+        <td class="num" data-label="{% translate 'Issued' %}">{{ article.issued|number }}</td>
+        <td class="num" data-label="{% translate 'Back in the warehouse' %}">{{ article.returned|number }}</td>
+        <td data-label="{% translate 'Subprojects' %}"><span class="family-shares">{% for share in article.shares %}<span>{{ share.project.number }}: {{ share.quantity|number }}{% if share.is_takeover %} <span class="muted">({% translate "taken over" %})</span>{% endif %}</span>{% endfor %}</span></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+    {% endfor %}
+  </table>
+  {% else %}
+  <div class="empty"><strong>{% translate "Nothing to pack." %}</strong></div>
+  {% endif %}
+</section>
+{% else %}
+{% for part in family.parts %}
+<section class="panel family-part">
+  <div class="panel-head">
+    <h2>{{ part.project.number }} {% if part.is_whole %}<span class="muted">{% translate "own lines of the whole project" %}</span>{% else %}{{ part.project.name }}{% endif %}</h2>
+    <a class="btn secondary small no-print" href="{% url 'packing:packlist' part.project.pk %}">{% translate "Open packing list" %}</a>
+  </div>
+  {% for overview in part.overviews %}
+    {% if part.overviews|length > 1 %}<div class="pack-kit">{{ overview.packlist.label }} <span class="badge {{ overview.packlist.status|status_colour }}">{{ overview.packlist.get_status_display }}</span></div>{% endif %}
+    {% if overview.rows %}
+    <table class="table stack family-rows">
+      <thead><tr>
+        <th class="num">{% translate "Quantity" %}</th><th>{% translate "Article no." %}</th><th>{% translate "Name" %}</th>
+        <th class="num">{% translate "Packed" %}</th><th class="num">{% translate "Issued" %}</th><th class="num">{% translate "Back" %}</th>
+      </tr></thead>
+      {% for section in overview.sections %}
+      <tbody>
+        <tr class="family-section"><th colspan="6">{% if section.title %}{{ section.title }}{% else %}{% translate "Without group" %}{% endif %}</th></tr>
+        {% for row in section.rows %}
+        <tr class="{% if row.takeover_from %}is-takeover{% elif row.is_packed %}is-done{% endif %}">
+          <td class="num"><strong>{{ row.required|number }}</strong> <span class="muted small">{{ row.product.unit.abbreviation }}</span></td>
+          <td data-label="{% translate 'Article no.' %}"><span class="artno">{{ row.product.article_number }}</span></td>
+          <td data-label="{% translate 'Name' %}">{{ row.title }}{% if row.kit_title %}<div class="muted small">{% translate "from" context "kit" %} {{ row.kit_title }}</div>{% endif %}{% if row.is_customer_material %}{# PRJ-096 #} <span class="badge accent">{% translate "customer material – taken along" %}</span>{% endif %}
+            {% if row.takeover_from %}<div class="small family-move">{% blocktranslate with number=row.takeover_from.project.number name=row.takeover_from.project.name %}Taken over from {{ number }} {{ name }}{% endblocktranslate %} – {% translate "not from the warehouse" %}</div>{% endif %}
+            {% for passing in row.passes_on %}<div class="small family-move">{% blocktranslate with quantity=passing.planned|number number=passing.project.number name=passing.project.name %}{{ quantity }} go on to {{ number }} {{ name }}{% endblocktranslate %}</div>{% endfor %}</td>
+          <td class="num" data-label="{% translate 'Packed' %}">{% if row.takeover_from %}<span class="muted">–</span>{% else %}{{ row.packed|number }}{% endif %}</td>
+          <td class="num" data-label="{% translate 'Issued' %}">{{ row.issued|number }}</td>
+          <td class="num" data-label="{% translate 'Back' %}">{{ row.back|number }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      {% endfor %}
+    </table>
+    {% else %}
+    <div class="empty">{% translate "Nothing to pack." %}</div>
+    {% endif %}
+  {% endfor %}
+</section>
+{% empty %}
+<div class="panel"><div class="empty"><strong>{% translate "Nothing to show." %}</strong>{% translate "You may not see the packing list of any part of this project." %}</div></div>
+{% endfor %}
+{% endif %}
+{% endblock %}

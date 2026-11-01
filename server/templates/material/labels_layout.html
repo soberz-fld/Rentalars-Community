@@ -1,0 +1,58 @@
+{% load i18n static %}<!doctype html>
+{% get_current_language as LANGUAGE_CODE %}<html lang="{% if LANGUAGE_CODE == 'en' %}en-GB{% else %}{{ LANGUAGE_CODE }}{% endif %}">
+<head>
+<meta charset="utf-8">
+<title>{% translate "Labels" %}</title>
+{% comment %}
+  MAT-056: the labels small (17 × 54 mm), large (29 × 90 mm) and cable (29 mm roll), laid out like the
+  operator's P-touch templates (material/label_layouts.py). One label per page in its exact size – for WeasyPrint
+  (the PDF) and for the print dialog of the browser alike. Every part is placed in millimetres; the sizes of the
+  texts were fitted to their boxes before, with the font used here.
+  MAT-065 (labels): set in Liberation Sans – Arial's metrics, as the templates – in pure black, without kerning (the
+  widths were measured without it); every part lies inside the printable area of the printer (label_layouts.py).
+{% endcomment %}
+<style>
+  @font-face { font-family: "Barlow"; font-weight: 400; src: url("{{ fonts.regular }}"); }
+  @font-face { font-family: "Barlow"; font-weight: 600; src: url("{{ fonts.semibold }}"); }
+  @font-face { font-family: "Liberation Sans"; font-weight: 400; src: url("{{ fonts.label }}") format("truetype"); }
+  @page { size: {{ page_width|stringformat:"g" }}mm {{ page_height|stringformat:"g" }}mm; margin: 0; }
+  html, body { margin: 0; padding: 0; background: #fff; }
+  body { font-family: "Liberation Sans", Arial, sans-serif; font-weight: 400; color: #000; font-kerning: none; font-variant-ligatures: none; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .label { position: relative; width: {{ page_width|stringformat:"g" }}mm; height: {{ page_height|stringformat:"g" }}mm; overflow: hidden; break-after: page; page-break-after: always; background: #fff; }
+  .label:last-child { break-after: auto; page-break-after: auto; }
+  .part { position: absolute; box-sizing: border-box; overflow: hidden; }
+  /* A text is fitted to the width of its box; its descenders may reach below the box, never out of the printable area. */
+  .text, .pair { display: flex; align-items: center; white-space: nowrap; line-height: 1; padding: 0 0.6pt; overflow: visible; }
+  .text.center { justify-content: center; text-align: center; }
+  .text.right { justify-content: flex-end; text-align: right; }
+  .pair { justify-content: space-between; }
+  .lines { display: flex; flex-direction: column; justify-content: center; line-height: 1.15; padding: 0 0.6pt; }
+  .lines .line { white-space: nowrap; }
+  .lines.justify .line:not(:last-child) { text-align: justify; text-align-last: justify; }
+  /* Logo and QR code are drawn in printer dots, black and white: no smoothing that would turn into grey. */
+  .logo img { width: 100%; height: 100%; display: block; image-rendering: pixelated; }
+  .qr svg { width: 100%; height: 100%; display: block; }
+  {% if for_browser %}
+  /* In the browser: the labels with a little room between them on the screen, the bar above them; printed: only the labels. */
+  @media screen {
+    html { background: #e8e8e8; }
+    body { background: #e8e8e8; padding: 16px; }
+    .print-bar { font-family: "Barlow", sans-serif; font-kerning: auto; }
+    /* Twice the size on the screen, to read; printed at its exact size. */
+    .label { margin: 0 0 12px; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3); zoom: 2; }
+    .print-bar { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; margin: 0 0 16px; padding: 12px 16px; background: #fff; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; max-width: 760px; }
+    .print-bar p { margin: 0; flex: 1 1 320px; }
+    .print-button { font: inherit; font-weight: 600; padding: 8px 18px; border: 0; border-radius: 4px; background: #f15a24; color: #fff; cursor: pointer; }
+  }
+  @media print { .print-bar { display: none; } }
+  {% endif %}
+</style>
+{% if for_browser %}<script src="{% static 'js/label-print.js' %}" defer></script>{% endif %}
+</head>
+<body{% if for_browser %} data-print-on-load{% endif %}>
+{% if for_browser %}{% include "material/_label_print_bar.html" %}{% endif %}
+{% for label in labels %}
+<div class="label">{% include "material/_label_parts.html" %}</div>
+{% endfor %}
+</body>
+</html>

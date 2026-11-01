@@ -1,0 +1,16 @@
+{% load rentalars %}
+{% if field.is_hidden %}{{ field }}{% elif field|is_checkbox %}
+<div class="field{% if field.errors %} has-error{% endif %}">
+  <div class="check">{{ field }}<label for="{{ field.id_for_label }}">{{ field.label }}{% include "core/_required_mark.html" %}</label></div>
+  {% if field.help_text %}<div class="help" id="{{ field.auto_id }}_helptext">{{ field.help_text }}</div>{% endif %}
+  {{ field.errors }}
+</div>
+{% else %}
+<div class="field{% if field.errors %} has-error{% endif %}">
+  <label for="{{ field.id_for_label }}">{{ field.label }}{% include "core/_required_mark.html" %}</label>
+  {{ field }}
+  {# NFA-025: the id Django's aria-describedby names ("<id>_helptext"). #}
+  {% if field.help_text %}<div class="help" id="{{ field.auto_id }}_helptext">{{ field.help_text }}</div>{% endif %}
+  {{ field.errors }}
+</div>
+{% endif %}

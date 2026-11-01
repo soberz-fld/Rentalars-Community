@@ -1,0 +1,48 @@
+# The link to the Rentalars Gateway: carries the requests of the apps from the gateway to the
+# application and back, over the application's local socket. Details: docs/betrieb/gateway.md.
+#
+# Switched on and off by "sudo rentalars gateway connect|disconnect" (deploy/gateway.sh). Until a gateway is
+# connected the service is skipped (ExecCondition), so an installation without gateway is not changed at all.
+# It stops and starts together with rentalars.service (PartOf, WantedBy).
+
+[Unit]
+Description=Rentalars – Verbindung zum Rentalars Gateway
+Documentation=file:///opt/rentalars/app/docs/betrieb/gateway.md
+After=network-online.target mariadb.service rentalars.service
+Wants=network-online.target
+PartOf=rentalars.service
+
+[Service]
+Type=simple
+User=rentalars
+Group=rentalars
+WorkingDirectory=/opt/rentalars/app
+Environment=RENTALARS_CONFIG=/etc/rentalars/rentalars.conf
+# Exit 1 = no gateway connected: the unit is skipped, not failed.
+ExecCondition=/opt/rentalars/venv/bin/python /opt/rentalars/app/manage.py gateway is-configured
+ExecStart=/opt/rentalars/venv/bin/python /opt/rentalars/app/manage.py gateway serve
+# Exit 75: the link was changed (connect, rekey) – start again with the new keys. Exit 0: disconnected.
+Restart=on-failure
+RestartSec=5
+
+# It reads the database and talks to the gateway and to the application's socket; it writes nothing on disk.
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+RestrictNamespaces=yes
+LockPersonality=yes
+SystemCallArchitectures=native
+CapabilityBoundingSet=
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+
+[Install]
+WantedBy=rentalars.service

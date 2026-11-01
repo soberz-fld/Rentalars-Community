@@ -1,0 +1,21 @@
+{% load i18n rentalars %}
+{# PRJ-105: set or change the follow-up of a project – in the dialog over the project page, or on a page of its own. #}
+<form method="post" action="{% url 'projects:follow_up' project.pk %}" hx-post="{% url 'projects:follow_up' project.pk %}" hx-target="#dialog" novalidate>
+  {% csrf_token %}<input type="hidden" name="next" value="{{ next }}">
+  <div class="dialog-head"><h2>{% translate "Follow-up" %}</h2><button type="button" class="icon-btn" data-close-dialog aria-label="{% translate 'Close' %}">{% icon "close" %}</button></div>
+  <div class="dialog-body form">
+    <p class="muted small">{% translate "On that day – or from the time you enter – the person gets a notification. Until it is done, the follow-up shows in the head of the project, on the start page of the person, in the list of projects and under Planning → Follow-ups." %}</p>
+    {% include "core/_form_errors.html" %}
+    <div class="form-grid">
+      {% include "core/_field.html" with field=form.follow_up_on %}
+      {% include "core/_field.html" with field=form.follow_up_at %}{# PRJ-109 #}
+      {% include "core/_field.html" with field=form.follow_up_user %}
+    </div>
+    {% include "core/_field.html" with field=form.follow_up_note %}
+  </div>
+  <div class="dialog-foot">
+    {% if project.follow_up_on %}<button type="submit" class="btn secondary" formaction="{% url 'projects:follow_up_done' project.pk %}" hx-post="{% url 'projects:follow_up_done' project.pk %}" hx-target="#dialog">{% icon "check" %}{% translate "Done" context "follow-up" %}</button>{% endif %}
+    <button type="button" class="btn secondary" data-close-dialog>{% translate "Cancel" %}</button>
+    <button type="submit" class="btn">{% translate "Save follow-up" %}</button>
+  </div>
+</form>

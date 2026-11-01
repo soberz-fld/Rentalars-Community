@@ -1,0 +1,215 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{{ item.display_id }} {{ item.material_model.name }}{% endblock %}
+{% block content %}
+{% include "material/_item_head.html" %}
+{# MAT-090: the photos are not the main thing – a narrow box beside the data, below it on a phone. #}
+<div class="with-aside"><div class="with-aside-main">
+<div class="columns">
+  <section class="panel">
+    <div class="panel-head"><h2>{% translate "Item" %}</h2></div>
+    <div class="panel-body">
+      <dl class="facts">
+        <dt>{% translate "Category" %}</dt><dd>{{ item.material_model.category.path }}</dd>
+        {% if item.material_model.manufacturer %}<dt>{% translate "Manufacturer" %}</dt><dd>{{ item.material_model.manufacturer }}</dd>{% endif %}
+        {# MAT-055: the model next to category, manufacturer, product and serial number. #}
+        <dt>{% translate "Model" %}</dt><dd><a href="{% url 'material:model_detail' item.material_model_id %}">{{ item.material_model.name }}</a>{% if item.material_model.short_name and item.material_model.short_name != item.material_model.name %} <span class="muted">({{ item.material_model.short_name }})</span>{% endif %}</dd>
+        {% if item.effective_specification %}<dt>{% translate "Description" %}</dt><dd>{{ item.effective_specification|linebreaksbr }}{% if item.specification_override %} <span class="badge" title="{% translate 'The model says:' %} {{ item.material_model.specification }}">{% translate "own" %}</span>{% endif %}</dd>{% endif %}
+        {% for field, value, own in item.field_rows %}{% if value %}<dt>{{ field.label }}</dt><dd>{{ value }}{% if own %} <span class="badge" title="{% translate 'differs from the model' %}">{% translate "own" %}</span>{% endif %}</dd>{% endif %}{% endfor %}
+        {% if item.material_model.weight_kg or item.material_model.dimensions_display %}<dt>{% translate "Weight and size" %}</dt><dd>{% if item.material_model.weight_kg %}{{ item.material_model.weight_kg|number }} kg{% endif %}{% if item.material_model.weight_kg and item.material_model.dimensions_display %}, {% endif %}{{ item.material_model.dimensions_display }}</dd>{% endif %}
+        {% if item.material_model.power_w is not None %}<dt>{% translate "Power" context "material" %}</dt><dd>{{ item.material_model.power_w|number }} W</dd>{% endif %}
+        {% include "material/_protection_class_fact.html" %}
+        <dt>{% translate "Product" %}</dt><dd>{% if item.product %}<a class="artno" href="{% url 'products:detail' item.product.pk %}">{{ item.product.article_number }}</a> {{ item.product.name }}{% if item.product_override %} <span class="badge">{% translate "differs from model" %}</span>{% endif %}{% if item.product.pieces_per_product > 1 %}{# A product of several pieces #}<div class="muted small">{% blocktranslate with count=item.product.pieces_per_product %}One of the {{ count }} items that make up a piece of this product.{% endblocktranslate %}</div>{% endif %}{% else %}<span class="muted">{% translate "none – cannot be planned" %}</span>{% endif %}</dd>
+        {% if item.material_model.is_bulk %}<dt>{% translate "Quantity" %}</dt><dd>{{ item.quantity }}</dd>{% endif %}
+        <dt>{% translate "Serial number" %}</dt><dd>{{ item.serial_number|default:"–" }}</dd>
+        {% with location=item.effective_storage_location %}{% if location %}<dt>{% translate "Storage location" %}</dt><dd>{{ location.path }}{% with spot=item.effective_storage_spot %}{% if spot %} <span class="storage-spot">{{ spot }}</span>{% endif %}{% endwith %}{% if item.installed_in_id %} <span class="muted small">({% translate "where its container is" %})</span>{% endif %}</dd>{% endif %}{% endwith %}
+        {% if item.note %}<dt>{% translate "Note" %}</dt><dd>{{ item.note|linebreaksbr }}</dd>{% endif %}
+      </dl>
+    </div>
+  </section>
+  <section class="panel">
+    <div class="panel-head"><h2>{% translate "Purchase" %}</h2></div>
+    <div class="panel-body">
+      <dl class="facts">
+        {# MAT-050: invoice date and invoice number #}
+        <dt>{% translate "Invoice date" %}</dt><dd>{{ item.purchase_date_text|default:"–" }}</dd>
+        {% if item.invoice_number %}<dt>{% translate "Invoice number" %}</dt><dd>{{ item.invoice_number }}</dd>{% endif %}
+        {% if can_see_purchase_prices %}<dt>{% translate "Purchase price (net)" %}</dt><dd>{% if item.purchase_price_in_id %}{# MAT-054 #}{% blocktranslate with head=item.purchase_price_in.display_id %}included in the price of {{ head }}{% endblocktranslate %}{% else %}{{ item.purchase_price|money|default:"–" }}{% endif %}</dd>{% endif %}
+        {# Incoming invoices: what the item cost with its share of the ancillary costs, what it is for the books, where it came from #}
+        {% if bookkeeping_on and item.asset_kind %}<dt>{% translate "Kind of asset" %}</dt><dd>{{ item.get_asset_kind_display }}{% if item.useful_life_months %} · {% blocktranslate with months=item.useful_life_months %}useful life {{ months }} months{% endblocktranslate %}{% endif %}</dd>{% endif %}
+        {% if bookkeeping_on and can_see_purchase_prices and item.acquisition_cost_net is not None %}<dt>{% translate "Acquisition cost (net)" %}</dt><dd>{{ item.acquisition_cost_net|money }}{% if item.ancillary_cost_net %} <span class="muted small">({% blocktranslate with share=item.ancillary_cost_net|money %}incl. {{ share }} ancillary costs{% endblocktranslate %})</span>{% endif %}</dd>{% endif %}
+        {% if bookkeeping_on and can_see_purchase_prices and item.source_position_id %}<dt>{% translate "From the incoming invoice" %}</dt><dd><a href="{% url 'incoming:detail' item.source_position.invoice_id %}#position-{{ item.source_position_id }}">{% blocktranslate with number=item.source_position.place %}Position {{ number }}{% endblocktranslate %}</a></dd>{% endif %}
+        {% with members=item.purchase_set %}{% if members %}
+        {# MAT-054: bought as a set – the item with the price first, then the others; each one a link. #}
+        <dt>{% translate "Bought as a set" %}</dt><dd>{% for member in members %}{% if member.pk == item.pk %}<span class="tape">{{ member.display_id }}</span>{% else %}<a class="tape" href="{% url 'material:item_detail' member.pk %}">{{ member.display_id }}</a>{% endif %}{% if forloop.first %} <span class="muted small">({% translate "with the price" %})</span>{% endif %}{% if not forloop.last %} {% endif %}{% endfor %}</dd>
+        {% endif %}{% endwith %}
+        <dt>{% translate "Bought from" %}</dt><dd>{{ item.supplier|default:"–" }}</dd>
+        <dt>{% translate "Supplier's article number" %}</dt><dd>{{ item.supplier_article_number|default:"–" }}</dd>
+        {% if item.purchase_note %}<dt>{% translate "Purchase note" %}</dt><dd>{{ item.purchase_note }}</dd>{% endif %}
+      </dl>
+    </div>
+  </section>
+</div>
+</div>
+{% include "material/_photos.html" with title=_("Photos") %}{# MAT-090 #}
+</div>
+
+{# Depreciation, used sale from stock: kind, useful life, depreciation, book value, schedule – with the purchase prices right #}
+{% if bookkeeping_on and asset and item.asset_kind or bookkeeping_on and asset_form %}{% include "material/_asset_card.html" %}{% endif %}
+
+{# MAT-073: the values of the fields of the model's fieldset #}
+{% include "customfields/_item_panel.html" %}
+
+{% if is_vehicle %}{% include "material/_vehicle_panel.html" %}{% endif %}
+
+{# MAT-053: what the item earned against what it cost – loaded after the page, for who may see prices. #}
+{% if show_revenue %}<div hx-get="{% url 'projects:item_revenue' item.pk %}" hx-trigger="load" hx-target="this" hx-swap="outerHTML"><section class="panel"><div class="panel-head"><h2>{% translate "Earnings" %}</h2></div><div class="panel-body muted">{% translate "Calculating what the item earned …" %}</div></section></div>{% endif %}
+
+{# MAT-047: changing the status comes first, before what the item is installed in. #}
+{% if can.write.material %}
+<section class="panel" id="status">
+  <div class="panel-head"><h2>{% translate "Change status" %}</h2></div>
+  <div class="panel-body">
+    {% if item.status == "import_error" %}<p class="message warning" role="status">{% translate "This item came in through the import with problems. The note says which entries could not be taken over; complete the fields by hand. Until you choose another status below, it is not fit for rental." %}</p>{% endif %}
+    {% if item.status == "defective" %}<p class="muted">{% translate "A defective item goes to repair or leaves the stock. Once it is in repair, it can be set to available again." %}</p>{% endif %}
+    <form method="post" action="{% url 'material:item_set_status' item.pk %}" class="status-change" autocomplete="off">
+      {% csrf_token %}{% include "core/_required_note.html" with form=status_form %}
+      <div class="inline-fields">
+        <div class="field">
+          <label for="{{ status_form.status.id_for_label }}">{{ status_form.status.label }}{% include "core/_required_mark.html" with field=status_form.status %}</label>
+          {{ status_form.status }}
+        </div>
+        <div class="field grow">
+          <label for="{{ status_form.reason.id_for_label }}">{{ status_form.reason.label }}{% include "core/_required_mark.html" with field=status_form.reason %}</label>
+          {{ status_form.reason }}
+        </div>
+        <button class="btn" type="submit">{% translate "Change status" %}</button>
+      </div>
+      <p class="help" id="{{ status_form.reason.auto_id }}_helptext">{{ status_form.reason.help_text }}</p>
+    </form>
+  </div>
+</section>
+{% endif %}
+
+{# MAT-069: last and next audit, the open to-dos with "erledigt", "To-Do notieren", the audits so far. #}
+{% include "material/_item_audit_box.html" %}
+
+<section class="panel" id="installation">
+  <div class="panel-head"><h2>{% translate "Installed in / contains" %}</h2></div>
+  <div class="panel-body">
+    <h3>{% translate "Installed in" %}</h3>
+    {% if containers %}
+      <p>{% if item.connection_type == "fixed" %}{% translate "Permanently installed in" %}{% else %}{% translate "Loosely contained in" %}{% endif %}
+      {% for container in containers %}{% if not forloop.first %} {% translate "which is in" %} {% endif %}<a class="tape" href="{% url 'material:item_detail' container.pk %}">{{ container.display_id }}</a> {{ container.material_model.display_short_name }}{% endfor %}.
+      {% if item.travels_only_with_container %}<span class="muted">{% translate "Always travels with its container and is not plannable on its own." %}</span>{% elif item.individually_rentable %}<span class="muted">{% translate "Can be rented on its own; occupied whenever the container is planned." %}</span>{% else %}<span class="muted">{% translate "Occupied whenever the container is planned, free otherwise." %}</span>{% endif %}</p>
+      {% if can.write.material and item.connection_type == "loose" %}<form method="post" action="{% url 'material:item_take_out' item.pk %}" class="inline-form">{% csrf_token %}<button class="btn secondary small" type="submit">{% icon "box-out" %}{% blocktranslate with id=item.installed_in.display_id %}Take out of {{ id }}{% endblocktranslate %}</button></form>{% endif %}
+    {% else %}
+      <p class="muted">{% translate "Not installed in another item." %}</p>
+      {# MAT-047: installed from here, like adding an item below under "Contains". #}
+      {% if can.write.material and not item.is_archived %}
+      <form method="post" action="{% url 'material:item_install' item.pk %}" class="content-add no-print" autocomplete="off">
+        {% csrf_token %}{% include "core/_required_note.html" with form=install_form %}
+        <div class="inline-fields">
+          <div class="field grow">
+            <label for="install-container">{% translate "Install in" %}</label>
+            <div class="typeahead" data-typeahead data-typeahead-free data-url="{% url 'material:item_suggest' %}?not_in={{ item.pk }}">
+              <input type="search" data-typeahead-input id="install-container" autocomplete="off" placeholder="{% translate 'Search by ID or name' %}">
+              <input type="hidden" name="container_number" data-typeahead-value>
+            </div>
+          </div>
+          <div class="field">
+            <label for="install-connection">{{ install_form.connection_type.label }}{% include "core/_required_mark.html" with field=install_form.connection_type %}</label>
+            <select name="connection_type" id="install-connection">{% for value, label in install_form.connection_type.field.choices %}<option value="{{ value }}"{% if value == install_form.connection_type.value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+          </div>
+          <button class="btn secondary" type="submit">{% icon "box-in" %}{% translate "Install" %}</button>
+        </div>
+      </form>
+      {% endif %}
+      {% if item.taken_out_of and can.write.material %}<form method="post" action="{% url 'material:item_put_back' item.pk %}" class="inline-form">{% csrf_token %}<button class="btn secondary small" type="submit">{% icon "box-in" %}{% blocktranslate with id=item.taken_out_of.display_id %}Put back into {{ id }}{% endblocktranslate %}</button></form>{% endif %}
+    {% endif %}
+
+    <h3 class="spaced">{% translate "Contains" %}</h3>
+    {% if contents %}
+      <ul class="tree">
+      {% for depth, content in contents %}
+        <li>{% for step in ""|ljust:depth %}{% if not forloop.first %}<span class="indent"></span>{% endif %}{% endfor %}<a class="tape" href="{% url 'material:item_detail' content.pk %}">{{ content.display_id }}</a> {{ content.material_model.display_short_name }}
+          <span class="badge">{% if content.connection_type == "fixed" %}{% translate "fixed" %}{% else %}{% translate "loose" %}{% endif %}</span>
+          {% if content.status != "available" %}<span class="badge {{ content.status|status_colour }}">{{ content.get_status_display }}</span>{% endif %}
+          {# Only what sits directly in this item can be taken out here; deeper levels are edited on their own container. #}
+          {% if can.write.material and depth == 1 %}{% if content.connection_type == "loose" %}<form method="post" action="{% url 'material:item_take_out' content.pk %}" class="inline-form tree-action no-print">{% csrf_token %}<input type="hidden" name="next" value="{{ request.path }}"><button class="link-btn" type="submit">{% translate "take out" %}</button></form>{% else %}<form method="post" action="{% url 'material:item_content_remove' item.pk content.pk %}" class="inline-form tree-action no-print">{% csrf_token %}<button class="link-btn" type="submit" data-confirm="{% blocktranslate with id=content.display_id %}Take {{ id }} out of this item?{% endblocktranslate %}">{% translate "remove" %}</button></form>{% endif %}{% endif %}</li>
+      {% endfor %}
+      </ul>
+    {% else %}
+      <p class="muted">{% translate "Nothing is installed in this item." %}</p>
+    {% endif %}
+    {% if can.write.material and can_contain %}
+    <form method="post" action="{% url 'material:item_content_add' item.pk %}" class="content-add no-print" autocomplete="off">
+      {% csrf_token %}{% include "core/_required_note.html" with form=content_form %}
+      <div class="inline-fields">
+        <div class="field grow">
+          <label for="{{ content_form.item_number.id_for_label }}">{% translate "Add an item" %}</label>
+          <div class="typeahead" data-typeahead data-typeahead-free data-url="{% url 'material:item_suggest' %}?not_in={{ item.pk }}">
+            <input type="search" data-typeahead-input id="{{ content_form.item_number.id_for_label }}" autocomplete="off" placeholder="{% translate 'Search by ID or name' %}">
+            <input type="hidden" name="item_number" data-typeahead-value>
+          </div>
+        </div>
+        <div class="field">
+          <label for="{{ content_form.connection_type.id_for_label }}">{{ content_form.connection_type.label }}{% include "core/_required_mark.html" with field=content_form.connection_type %}</label>
+          {{ content_form.connection_type }}
+        </div>
+        <button class="btn secondary" type="submit">{% icon "plus" %}{% translate "Install here" %}</button>
+      </div>
+      {# Only a permanently installed item can be an exception that is rented on its own (MAT-041). #}
+      <div data-show-if="connection_type=fixed">{% include "core/_field.html" with field=content_form.individually_rentable %}</div>
+    </form>
+    {% endif %}
+  </div>
+</section>
+
+{# MAT-040 (built-in quantity material): bulk material built into this item, or where this bulk row is built in. #}
+{% include "material/_built_in.html" %}
+
+{% if extractions or extraction_projects %}
+<section class="panel" id="extraction">
+  <div class="panel-head"><h2>{% translate "Taken out for projects" %}</h2></div>
+  <div class="panel-body">
+    <p class="muted">{% translate "For a project that takes the container along, this item can stay behind: it is then free for others meanwhile, and the packing list of that project lists it as missing from the container." %}</p>
+    {% if extractions %}<ul class="plain-list">{% for extraction in extractions %}
+      <li><a href="{% url 'projects:overview' extraction.project_id %}">{{ extraction.project.number }} {{ extraction.project.name }}</a>{% if extraction.container %} – {% blocktranslate with id=extraction.container.display_id %}not in {{ id }}{% endblocktranslate %}{% endif %}
+        {% if can.write.packing %}<form method="post" action="{% url 'packing:extraction_cancel' extraction.pk %}" class="inline-form">{% csrf_token %}<button class="link-btn" type="submit" data-confirm="{% translate 'Let this piece travel with the device again? The removal is cancelled.' %}">{% translate "travels with it again" %}</button></form>{% endif %}</li>
+    {% endfor %}</ul>{% endif %}
+    {% if extraction_projects and can.write.packing %}
+    <form method="post" action="{% url 'packing:extract' item.pk %}" class="inline-fields">{% csrf_token %}
+      <div class="field grow"><label for="f-extract-project">{% translate "Take out for project" %}</label><select id="f-extract-project" name="project">{% for project in extraction_projects %}<option value="{{ project.pk }}">{{ project.number }} {{ project.name }} ({{ project.start|date:"d.m." }}–{{ project.end|date:"d.m.Y" }})</option>{% endfor %}</select></div>
+      <button class="btn secondary" type="submit">{% icon "box-out" %}{% translate "Take out for this project" %}</button>
+    </form>
+    {% endif %}
+  </div>
+</section>
+{% endif %}
+
+<section class="panel" id="blocks">
+  <div class="panel-head"><h2>{% translate "Blocked periods" %}</h2></div>
+  <div class="panel-body">
+    {% if blocks %}<ul class="plain-list">{% for block in blocks %}
+      <li><strong>{{ block.start|date:"d.m.Y H:i" }} – {{ block.end|date:"d.m.Y H:i" }}</strong> {{ block.reason }}
+        {% if can.write.material %}<form method="post" action="{% url 'material:item_block_delete' item.pk block.pk %}" class="inline-form">{% csrf_token %}<button class="link-btn" type="submit" data-confirm="{% translate 'Lift this block?' %}">{% translate "lift" %}</button></form>{% endif %}</li>
+    {% endfor %}</ul>{% else %}<p class="muted">{% translate "Not blocked. A block takes the item out of the free stock for a period, e.g. while it is away for repair." %}</p>{% endif %}
+    {% if can.write.material and not item.is_archived %}
+    <form method="post" action="{% url 'material:item_block_add' item.pk %}" class="inline-fields" autocomplete="off">{% csrf_token %}{% include "core/_required_note.html" with form=block_form %}
+      <div class="field"><label for="{{ block_form.start.id_for_label }}">{{ block_form.start.label }}{% include "core/_required_mark.html" with field=block_form.start %}</label>{{ block_form.start }}</div>
+      <div class="field"><label for="{{ block_form.end.id_for_label }}">{{ block_form.end.label }}{% include "core/_required_mark.html" with field=block_form.end %}</label>{{ block_form.end }}</div>
+      <div class="field grow"><label for="{{ block_form.reason.id_for_label }}">{{ block_form.reason.label }}{% include "core/_required_mark.html" with field=block_form.reason %}</label>{{ block_form.reason }}{% if block_form.reason.help_text %}<div class="help" id="{{ block_form.reason.auto_id }}_helptext">{{ block_form.reason.help_text }}</div>{% endif %}</div>
+      <button class="btn secondary" type="submit">{% icon "lock" %}{% translate "Block" %}</button>
+    </form>
+    {% endif %}
+  </div>
+</section>
+{% include "schedule/_calendar_link.html" with subject=item %}{# VFG-040 #}
+
+
+
+{% if can.delete.material %}
+<form method="post" action="{% url 'material:item_delete' item.pk %}" class="section">{% csrf_token %}<button class="btn danger" type="submit" data-confirm="{% translate 'Delete this item for good? Only do this for items created by mistake.' %}">{% icon "trash" %}{% translate "Delete item" %}</button></form>
+{% endif %}
+{% endblock %}

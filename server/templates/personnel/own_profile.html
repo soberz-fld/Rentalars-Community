@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% load i18n rentalars subprojects %}
+{% block title %}{% translate "My personnel data" %}{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>{% translate "My area" %}</h1></div></div>
+{% include "personnel/_my_tabs.html" with tab="profile" %}
+<p class="tab-lead">{% blocktranslate with name=person.name %}{{ name }}: your contact data, what colleagues may see of them, your deployments and absences.{% endblocktranslate %}</p>
+<div class="columns">
+  <section class="panel">
+    <div class="panel-head"><h2>{% translate "Contact data and colleagues" %}</h2></div>
+    <div class="panel-body">
+      <form method="post" class="form" novalidate>
+        {% csrf_token %}
+        {% include "core/_form_errors.html" %}
+        <div class="form-grid">
+          {% include "core/_field.html" with field=form.phone %}
+          {% include "core/_field.html" with field=form.email %}
+        </div>
+        {% include "core/_field.html" with field=form.share_phone %}
+        {% include "core/_field.html" with field=form.share_email %}
+        <p class="muted small">{% translate "Colleagues on the same deployment always see your name. Project management and personnel planning see your contact data in any case." %}</p>
+        <div class="btn-row"><button class="btn" type="submit">{% translate "Save" %}</button></div>
+      </form>
+    </div>
+  </section>
+  <section class="panel">
+    <div class="panel-head"><h2>{% translate "My job functions" %}</h2></div>
+    {# PER-010, PER-029: the functions always; the own hourly and day rates if the person may see them. #}
+    {% if current_rates %}
+    <table class="table stack">
+      <thead><tr><th>{% translate "Job function" %}</th>{% if may_see_own_rates %}<th class="num">{% translate "My hourly rate" %}</th><th class="num">{% translate "My day rate" %}</th>{% endif %}</tr></thead>
+      <tbody>{% for rate in current_rates %}<tr><td>{{ rate.job_function.name }}</td>{% if may_see_own_rates %}<td class="num" data-label="{% translate 'My hourly rate' %}">{% if rate.hourly_rate is not None %}{{ rate.hourly_rate|money }}{% else %}<span class="muted">–</span>{% endif %}</td><td class="num" data-label="{% translate 'My day rate' %}">{% if rate.daily_rate is not None %}{{ rate.daily_rate|money }}{% else %}<span class="muted">–</span>{% endif %}</td>{% endif %}</tr>{% endfor %}</tbody>
+    </table>
+    {% if not may_see_own_rates %}<p class="panel-body muted small">{% translate "Hourly rates are not shown here." %}</p>{% endif %}
+    {% else %}
+    <div class="empty">{% translate "No job function is assigned to you yet." %}</div>
+    {% endif %}
+  </section>
+</div>
+
+<div class="columns">
+  <section class="panel">
+    <div class="panel-head"><h2>{% translate "My deployments" %}</h2></div>
+    {% if deployments %}
+    <table class="table stack">
+      <tbody>
+      {% for line in deployments %}
+        <tr><td><a href="{% url 'projects:deployment' line.project_id %}">{{ line.project.number }} {{ line.project.name }}</a>{% if line.project.parent_id %}<div class="muted small">{{ line.project|part_of }}</div>{% endif %}<div class="muted small">{{ line.job_function.name }}</div></td><td>{{ line.start|date:"D d.m.Y H:i" }} – {{ line.end|date:"D d.m.Y H:i" }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty">{% translate "You are not scheduled for any upcoming project." %}</div>
+    {% endif %}
+  </section>
+  <section class="panel" id="absences">
+    <div class="panel-head"><h2>{% translate "When I am not available" %}</h2></div>
+    {% if absences %}
+    <table class="table stack">
+      <tbody>
+      {% for absence in absences %}
+        <tr><td>{{ absence.get_kind_display|capfirst }}{% if absence.note %}<div class="muted small">{{ absence.note }}</div>{% endif %}</td><td>{{ absence.start|date:"D d.m.Y H:i" }} – {{ absence.end|date:"D d.m.Y H:i" }}</td>
+          <td class="actions"><form method="post" action="{% url 'personnel:own_absence_delete' absence.pk %}" class="inline-form">{% csrf_token %}<button class="link-btn danger" type="submit" data-confirm="{% translate 'Delete this absence?' %}">{% translate "Delete" %}</button></form></td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty">{% translate "Nothing entered." %}</div>
+    {% endif %}
+    <form method="post" action="{% url 'personnel:own_absence_add' %}" class="panel-body inline-fields" novalidate>
+      {% csrf_token %}{% include "core/_required_note.html" with form=absence_form %}
+      <div class="field"><label for="{{ absence_form.kind.id_for_label }}">{{ absence_form.kind.label }}{% include "core/_required_mark.html" with field=absence_form.kind %}</label>{{ absence_form.kind }}</div>
+      <div class="field"><label for="{{ absence_form.start.id_for_label }}">{{ absence_form.start.label }}{% include "core/_required_mark.html" with field=absence_form.start %}</label>{{ absence_form.start }}</div>
+      <div class="field"><label for="{{ absence_form.end.id_for_label }}">{{ absence_form.end.label }}{% include "core/_required_mark.html" with field=absence_form.end %}</label>{{ absence_form.end }}</div>
+      <div class="field grow"><label for="{{ absence_form.note.id_for_label }}">{{ absence_form.note.label }}{% include "core/_required_mark.html" with field=absence_form.note %}</label>{{ absence_form.note }}</div>
+      <button class="btn secondary" type="submit">{% translate "Enter" %}</button>
+    </form>
+  </section>
+  {% if qualifications %}
+  <section class="panel" id="qualifications">
+    <div class="panel-head"><h2>{% translate "My qualifications" %}</h2></div>
+    {% include "personnel/_qualifications.html" with editable=False %}
+    <p class="panel-body help-line">{% translate "A renewed certificate? Hand it to personnel planning; they record it." %}</p>
+  </section>
+  {% endif %}
+</div>
+{% endblock %}

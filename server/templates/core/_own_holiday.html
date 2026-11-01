@@ -1,0 +1,20 @@
+{% load i18n %}{% comment %}
+  PER-040: one own holiday in the list of Einstellungen → Zuschläge. Expects: holiday (a form of the formset
+  "holidays"), number (its place, "" for the empty template row).
+{% endcomment %}{% with kind=holiday.kind.value|default:"yearly" p=holiday.prefix %}
+<fieldset class="own-holiday{% if holiday.errors %} has-error{% endif %}" data-formset-row>
+  <legend class="visually-hidden">{% if number %}{% blocktranslate %}Own holiday {{ number }}{% endblocktranslate %}{% else %}{% translate "New own holiday" %}{% endif %}</legend>
+  {{ holiday.id }}
+  <div class="holiday-grid">
+    <div class="rule-name">{% include "core/_field.html" with field=holiday.name %}</div>
+    <div class="rule-kind">{% include "core/_field.html" with field=holiday.kind %}</div>
+    <div class="rule-when">
+      <div class="{% if kind != "yearly" %}hidden{% endif %}" data-show-if="{{ p }}-kind=yearly">{% include "core/_field.html" with field=holiday.day %}</div>
+      <div class="{% if kind != "yearly" %}hidden{% endif %}" data-show-if="{{ p }}-kind=yearly">{% include "core/_field.html" with field=holiday.month %}</div>
+      <div class="{% if kind != "once" %}hidden{% endif %}" data-show-if="{{ p }}-kind=once">{% include "core/_field.html" with field=holiday.date %}</div>
+      <div class="{% if kind != "easter" %}hidden{% endif %}" data-show-if="{{ p }}-kind=easter">{% include "core/_field.html" with field=holiday.easter_offset %}</div>
+    </div>
+    <div class="rule-tools">{% if holiday.DELETE %}{% include "core/_field.html" with field=holiday.DELETE %}{% endif %}</div>
+  </div>
+</fieldset>
+{% endwith %}

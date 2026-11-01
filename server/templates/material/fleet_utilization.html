@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Utilization of the fleet" %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><div class="breadcrumb"><a href="{% url 'material:fleet' %}">{% translate "Fleet" %}</a></div><h1>{% translate "Utilization of the fleet" %}</h1></div>
+  <div class="actions">{% include "material/_item_jump.html" %}</div>
+</div>
+{% include "material/_tabs.html" %}
+{% comment %}
+  LOG-018: one row per vehicle or trailer, its bookings over the projects as bars with project number and name –
+  for a project the user may not open "Projekt" with the number only, without link (AUT-016). Bookings that overlap are
+  filled red and the row gets a warning badge (LOG-004). Blocked periods are bars of their own. The bars take the
+  colours of the deployments in the personnel plan (firm, option, inquiry). Weeks or one to ten days in hours, with the
+  navigation of the timeline and the personnel plan (VFG-022, VFG-024, schedule/_zoom.html).
+{% endcomment %}
+<p class="visually-hidden" aria-live="polite" data-tl-announce></p>
+<div data-tl-swap>
+<form method="get" class="filters">
+  <div class="field"><label for="f-type">{% translate "Type" %}</label>
+    <select id="f-type" name="type" data-autosubmit><option value="">{% translate "All" %}</option>{% for value, label in types %}<option value="{{ value }}"{% if vehicle_type == value %} selected{% endif %}>{{ label|capfirst }}</option>{% endfor %}</select></div>
+  <div class="field"><div class="check"><input type="checkbox" id="f-booked" name="booked" value="1"{% if booked_only %} checked{% endif %} data-autosubmit><label for="f-booked">{% translate "Only vehicles with bookings" %}</label></div></div>
+  <input type="hidden" name="from" value="{{ first|date:'Y-m-d' }}"><input type="hidden" name="weeks" value="{{ weeks }}">{% if zoom %}<input type="hidden" name="days" value="{{ zoom }}">{% endif %}
+</form>
+{% include "schedule/_zoom.html" %}
+<div class="panel timeline fleet-plan sticky-text{% if scale.is_hourly %} is-hourly{% endif %}"{% include "schedule/_scale_panel_attrs.html" %} tabindex="0" role="region" aria-label="{% translate 'Utilization of the fleet' %}">
+  {% if rows %}
+  <div class="tl-grid" style="{{ scale.grid_style }}">
+    <div class="tl-label head"></div>
+    {% if scale.is_hourly %}{% include "schedule/_hours_head.html" %}{% else %}{% include "schedule/_days_head.html" %}{% endif %}
+    {% for row in rows %}
+      <div class="tl-label person{% if row.conflict %} has-warning{% endif %}">{% if row.conflict %}<span class="plan-warning" title="{% translate 'Bookings overlap each other' %}"><span aria-hidden="true">!</span><span class="visually-hidden">{% translate "Warning" %}: {% translate "Bookings overlap each other" %}.</span></span>{% endif %}<a href="{% url 'material:item_detail' row.item.pk %}">{{ row.name }}</a> <span class="muted small">{{ row.item.material_model.display_short_name }}{% if row.item.product.vehicle_type %} · {{ row.item.product.get_vehicle_type_display }}{% endif %}</span></div>
+      <div class="tl-row tl-deploy" style="{{ scale.row_style }}">{% for bar in row.bars %}{% if bar.url %}<a class="tl-bar {{ bar.css }}" style="{{ bar.style }}" href="{{ bar.url }}" title="{{ bar.label }} – {{ bar.title }}"><span class="tl-text">{{ bar.label }}</span><span class="visually-hidden"> – {{ bar.title }}</span></a>{% else %}<span class="tl-bar {{ bar.css }}" style="{{ bar.style }}" title="{{ bar.label }} – {{ bar.title }}"><span class="tl-text">{{ bar.label }}</span><span class="visually-hidden"> – {{ bar.title }}</span></span>{% endif %}{% endfor %}</div>
+    {% endfor %}
+  </div>
+  {% else %}<div class="empty">{% translate "No vehicles to show." %}</div>{% endif %}
+</div>
+{% if rows %}
+<div class="plan-legend muted small">
+  <span class="plan-legend-group"><strong>{% translate "Bookings" %}:</strong> <span class="tl-bar legend crew status-confirmed">{% translate "firm" %}</span> <span class="tl-bar legend crew status-option">{% translate "option" %}</span> <span class="tl-bar legend crew status-inquiry">{% translate "inquiry" context "deployment" %}</span> <span class="tl-bar legend crew status-confirmed is-conflict">{% translate "conflict" %}</span> <span class="tl-bar legend blocked">{% translate "blocked" %}</span></span>
+  <p class="plan-legend-note"><span class="plan-warning" aria-hidden="true">!</span> {% translate "The vehicle is booked twice at the same time – in one project or in several. The bookings concerned are filled red." %} {% translate "Point at a bar to see its exact times." %}</p>
+</div>
+{% endif %}
+</div>
+{% endblock %}

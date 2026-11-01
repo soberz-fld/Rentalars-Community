@@ -1,0 +1,19 @@
+{% load i18n %}
+{% comment %}
+  A list as a table with the columns the user chose (UIX-015). Expects: table (a TableState) and rows (its
+  rows for the records of the page). With stack, rows become cards on a phone. With select, a first column of tick boxes named like select belongs to
+  the form with the id select_form (MAT-029). Sortable headings are links; the active one carries aria-sort,
+  so a screen reader says how the list is ordered (NFA-025). UIX-040: grouped (?group=), the first row of each group
+  carries a heading row with the value and the number of rows of the group.
+  UIX-015: a computed column sorts a list only up to a length; beyond it the list says so (table.sort_notice).
+  UIX-044: the same for a column that groups in Python; beyond the length the list is not grouped.
+  A table of records gets tick boxes and a bar of its own (``bulk_auto``): "Auswahl als CSV herunterladen" for
+  every table, and the actions the page names with ``bulk_extra`` (a template with the fields and buttons). ``no_bulk``
+  switches it off (several tables of one definition on a page).
+{% endcomment %}
+{% if table.bulk_rows and not select and not no_bulk %}
+{# Every table – a list of records – lets rows be ticked; the bar under it (core/_table_bulk.html) acts on them. #}
+{% include "core/_table_body.html" with select=table.bulk_name select_form=table.bulk_form bulk_auto=True %}
+{% else %}
+{% include "core/_table_body.html" %}
+{% endif %}

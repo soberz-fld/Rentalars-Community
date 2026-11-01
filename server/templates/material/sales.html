@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Sales from stock" %}{% endblock %}
+{% block content %}
+{% comment %}
+  Used sale from stock: Buchhaltung → Verkäufe aus Bestand. Every item (or quantity of bulk material) sold out of the (MAT-087)
+  stock with the book value at the sale and the gain or loss against it – a table of core/tables.py
+  (material/asset_tables.py); below it the sums per year. A reversed sale stays in the list when asked for and counts for nothing.
+  There is deliberately no DATEV export.
+{% endcomment %}
+<div class="page-head">
+  <div><h1>{% translate "Accounting" %}</h1></div>
+</div>
+{% include "documents/_accounting_tabs.html" %}
+<div class="panel">
+  <div class="panel-head"><h2>{% translate "Sales from stock" %}</h2><span class="muted small">{% translate "Used equipment sold out of the stock, with the book value on the day of the sale. A sale is made on the page of the item, in the card “Asset accounting”." %}</span></div>
+  <form method="get" class="filters">
+    <div class="field grow"><label for="f-q">{% translate "Buyer, item, model or note" %}</label><input type="search" id="f-q" name="q" value="{{ filters.text }}"></div>
+    {% filterpanel "stock_sales" %}
+    <div class="field"><label for="f-year">{% translate "Year" %}</label>
+      <select id="f-year" name="year" data-autosubmit><option value="">{% translate "All" %}</option>{% for each in years %}<option value="{{ each }}"{% if filters.year == each %} selected{% endif %}>{{ each }}</option>{% endfor %}</select></div>
+    <div class="field"><label for="f-since">{% translate "From" %}</label><input type="date" id="f-since" name="since" value="{{ filters.since|date:'Y-m-d' }}"></div>
+    <div class="field"><label for="f-until">{% translate "Until" %}</label><input type="date" id="f-until" name="until" value="{{ filters.until|date:'Y-m-d' }}"></div>
+    <div class="field"><div class="check"><input type="checkbox" id="f-reversed" name="reversed" value="1"{% if filters.reversed %} checked{% endif %} data-autosubmit><label for="f-reversed">{% translate "Also reversed sales" %}</label></div></div>
+    <button class="btn secondary" type="submit">{% translate "Filter" %}</button>
+    {% endfilterpanel %}
+  </form>
+  {% include "core/_table_tools.html" %}
+  {% if rows %}
+  {% include "core/_table.html" with stack=True %}
+  {% else %}
+  <div class="empty"><strong>{% translate "No sales match." %}</strong>{% translate "Open an item and choose “Sell from stock” in its card “Asset accounting”." %}</div>
+  {% endif %}
+  {% include "core/_pagination.html" %}
+</div>
+{% if by_year %}
+<section class="panel" aria-labelledby="sales-by-year">
+  <div class="panel-head"><h2 id="sales-by-year">{% translate "Gain and loss per year" %}</h2><span class="muted small">{% translate "Price (net) minus book value at the sale, over the sales of the filter that were not reversed." %}</span></div>
+  <table class="table stack">
+    <thead><tr><th scope="col">{% translate "Year" %}</th><th scope="col" class="num">{% translate "Sales" %}</th><th scope="col" class="num">{% translate "Price (net)" %}</th><th scope="col" class="num">{% translate "Book value at the sale" %}</th><th scope="col" class="num">{% translate "Gains" %}</th><th scope="col" class="num">{% translate "Losses" %}</th><th scope="col" class="num">{% translate "Gain or loss" %}</th></tr></thead>
+    <tbody>{% for sums in by_year %}
+      <tr><th scope="row" data-label="{% translate 'Year' %}">{{ sums.year }}</th><td class="num" data-label="{% translate 'Sales' %}">{{ sums.count|thousands }}</td><td class="num" data-label="{% translate 'Price (net)' %}">{{ sums.net|money }}</td><td class="num" data-label="{% translate 'Book value at the sale' %}">{{ sums.book_value|money }}</td><td class="num" data-label="{% translate 'Gains' %}">{{ sums.gain|money }}</td><td class="num" data-label="{% translate 'Losses' %}">{{ sums.loss|money }}</td><td class="num" data-label="{% translate 'Gain or loss' %}"><strong>{{ sums.result|money }}</strong></td></tr>
+    {% endfor %}</tbody>
+  </table>
+</section>
+{% endif %}
+{% endblock %}

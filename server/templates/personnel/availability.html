@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% load i18n rentalars subprojects %}
+{% block title %}{% translate "Availability of people" %}{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>{% translate "Personnel" %}</h1></div></div>
+{% include "personnel/_tabs.html" %}
+<div class="panel">
+  <form method="get" class="filters" novalidate>
+    <div class="field"><label for="{{ form.start.id_for_label }}">{{ form.start.label }}</label>{{ form.start }}{{ form.start.errors }}</div>
+    <div class="field"><label for="{{ form.end.id_for_label }}">{{ form.end.label }}</label>{{ form.end }}{{ form.end.errors }}</div>
+    <div class="field"><label for="{{ form.job_function.id_for_label }}">{{ form.job_function.label }}</label>{{ form.job_function }}</div>
+    <button class="btn" type="submit">{% translate "Who is free?" %}</button>
+  </form>
+  {% if rows %}
+  <table class="table stack">
+    <thead><tr><th>{% translate "Person" %}</th><th>{% translate "Status" %}</th><th>{% translate "In this period" %}</th><th>{% translate "Contact" context "contact data" %}</th></tr></thead>
+    <tbody>
+    {% for row in rows %}
+      <tr>
+        <td><a href="{% url 'personnel:person_detail' row.person.pk %}">{{ row.person.sort_name }}</a><div class="muted small">{{ row.person.get_kind_display }}</div></td>
+        <td data-label="{% translate 'Status' %}">{% if row.status == "free" %}<span class="avail ok">{% translate "free" %}</span>{% elif row.status == "planned" %}<span class="avail tight">{% translate "planned" %}</span>{% else %}<span class="avail short">{% translate "absent" %}</span>{% endif %}</td>
+        <td data-label="{% translate 'In this period' %}">
+          {% for absence in row.absences %}<div>{{ absence.get_kind_display|capfirst }}: {{ absence.start|date:"d.m. H:i" }} – {{ absence.end|date:"d.m. H:i" }}</div>{% endfor %}
+          {# PER-021, PER-022: what the person said – red counts like an absence, yellow is a hint. #}
+          {% for mark in row.unavailable %}<div>{% if mark.source == "feed" %}{% translate "Busy in the own calendar" %}{% else %}{% translate "Not available (own statement)" %}{% endif %}: {{ mark.start|date:"d.m. H:i" }} – {{ mark.end|date:"d.m. H:i" }}{% if mark.note %} <span class="muted">({{ mark.note }})</span>{% endif %}</div>{% endfor %}
+          {% for mark in row.limited %}<div class="avail-hint"><span class="avail tight">{% translate "with limits" %}</span> {{ mark.start|date:"d.m. H:i" }} – {{ mark.end|date:"d.m. H:i" }}{% if mark.note %} <span class="muted">({{ mark.note }})</span>{% endif %}</div>{% endfor %}
+          {% if row.said_available and row.status == "free" %}<div class="muted small">{% translate "has said they are available" %}</div>{% endif %}
+          {% for line in row.deployments %}<div>{% if line.project_id in visible_project_ids %}<a href="{% url 'projects:overview' line.project_id %}"{% if line.project.parent_id %} title="{{ line.project|part_of }}"{% endif %}>{{ line.project.number }} {{ line.project.name }}</a>{% else %}<span class="muted">{% translate "a project you cannot see" %}</span>{% endif %}, {{ line.job_function.name }}: {{ line.start|date:"d.m. H:i" }} – {{ line.end|date:"d.m. H:i" }}</div>{% endfor %}
+        </td>
+        <td data-label="{% translate 'Contact' context 'contact data' %}">{{ row.person.phone }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% elif rows is not None %}
+  <div class="empty"><strong>{% translate "Nobody found." %}</strong>{% if form.job_function.value %}{% translate "No active person has this job function." %}{% else %}{% translate "There is no active person." %}{% endif %}</div>
+  {% endif %}
+</div>
+{% endblock %}

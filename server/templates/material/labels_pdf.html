@@ -1,0 +1,67 @@
+{% load i18n static %}<!doctype html>
+{% get_current_language as LANGUAGE_CODE %}<html lang="{% if LANGUAGE_CODE == 'en' %}en-GB{% else %}{{ LANGUAGE_CODE }}{% endif %}">
+<head>
+<meta charset="utf-8">
+<title>{% translate "Labels" %}</title>
+<style>
+  /* Labels of material items (MAT-026). Rendered to PDF by WeasyPrint; sizes in millimetres of the sheet. */
+  @font-face { font-family: "Barlow"; font-weight: 400; src: url("{{ fonts.regular }}"); }
+  @font-face { font-family: "Barlow"; font-weight: 600; src: url("{{ fonts.semibold }}"); }
+  @font-face { font-family: "Barlow Condensed"; font-weight: 600; src: url("{{ fonts.condensed }}"); }
+  @page { size: {{ sheet.page_width_mm|stringformat:"g" }}mm {{ sheet.page_height_mm|stringformat:"g" }}mm; margin: 0; }
+  body { margin: 0; font-family: "Barlow", sans-serif; color: #000; }
+  .page { position: relative; width: {{ sheet.page_width_mm|stringformat:"g" }}mm; height: {{ sheet.page_height_mm|stringformat:"g" }}mm; break-after: page; overflow: hidden; }
+  .page:last-child { break-after: auto; }
+  .grid { position: absolute; top: {{ sheet.margin_top_mm|stringformat:"g" }}mm; left: {{ sheet.margin_left_mm|stringformat:"g" }}mm;
+    display: grid; grid-template-columns: repeat({{ sheet.columns }}, {{ sheet.label_width_mm|stringformat:"g" }}mm);
+    grid-auto-rows: {{ sheet.label_height_mm|stringformat:"g" }}mm; column-gap: {{ sheet.gap_x_mm|stringformat:"g" }}mm; row-gap: {{ sheet.gap_y_mm|stringformat:"g" }}mm; }
+  .label { box-sizing: border-box; padding: 2.5mm 3mm; display: flex; gap: 2.5mm; align-items: center; overflow: hidden; }
+  .label.small { padding: 1.2mm 1.6mm; gap: 1.5mm; }
+  .code.qr { flex: 0 0 auto; height: 100%; aspect-ratio: 1; }
+  .code.qr svg { width: 100%; height: 100%; }
+  .text { min-width: 0; flex: 1 1 auto; }
+  .id { font-family: "Barlow Condensed", sans-serif; font-weight: 600; font-size: 22pt; line-height: 1; letter-spacing: 0.5pt; }
+  .small .id { font-size: 13pt; }
+  .name { font-size: 8.5pt; line-height: 1.15; margin-top: 1mm; max-height: 2.4em; overflow: hidden; }
+  .small .name { font-size: 6pt; margin-top: 0.3mm; }
+  .owner { font-size: 6.5pt; color: #333; margin-top: 1mm; white-space: nowrap; overflow: hidden; }
+  .barcode { flex-direction: column; align-items: stretch; justify-content: center; gap: 1mm; }
+  .barcode .code svg { width: 100%; height: {% if sheet.is_small %}8{% else %}13{% endif %}mm; }
+  .barcode .text { display: flex; justify-content: space-between; align-items: baseline; gap: 2mm; }
+  .barcode .name { margin-top: 0; text-align: right; }
+  {% if for_browser %}
+  /* MAT-056: printed from the browser – the bar above the sheets is not printed. */
+  @media screen {
+    html { background: #e8e8e8; }
+    body { background: #e8e8e8; padding: 16px; }
+    .page { margin: 0 0 12px; background: #fff; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3); }
+    .print-bar { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; margin: 0 0 16px; padding: 12px 16px; background: #fff; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; max-width: 760px; }
+    .print-bar p { margin: 0; flex: 1 1 320px; }
+    .print-button { font: inherit; font-weight: 600; padding: 8px 18px; border: 0; border-radius: 4px; background: #f15a24; color: #fff; cursor: pointer; }
+  }
+  @media print { .print-bar { display: none; } }
+  {% endif %}
+</style>
+{% if for_browser %}<script src="{% static 'js/label-print.js' %}" defer></script>{% endif %}
+</head>
+<body{% if for_browser %} data-print-on-load{% endif %}>
+{% if for_browser %}{% include "material/_label_print_bar.html" with kind="sheet" page_width=sheet.page_width_mm page_height=sheet.page_height_mm %}{% endif %}
+{% for page in pages %}
+  <div class="page"><div class="grid">
+  {% for label in page %}
+    {% if label %}
+    <div class="label{% if sheet.is_small %} small{% endif %}{% if code == 'barcode' %} barcode{% endif %}">
+      {% if code == "barcode" %}
+        <div class="code">{{ label.code }}</div>
+        <div class="text"><div class="id">{{ label.item.display_id }}</div><div class="name">{{ label.text }}{% if label.owner and not sheet.is_small %}<br>{{ label.owner }}{% endif %}</div></div>
+      {% else %}
+        <div class="code qr">{{ label.code }}</div>
+        <div class="text"><div class="id">{{ label.item.display_id }}</div><div class="name">{{ label.text }}</div>{% if not sheet.is_small %}{% if label.owner %}{# PRD-043: customer material names its owner #}<div class="owner">{{ label.owner }}</div>{% elif company.name %}<div class="owner">{{ company.name }}</div>{% endif %}{% endif %}</div>
+      {% endif %}
+    </div>
+    {% else %}<div class="label"></div>{% endif %}
+  {% endfor %}
+  </div></div>
+{% endfor %}
+</body>
+</html>

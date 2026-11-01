@@ -1,0 +1,9 @@
+{% load i18n %}
+{% comment %}
+  MAT-069: the last audit of an item and when the next one is due – inside a <dl class="facts">. Expects: state
+  (material.audits.AuditState). Used by the audit mode and by the box "Audit und To-Dos" of the item.
+{% endcomment %}
+<dt>{% translate "Last audit" %}</dt>
+<dd>{% if state.last %}{{ state.last.audited_at|date:"d.m.Y" }}{% if state.last.audited_by %} · {{ state.last.audited_by }}{% endif %} <span class="badge {% if state.last.is_ok %}green{% else %}yellow{% endif %}">{{ state.last.get_result_display }}</span>{% else %}<span class="muted">{% translate "never" %}</span>{% endif %}</dd>
+<dt>{% translate "Next audit due" %}</dt>
+<dd>{% if state.due_date %}<span class="badge {% if state.is_due %}red{% else %}green{% endif %}">{{ state.due_date|date:"d.m.Y" }}</span>{% if state.is_due %} {% translate "due now" %}{% endif %}{% elif state.no_due_reason == "off" %}<span class="muted">{% translate "never – audits are switched off" %}</span>{% elif state.no_due_reason == "archived" %}<span class="muted">{% translate "never – the item is archived" %}</span>{% elif state.no_due_reason == "bulk" %}<span class="muted">{% translate "never – bulk material" %}</span>{% endif %}</dd>

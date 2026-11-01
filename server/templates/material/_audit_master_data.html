@@ -1,0 +1,18 @@
+{% load i18n rentalars %}
+{% comment %}
+  MAT-079 (MAT-068): what is documented of the item being audited – ID, model, manufacturer, category,
+  serial number, invoice date, supplier, purchase price (with the right to see purchase prices), storage location,
+  status, the category-specific values and the custom fields. Every field is listed, empty ones as "–" in red, so that
+  gaps stand out; screen readers hear "nicht erfasst". On wide screens two pairs a line. "Exemplar bearbeiten" comes
+  back to the audit of the item. Expects: master_data (material.audits.master_data), edit_url, item.
+{% endcomment %}
+<section class="audit-master" aria-labelledby="audit-master-title">
+  <div class="audit-master-head">
+    <h3 id="audit-master-title">{% translate "Master data" %}</h3>
+    {% if can.write.material %}<a class="btn secondary small" href="{{ edit_url }}">{% icon "edit" %}{% translate "Edit item" %}</a>{% endif %}
+  </div>
+  <dl class="facts">
+    {% for row in master_data %}<dt>{{ row.label }}</dt><dd>{% if row.empty %}<span class="audit-gap" aria-hidden="true">–</span><span class="visually-hidden">{% translate "not documented" %}</span>{% else %}{{ row.value }}{% endif %}{% if row.note %} <span class="muted small">({{ row.note }})</span>{% endif %}{% if row.required_missing %} <span class="badge red">{% translate "required, missing" %}</span>{% endif %}</dd>
+    {% endfor %}
+  </dl>
+</section>

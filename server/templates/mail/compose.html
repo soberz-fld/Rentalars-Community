@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% if answer_to %}{% translate "Answer" %}{% else %}{% translate "Write mail" %}{% endif %} {{ project.number }}{% endblock %}
+{% block content %}
+{% include "projects/_head.html" %}
+{% comment %}
+  EML-024, EML-025: written from the project, with the tag in the subject and documents attached.
+  EML-037: CC and BCC; the three address fields suggest customers, contacts and people while typing (mail.js).
+  EML-034, EML-038: the sender is the writer with the company; the signature is shown as it will be added.
+  EML-043: buttons next to "To" add the crew of the project and the customer.
+  EML-052, EML-026: the sender is chosen among the addresses the writer may use; the preview of the
+  signature follows it.
+  EML-055: "With lock", ticked at first, for who may set it; without the right the mail is open – said here.
+{% endcomment %}
+<section class="panel">
+  <div class="panel-head"><h2>{% if answer_all %}{% translate "Answer all" %}{% elif answer_to %}{% translate "Answer" %}{% else %}{% translate "Write mail" %}{% endif %}</h2>
+    {# EML-052: with several addresses to choose from, the address is chosen in the form. #}
+    <span class="muted small">{% if form.sender %}{% blocktranslate with name=sender_name %}Sent as {{ name }}{% endblocktranslate %}{% else %}{% blocktranslate %}Sent from {{ sender }}{% endblocktranslate %}{% endif %}</span></div>
+  <div class="panel-body">
+    {# PRJ-106: written from the page of a subrental – kept there with the supplier's other mails. #}
+    {% if supplier %}<p class="note">{% url 'projects:subrental' project.pk supplier.pk as subrental_url %}{% blocktranslate with name=supplier.name url=subrental_url %}About the subrental at <a href="{{ url }}">{{ name }}</a>: the mail is kept there.{% endblocktranslate %}{% if not supplier.email %} {% translate "The supplier has no e-mail address yet – enter it in the master data, so that answers find their way there too." %}{% endif %}</p>{% endif %}
+    {% load ai_tags %}{% ai_draft_box project answer_to %}{# ADM-017: "Entwurf vorschlagen" – outside the mail form #}
+    <form method="post" enctype="multipart/form-data" class="form wide" novalidate>
+      {% csrf_token %}
+      {% include "core/_form_errors.html" %}
+      {% if form.sender %}{% include "core/_field.html" with field=form.sender %}{% endif %}
+      {% include "core/_field.html" with field=form.to %}
+      {% if crew_recipients or customer_recipient %}
+      {# EML-043: add the crew or the customer to "To" with one click (app.js); an address already there is not added again. #}
+      <div class="quick-recipients no-print" data-quick-recipients="{{ form.to.id_for_label }}" data-text-added="{% translate 'Added to “To”:' %}" data-text-none="{% translate 'These addresses are in “To” already.' %}">
+        {% if crew_recipients %}<button type="button" class="btn secondary small" data-add-recipients="{{ crew_recipients_json }}" title="{{ crew_recipients|join:', ' }}" aria-controls="{{ form.to.id_for_label }}">{% icon "crew" %}{% translate "Add crew" %}</button>{% endif %}
+        {% if customer_recipient %}<button type="button" class="btn secondary small" data-add-recipients="{{ customer_recipient_json }}" title="{{ customer_recipient }}" aria-controls="{{ form.to.id_for_label }}">{% icon "customers" %}{% translate "Add customer" %}</button>{% endif %}
+        <span class="muted small" role="status" data-recipients-status></span>
+      </div>
+      {% endif %}
+      <div class="form-grid">
+        {% include "core/_field.html" with field=form.cc %}
+        {% include "core/_field.html" with field=form.bcc %}
+      </div>
+      {% include "core/_field.html" with field=form.subject %}
+      <p class="muted small">{% blocktranslate with tag=project.mail_tag %}The subject gets {{ tag }}, so that the answer comes back to this project.{% endblocktranslate %}</p>
+      {% include "core/_field.html" with field=form.body %}
+      {% if form.signature %}
+      {% include "core/_field.html" with field=form.signature %}
+      {# EML-026: the signature of the chosen sender's mailbox; changing the sender loads its preview (htmx). #}
+      <div class="signature-preview" data-show-if="signature=on">
+        {% include "mail/_signature_frame.html" %}
+      </div>
+      {% endif %}
+      {% if form.locked %}{% include "core/_field.html" with field=form.locked %}{% else %}<p class="note">{% translate "The message is stored without lock: the crew reads it as well. A lock is set only by those who may see prices and calculation." %}</p>{% endif %}
+      {% if form.files %}{% include "core/_field.html" with field=form.files %}{% endif %}
+      {% if form.documents %}{% include "core/_field.html" with field=form.documents %}{% endif %}
+      <div class="field"><label for="f-uploads">{% translate "Further files" %}</label><input type="file" id="f-uploads" name="uploads" multiple></div>
+      <div class="btn-row"><button class="btn" type="submit">{% icon "mail" %}{% translate "Send" %}</button><a class="btn secondary" href="{% if answer_to %}{% url 'mail:detail' project.pk answer_to.pk %}{% else %}{% url 'mail:project_mails' project.pk %}{% endif %}">{% translate "Cancel" %}</a></div>
+    </form>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}{% translate "Log of the AI calls" %}{% endblock %}
+{% block content %}
+<div class="page-head"><div><div class="breadcrumb"><a href="{% url 'core:administration' %}">{% translate "Settings" %}</a> / <a href="{% url 'ai:settings' %}">{% translate "AI" %}</a></div><h1>{% translate "Log of the AI calls" %}</h1>
+<p class="lead">{% translate "Which use called which model, how long it took and how much text went there – never the content. Kept for a year." %}</p></div></div>
+<section class="panel">{% include "ai/_call_table.html" with calls=page.object_list %}{% include "core/_pagination.html" %}</section>
+{% endblock %}

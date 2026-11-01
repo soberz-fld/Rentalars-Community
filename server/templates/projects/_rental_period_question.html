@@ -1,0 +1,20 @@
+{% load i18n %}
+{% comment %}
+  PRJ-100: what is asked after saving a phase beyond the rental period – the phase, the present rental period and
+  the one that would cover the phase. The page "Zeitplanung" and the dialog over the crew planning wrap it in
+  their own forms. A subproject whose whole project does not cover the new period cannot be extended: that one
+  comes first (PRJ-045). Expects: extension (projects.course.RentalPeriodSuggestion), title_id.
+{% endcomment %}
+<p>{% blocktranslate trimmed with phase=extension.phase.label phase_start=extension.phase.start|date:"D d.m. H:i" phase_end=extension.phase.end|date:"D d.m. H:i" start=extension.project.start|date:"D d.m. H:i" end=extension.project.end|date:"D d.m. H:i" %}
+  The phase “{{ phase }}” ({{ phase_start }} – {{ phase_end }}) lies outside the rental period ({{ start }} – {{ end }}).
+{% endblocktranslate %}</p>
+{% if extension.blocked_by %}
+<p>{% blocktranslate trimmed with number=extension.blocked_by.number start=extension.blocked_by.start|date:"D d.m. H:i" end=extension.blocked_by.end|date:"D d.m. H:i" %}
+  A subproject lies within the rental period of its whole project {{ number }} ({{ start }} – {{ end }}). Extend that one first; then the rental period here can follow.
+{% endblocktranslate %}</p>
+{% else %}
+<p class="question" id="{{ title_id }}-question"><strong>{% blocktranslate trimmed with start=extension.start|date:"D d.m. H:i" end=extension.end|date:"D d.m. H:i" %}
+  Extend the rental period to {{ start }} – {{ end }}?
+{% endblocktranslate %}</strong></p>
+<p class="muted small">{% translate "The phase is saved either way. Material is reserved for the rental period." %}</p>
+{% endif %}

@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Roles" %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><div class="breadcrumb"><a href="{% url 'core:administration' %}">{% translate "Settings" %}</a></div><h1>{% translate "Roles" %}</h1><p class="lead">{% translate "A role bundles rights. Users can have several roles." %}</p></div>
+  <div class="actions">{% if can.write.administration %}<a class="btn" href="{% url 'accounts:role_create' %}">{% icon "plus" %}{% translate "New role" %}</a>{% endif %}</div>
+</div>
+<div class="panel">
+  {# UIX-040: a table of core/tables.py (accounts/tables.py). #}
+  {% include "core/_table_tools.html" %}
+  {% include "core/_table.html" with stack=True %}
+  {% include "core/_pagination.html" %}
+</div>
+{% endblock %}

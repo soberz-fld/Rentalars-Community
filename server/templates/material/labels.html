@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Labels" %}{% endblock %}
+{% block content %}
+<div class="page-head"><div><div class="breadcrumb"><a href="{% url 'material:item_list' %}">{% translate "Items" %}</a></div><h1>{% translate "Labels" %}</h1></div>
+  {% if can.write.administration %}<div class="actions"><a class="btn secondary" href="{% url 'material:label_settings' %}">{% icon "settings" %}{% translate "Set up labels" %}</a></div>{% endif %}
+</div>
+{% comment %}
+  MAT-026: labels with ID, short name and QR code or barcode – single, for some items or a range of IDs.
+  MAT-056: small, large and cable for label printers, laid out like the operator's templates; "Drucken" opens
+  them in a tab of their own with the print dialog, "PDF" makes the file.
+{% endcomment %}
+<div class="columns">
+<section class="panel">
+  <div class="panel-head"><h2>{% translate "Which items" %}</h2></div>
+  <form method="get" class="panel-body" autocomplete="off">
+    {% include "core/_form_errors.html" %}
+    {% include "core/_field.html" with field=form.items %}
+    <div class="inline-fields">{% include "core/_field.html" with field=form.id_from %}{% include "core/_field.html" with field=form.id_to %}</div>
+    {% include "core/_field.html" with field=form.label_format %}
+    {# MAT-056: code and free labels only matter for the sheets and the roll. #}
+    <div data-show-if="label_format={{ sheet_formats }}">
+      {% include "core/_field.html" with field=form.code %}
+      {% include "core/_field.html" with field=form.skip %}
+    </div>
+    <div class="btn-row">
+      <button class="btn secondary" type="submit">{% translate "Show the choice" %}</button>
+      {# MAT-056: printed straight from the browser – a tab of its own opens the print dialog. #}
+      {% if items and not too_many %}<button class="btn" type="submit" formaction="{% url 'material:labels_print' %}" formtarget="_blank">{% icon "print" %}{% translate "Print" %}</button>{% endif %}
+      {# MAT-047: the PDF opens in a tab of its own; this page stays for the next labels. #}
+      {% if items %}<button class="btn secondary" type="submit" name="pdf" value="1"{% if not too_many %} formtarget="_blank"{% endif %}>{% icon "download" %}{% translate "Make the PDF" %}</button>{% endif %}
+    </div>
+    {% if too_many %}<p class="note">{% blocktranslate with count=item_count limit=direct_limit %}{{ count }} labels are more than {{ limit }}; the PDF is made in the background and you are told when it is ready.{% endblocktranslate %}</p>{% endif %}
+  </form>
+</section>
+<section class="panel">
+  <div class="panel-head"><h2>{% blocktranslate count count=item_count %}{{ count }} label{% plural %}{{ count }} labels{% endblocktranslate %}</h2></div>
+  {% if items %}
+  <ul class="plain-list panel-body">{% for item in items|slice:":60" %}<li><span class="tape">{{ item.display_id }}</span> {{ item.material_model.display_short_name }}</li>{% endfor %}{% if item_count > 60 %}<li class="muted">… {% with rest=item_count|add:"-60" %}{% blocktranslate count count=rest %}and {{ count }} more{% plural %}and {{ count }} more{% endblocktranslate %}{% endwith %}</li>{% endif %}</ul>
+  {% else %}<div class="empty">{% translate "Choose items: tick them in the item list and press “Labels”, give their IDs, or a range." %}</div>{% endif %}
+</section>
+</div>
+{% endblock %}

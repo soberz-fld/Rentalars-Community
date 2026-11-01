@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Book in goods" %}{% endblock %}
+{% block content %}
+{% comment %}
+  Incoming invoices: items or quantities of bulk material from the goods positions of an incoming invoice. Like "Kauf (DOK-023, DOK-024)
+  einpflegen": choose the model per position, look at the preview – what would be made, with the acquisition cost incl. the
+  share of the ancillary costs – and confirm. A position that is booked in already is not booked again unless you say so.
+{% endcomment %}
+<div class="page-head">
+  <div><div class="breadcrumb"><a href="{% url 'incoming:list' %}">{% translate "Incoming invoices" %}</a> / <a href="{% url 'incoming:detail' invoice.pk %}">{{ invoice.invoice_number|default:invoice.original_name }}</a></div>
+    <h1>{% translate "Book in goods" %}</h1>
+    <p class="lead">{{ invoice.supplier_label|default:_("Supplier not named yet") }}{% if invoice.invoice_number %} · {{ invoice.invoice_number }}{% endif %}</p></div>
+</div>
+{% include "documents/_accounting_tabs.html" %}
+
+<form method="post" class="form wide incoming-form" id="incoming-book-form" novalidate>
+  {% csrf_token %}
+  {% include "core/_form_errors.html" %}
+  {% if formset.non_form_errors %}<div class="message error" role="alert">{% for error in formset.non_form_errors %}<div>{{ error }}</div>{% endfor %}</div>{% endif %}
+  {% include "incoming/_costing.html" with booked=None %}
+
+  <section class="panel" aria-labelledby="book-positions-title">
+    <div class="panel-head"><h2 id="book-positions-title">{% translate "Goods positions" %}</h2></div>
+    <div class="panel-body">
+      <p class="muted small">{% translate "Choose a model per position or type the name of a new one (a new model needs its category). Untick a position to leave it out. Nothing is made before you confirm the preview." %}</p>
+      {{ formset.management_form }}
+      <div class="incoming-positions">
+        {% for item in rows %}{% include "incoming/_book_row.html" with item=item %}{% empty %}<p class="muted">{% translate "This invoice has no goods positions. Add them on the invoice first." %}</p>{% endfor %}
+      </div>
+      <div class="btn-row"><button class="btn secondary" type="submit" name="action" value="preview">{% icon "list" %}{% translate "Show the preview" %}</button></div>
+    </div>
+  </section>
+
+  {% if plan %}
+  <section class="panel" aria-labelledby="book-preview-title" id="preview">
+    <div class="panel-head"><h2 id="book-preview-title">{% translate "Preview" %}</h2></div>
+    <div class="panel-body">
+      {% for problem in plan.problems %}<div class="message error" role="alert">{{ problem }}</div>{% endfor %}
+      {% for warning in plan.warnings %}<div class="message warning" role="status">{{ warning }}</div>{% endfor %}
+      {% if plan.rows %}
+      <table class="table stack incoming-cost">
+        <caption class="visually-hidden">{% translate "What would be made" %}</caption>
+        <thead><tr>
+          <th scope="col">{% translate "Position" %}</th>
+          <th scope="col">{% translate "Model" %}</th>
+          <th scope="col" class="num">{% translate "Pieces" %}</th>
+          <th scope="col" class="num">{% translate "Net amount" %}</th>
+          <th scope="col" class="num">{% translate "Share of the ancillary costs" %}</th>
+          <th scope="col" class="num">{% translate "Acquisition cost" %}</th>
+          <th scope="col" class="num">{% translate "Per piece" %}</th>
+          <th scope="col">{% translate "Kind of asset" %}</th>
+          <th scope="col" class="num">{% translate "Useful life (months)" %}</th>
+        </tr></thead>
+        <tbody>
+        {% for row in plan.rows %}
+          <tr>
+            <td>{{ row.position.place }}. {{ row.position.description }}
+              {% for problem in row.problems %}<div class="message error small" role="alert">{{ problem }}</div>{% endfor %}
+              {% for warning in row.warnings %}<div class="note small">{{ warning }}</div>{% endfor %}</td>
+            <td data-label="{% translate 'Model' %}">{{ row.model_name }}{% if row.is_new_model %} <span class="badge yellow">{% translate "new model" %}</span>{% endif %}{% if row.is_bulk %} <span class="badge">{% translate "quantity" %}</span>{% endif %}</td>
+            <td class="num" data-label="{% translate 'Pieces' %}">{{ row.count }}</td>
+            <td class="num" data-label="{% translate 'Net amount' %}">{{ row.price|money }}</td>
+            <td class="num" data-label="{% translate 'Share of the ancillary costs' %}">{{ row.share|money }}</td>
+            <td class="num" data-label="{% translate 'Acquisition cost' %}">{{ row.total|money }}</td>
+            <td class="num" data-label="{% translate 'Per piece' %}">{% if row.per_piece is not None %}{{ row.per_piece|money }}{% else %}–{% endif %}</td>
+            <td data-label="{% translate 'Kind of asset' %}">{{ row.kind_label }}</td>
+            <td class="num" data-label="{% translate 'Useful life (months)' %}">{{ row.useful_life|default_if_none:"–" }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      <p>{% blocktranslate count counter=plan.piece_count %}{{ counter }} piece would be made.{% plural %}{{ counter }} pieces would be made.{% endblocktranslate %}</p>
+      {% endif %}
+      {% if plan.ok %}
+      <div class="field">
+        <div class="check"><input type="checkbox" name="confirmed" id="id_confirmed" value="1"><label for="id_confirmed">{% translate "Yes, book in exactly this" %}</label></div>
+      </div>
+      <div class="btn-row"><button class="btn" type="submit" name="action" value="book">{% icon "box-in" %}{% translate "Book in" %}</button><a class="btn secondary" href="{% url 'incoming:detail' invoice.pk %}">{% translate "Cancel" %}</a></div>
+      {% else %}
+      <p class="note">{% translate "Correct what is marked above, then show the preview again." %}</p>
+      {% endif %}
+    </div>
+  </section>
+  {% else %}
+  <div class="btn-row"><a class="btn secondary" href="{% url 'incoming:detail' invoice.pk %}">{% translate "Back to the invoice" %}</a></div>
+  {% endif %}
+</form>
+{% endblock %}

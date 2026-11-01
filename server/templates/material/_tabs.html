@@ -1,0 +1,22 @@
+{% load i18n material_tags %}
+{% comment %}
+  The tabs of the section "material management" (UIX-013): what is rented (products) first, then the
+  material behind it. A tab only shows for a user who may open it.
+{% endcomment %}
+<nav class="tabs" aria-label="{% translate 'Material management' %}">
+  {% if can.read.products %}<a href="{% url 'products:list' %}"{% if tab == "products" %} aria-current="page"{% endif %}>{% translate "Products" %}</a>{% endif %}
+  {% if can.read.material %}
+  <a href="{% url 'material:model_list' %}"{% if tab == "models" %} aria-current="page"{% endif %}>{% translate "Models" %}</a>
+  <a href="{% url 'material:item_list' %}"{% if tab == "items" %} aria-current="page"{% endif %}>{% translate "Items" %}</a>
+  {# LOG-002 (right after "Items"): the vehicles and trailers – items of vehicle products. #}
+  <a href="{% url 'material:fleet' %}"{% if tab == "fleet" %} aria-current="page"{% endif %}>{% translate "Fleet" %}</a>
+  {# MAT-070: "Ohne Produkt" became "Offene Punkte" – items without product, open to-dos, due audits. #}
+  {# MAT-070: the sum of the numbers of its sub-tabs, part of the text of the link. #}
+  {% open_points_total as open_points_count %}
+  <a href="{% url 'material:open_without_product' %}"{% if tab == "open_points" %} aria-current="page"{% endif %}>{% translate "Open points" %}{% if open_points_count %} <span class="badge accent">{{ open_points_count }}</span>{% endif %}</a>
+  <a href="{% url 'material:inspections' %}"{% if tab == "inspections" %} aria-current="page"{% endif %}>{% translate "Inspections" %}</a>
+  {# MAT-068: the audit mode – one item after the other by its ID; for who may change the material. #}
+  {% if can.write.material %}<a href="{% url 'material:audit' %}"{% if tab == "audit" %} aria-current="page"{% endif %}>{% translate "Audit" %}</a>{% endif %}
+  {% endif %}
+  {% if can.write.material %}<a href="{% url 'material:import' %}"{% if tab == "import" %} aria-current="page"{% endif %}>{% translate "Import" %}</a>{% endif %}
+</nav>

@@ -1,0 +1,114 @@
+{% load i18n rentalars %}<!doctype html>
+{% get_current_language as LANGUAGE_CODE %}<html lang="{% if LANGUAGE_CODE == 'en' %}en-GB{% else %}{{ LANGUAGE_CODE }}{% endif %}">
+<head>
+<meta charset="utf-8">
+<title>{% translate "Packing list" %} {{ project.number }} – {% translate "whole project" %}</title>
+<style>
+  /* The packlist of a whole project with all its parts on paper (PRJ-048, PCK-003). Rendered to PDF by WeasyPrint. No prices (PCK-007). */
+  @font-face { font-family: "Barlow"; font-weight: 400; src: url("{{ fonts.regular }}"); }
+  @font-face { font-family: "Barlow"; font-weight: 600; src: url("{{ fonts.semibold }}"); }
+  @font-face { font-family: "Barlow Condensed"; font-weight: 600; src: url("{{ fonts.condensed }}"); }
+  @page {
+    size: A4; margin: 16mm 14mm 18mm;
+    @bottom-left { content: "{{ project.number }} {{ project.name|css_string }}"; font: 8pt "Barlow"; color: #555; }
+    @bottom-right { content: "{% translate 'Page' %} " counter(page) " / " counter(pages); font: 8pt "Barlow"; color: #555; }
+  }
+  body { font-family: "Barlow", sans-serif; font-size: 10pt; color: #111; line-height: 1.35; }
+  h1 { font-family: "Barlow Condensed", sans-serif; font-size: 24pt; margin: 0; line-height: 1; }
+  .head { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1.5pt solid #111; padding-bottom: 4mm; margin-bottom: 4mm; }
+  .head .company { text-align: right; font-size: 9pt; color: #444; }
+  .facts { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5mm 8mm; margin-bottom: 4mm; }
+  .facts div span { color: #555; display: inline-block; min-width: 26mm; }
+  .hidden { border-left: 2pt solid #111; padding-left: 2mm; margin-bottom: 4mm; }
+  h2 { font-family: "Barlow Condensed", sans-serif; font-size: 15pt; margin: 6mm 0 1mm; border-bottom: 1pt solid #111; padding-bottom: 0.5mm; break-after: avoid; }
+  h2 .period { font-family: "Barlow", sans-serif; font-size: 9pt; font-weight: 400; color: #444; }
+  h3 { font-family: "Barlow Condensed", sans-serif; font-size: 12pt; margin: 3mm 0 1mm; break-after: avoid; }
+  .progress { font-size: 9pt; color: #444; margin: 0 0 2mm; }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; font-size: 8pt; font-weight: 600; color: #555; padding: 1mm 1.5mm; border-bottom: 0.5pt solid #999; }
+  td { padding: 1.6mm 1.5mm; border-bottom: 0.3pt solid #ccc; vertical-align: top; }
+  tr { break-inside: avoid; }
+  tr.group td { font-weight: 600; background: #f0f0f0; border-bottom: 0.3pt solid #999; }
+  .box { width: 5mm; }
+  .box span { display: inline-block; width: 4mm; height: 4mm; border: 0.8pt solid #111; }
+  .qty { text-align: right; font-weight: 600; white-space: nowrap; width: 14mm; }
+  .num { text-align: right; white-space: nowrap; }
+  .unit { width: 12mm; color: #555; }
+  .no { width: 22mm; white-space: nowrap; }
+  .hint { color: #444; font-size: 8.5pt; }
+  .tag { border: 0.5pt solid #111; padding: 0 1mm; font-size: 8pt; white-space: nowrap; }
+  .takeover td { color: #444; }
+  .shares { font-size: 8.5pt; color: #333; }
+  .sign { margin-top: 10mm; display: grid; grid-template-columns: 1fr 1fr; gap: 12mm; break-inside: avoid; }
+  .sign div { border-top: 0.5pt solid #111; padding-top: 1mm; font-size: 8pt; color: #555; }
+</style>
+</head>
+<body>
+  <div class="head">
+    <div><h1>{% translate "Packing list" %}</h1><div>{{ project.number }} – {{ project.name }} · <strong>{% translate "Whole project with all subprojects" %}</strong></div></div>
+    <div class="company"><strong>{{ company.name }}</strong><br>{% translate "Printed" %} {{ printed_at|date:"d.m.Y H:i" }}</div>
+  </div>
+  <div class="facts">
+    {% if show_customer %}<div><span>{% translate "Customer" %}</span> {{ project.customer_name }}</div>{% endif %}
+    <div><span>{% translate "Project manager" %}</span> {{ project.manager|default:"–" }}</div>
+    <div><span>{% translate "Out from" %}</span> {{ project.start|date:"D d.m.Y H:i" }}</div>
+    <div><span>{% translate "Back by" %}</span> {{ project.end|date:"D d.m.Y H:i" }}</div>
+  </div>
+  {% if family.hidden %}<p class="hidden">{% blocktranslate count count=family.hidden %}{{ count }} subproject is not included: you may not see its packing list. The sums are without it.{% plural %}{{ count }} subprojects are not included: you may not see their packing lists. The sums are without them.{% endblocktranslate %}</p>{% endif %}
+
+  {% if view == "articles" %}
+  {# For picking in the warehouse: every article once, with what each part needs. Takeovers do not come from the warehouse (PRJ-060). #}
+  <table>
+    <thead><tr><th class="box"></th><th class="qty">{% translate "From the warehouse" %}</th><th class="unit">{% translate "Unit" %}</th><th class="no">{% translate "Article no." %}</th><th>{% translate "Name" %}</th><th>{% translate "Subprojects" %}</th></tr></thead>
+    <tbody>
+    {% for section in family.article_sections %}
+      <tr class="group"><td></td><td colspan="5">{{ section.title }}</td></tr>
+      {% for article in section.articles %}
+      <tr>
+        <td class="box">{% if article.from_warehouse %}<span></span>{% endif %}</td>
+        <td class="qty">{{ article.from_warehouse|number }}</td>
+        <td class="unit">{{ article.product.unit.abbreviation }}</td>
+        <td class="no">{{ article.product.article_number }}</td>
+        <td>{{ article.product.name }}{% if article.taken_over %}<div class="hint">{% blocktranslate with count=article.taken_over|number %}plus {{ count }} taken over between subprojects{% endblocktranslate %}</div>{% endif %}</td>
+        <td class="shares">{% for share in article.shares %}{{ share.project.number }}: {{ share.quantity|number }}{% if share.is_takeover %} ({% translate "taken over" %}){% endif %}{% if not forloop.last %}<br>{% endif %}{% endfor %}</td>
+      </tr>
+      {% endfor %}
+    {% empty %}
+      <tr><td></td><td colspan="5">{% translate "Nothing to pack." %}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  {% for part in family.parts %}{% with numbers=part.figures %}
+  <h2>{{ part.project.number }} {% if part.is_whole %}{% translate "own lines of the whole project" %}{% else %}{{ part.project.name }}{% endif %} <span class="period">{{ part.project.start|date:"D d.m. H:i" }} – {{ part.project.end|date:"D d.m. H:i" }}{% if part.project.venue_label %} · {{ part.project.venue_label }}{% endif %}</span></h2>
+  <p class="progress">{% blocktranslate with packed=numbers.packed|number issued=numbers.issued|number total=numbers.required|number %}{{ packed }} of {{ total }} packed, {{ issued }} issued{% endblocktranslate %}{% if numbers.out %} · {% blocktranslate with back=numbers.back|number out=numbers.out|number %}{{ back }} of {{ out }} back{% endblocktranslate %}{% endif %}</p>
+  {% for overview in part.overviews %}
+    {% if part.overviews|length > 1 %}<h3>{{ overview.packlist.label }} · {{ overview.packlist.get_status_display }}</h3>{% endif %}
+    <table>
+      <thead><tr><th class="box"></th><th class="qty">{% translate "Quantity" %}</th><th class="unit">{% translate "Unit" %}</th><th class="no">{% translate "Article no." %}</th><th>{% translate "Name" %}</th></tr></thead>
+      <tbody>
+      {% for section in overview.sections %}
+        <tr class="group"><td></td><td colspan="4">{% if section.title %}{{ section.title }}{% else %}{% translate "Without group" %}{% endif %}</td></tr>
+        {% for row in section.rows %}
+        <tr{% if row.takeover_from %} class="takeover"{% endif %}>
+          <td class="box">{% if not row.takeover_from %}<span></span>{% endif %}</td>
+          <td class="qty">{{ row.required|number }}</td>
+          <td class="unit">{{ row.product.unit.abbreviation }}</td>
+          <td class="no">{{ row.product.article_number }}</td>
+          <td>{{ row.title }}{% if row.kit_title %}<div class="hint">{% translate "from" context "kit" %} {{ row.kit_title }}</div>{% endif %}{% if row.is_customer_material %}{# PRJ-096 #}<div class="hint"><span class="tag">{% translate "customer material – taken along" %}</span></div>{% endif %}
+            {% if row.takeover_from %}<div class="hint"><span class="tag">{% blocktranslate with number=row.takeover_from.project.number name=row.takeover_from.project.name %}Taken over from {{ number }} {{ name }}{% endblocktranslate %}</span> {% translate "not from the warehouse" %}</div>{% endif %}
+            {% for passing in row.passes_on %}<div class="hint"><span class="tag">{% blocktranslate with quantity=passing.planned|number number=passing.project.number name=passing.project.name %}{{ quantity }} go on to {{ number }} {{ name }}{% endblocktranslate %}</span></div>{% endfor %}</td>
+        </tr>
+        {% endfor %}
+      {% empty %}
+        <tr><td></td><td colspan="4">{% translate "Nothing to pack." %}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  {% endfor %}
+  {% endwith %}{% endfor %}
+  {% endif %}
+
+  <div class="sign"><div>{% translate "Packed by, date" %}</div><div>{% translate "Checked on return by, date" %}</div></div>
+</body>
+</html>

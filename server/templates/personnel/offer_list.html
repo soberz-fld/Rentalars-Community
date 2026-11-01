@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% comment %}
+  Personnel → Price offers (PER-038): the negotiations about prices of deployments, with the stored rate next
+  to the offer. Only for whoever sees personnel costs (AUT-019). The answers are given in the planning of the project
+  – the links lead there – or right here.
+{% endcomment %}
+{% block title %}{% translate "Price offers" %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>{% translate "Price offers" %}</h1><p class="lead">{% translate "Freelancers name their own price when they are asked for a deployment. Here you see the offers next to the rate stored for the person." %}</p></div>
+  <div class="actions">{% if can.write.administration %}<a class="btn secondary" href="{% url 'personnel:offer_settings' %}">{% icon "settings" %}{% translate "Settings" %}</a>{% endif %}</div>
+</div>
+{% include "personnel/_tabs.html" with tab="offers" %}
+{% if not settings.enabled %}<div class="message info" role="status">{% translate "Price offers are switched off. Offers made earlier stay visible here." %}</div>{% endif %}
+<div class="panel">
+  <nav class="tabs sub" aria-label="{% translate 'Show' %}">
+    <a href="{% url 'personnel:offer_list' %}"{% if not everything %} aria-current="page"{% endif %}>{% translate "Waiting for an answer" %}</a>
+    <a href="{% url 'personnel:offer_list' %}?show=all"{% if everything %} aria-current="page"{% endif %}>{% translate "All" %}</a>
+  </nav>
+  {% if rows %}
+  <table class="table stack offer-overview">
+    <thead><tr><th scope="col">{% translate "Project" %}</th><th scope="col">{% translate "Person" %}</th><th scope="col">{% translate "Period" %}</th><th scope="col" class="num">{% translate "Stored rate" %}</th><th scope="col" class="num">{% translate "Offer" %}</th><th scope="col">{% translate "Status" %}</th><th scope="col" class="no-print"><span class="visually-hidden">{% translate "Actions" %}</span></th></tr></thead>
+    <tbody>
+    {% for row in rows %}{% with line=row.line latest=row.latest %}
+      <tr data-offer-line="{{ line.pk }}">
+        <td><a href="{% url 'projects:detail' line.project_id %}">{{ line.project.number }} {{ line.project.name }}</a><div class="muted small">{{ line.job_function.name }}</div></td>
+        <td data-label="{% translate 'Person' %}"><a href="{% url 'personnel:person_detail' line.person_id %}">{{ latest.person.name }}</a></td>
+        <td class="nowrap" data-label="{% translate 'Period' %}">{{ line.start|date:"D d.m. H:i" }} –<br>{{ line.end|date:"D d.m. H:i" }}</td>
+        <td class="num" data-label="{% translate 'Stored rate' %}">{% if latest.reference_amount %}{{ latest.reference_amount|money }}{% else %}–{% endif %}<div class="sub muted">{{ latest.get_unit_display }}</div></td>
+        <td class="num" data-label="{% translate 'Offer' %}"><strong>{{ latest.amount|money }}</strong>{% if row.percent %}<div class="sub muted">{{ row.percent|number }} %</div>{% endif %}<div class="sub muted">{{ latest.get_side_display }}{% if latest.valid_until %} · {% blocktranslate with day=latest.valid_until|date:"d.m." %}until {{ day }}{% endblocktranslate %}{% endif %}</div>{% if latest.message %}<div class="sub">„{{ latest.message }}“</div>{% endif %}</td>
+        <td data-label="{% translate 'Status' %}">{% if latest.shown_status == "expired" %}<span class="badge">{% translate "expired" %}</span>{% else %}<span class="badge {% if latest.status == 'accepted' %}green{% elif latest.status == 'open' %}yellow{% elif latest.status == 'rejected' %}red{% endif %}">{{ latest.get_status_display }}</span>{% endif %}{% if latest.applied %} <span class="badge accent">{% translate "applies" %}</span>{% endif %}</td>
+        <td class="actions no-print">
+          {% if row.waiting and row.can_decide and row.waiting_for_company %}
+          <form class="inline-form" method="post" action="{% url 'personnel:offer_accept' line.project_id line.pk latest.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{% url 'personnel:offer_list' %}"><button class="btn small" type="submit">{% translate "Accept" %}</button></form>
+          <form class="inline-form" method="post" action="{% url 'personnel:offer_reject' line.project_id line.pk latest.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{% url 'personnel:offer_list' %}"><button class="btn secondary small" type="submit">{% translate "Reject" %}</button></form>
+          <a class="btn secondary small" href="{% url 'personnel:offer_counter' line.project_id line.pk latest.pk %}?next={% url 'personnel:offer_list' %}">{% translate "Counter" %}</a>
+          {% else %}<a class="btn secondary small" href="{% url 'projects:detail' line.project_id %}">{% translate "Open planning" %}</a>{% endif %}
+        </td>
+      </tr>
+    {% endwith %}{% endfor %}
+    </tbody>
+  </table>
+  {% if limited %}<p class="muted small">{% blocktranslate %}Only the newest negotiations are shown.{% endblocktranslate %}</p>{% endif %}
+  {% else %}
+  <div class="empty"><strong>{% if everything %}{% translate "No price offers yet." %}{% else %}{% translate "No offer is waiting for an answer." %}{% endif %}</strong></div>
+  {% endif %}
+</div>
+{% endblock %}

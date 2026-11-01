@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}{% translate "History" %} {{ project.number }}{% endblock %}
+{% block content %}
+{% include "projects/_head.html" %}
+<div class="panel">
+  {% include "core/_history.html" %}
+  {% include "core/_pagination.html" %}
+</div>
+{% endblock %}

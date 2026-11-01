@@ -1,0 +1,12 @@
+{% load i18n rentalars %}
+{% comment %}PRJ-135: the buttons of one entry of a template's content. Expects template, section, key, expect (open items: the text).{% endcomment %}
+<td class="actions">
+  <form class="inline-form" method="post" action="{% url 'projects:template_entry_move' template.pk section key %}">{% csrf_token %}<input type="hidden" name="direction" value="up">{% if expect %}<input type="hidden" name="expect" value="{{ expect }}">{% endif %}<button class="icon-btn" type="submit" aria-label="{% translate 'Move up' %}" title="{% translate 'Move up' %}">↑</button></form>
+  <form class="inline-form" method="post" action="{% url 'projects:template_entry_move' template.pk section key %}">{% csrf_token %}<input type="hidden" name="direction" value="down">{% if expect %}<input type="hidden" name="expect" value="{{ expect }}">{% endif %}<button class="icon-btn" type="submit" aria-label="{% translate 'Move down' %}" title="{% translate 'Move down' %}">↓</button></form>
+  <a class="icon-btn" href="{% url 'projects:template_entry_edit' template.pk section key %}{% if expect %}?expect={{ expect|urlencode }}{% endif %}" aria-label="{% translate 'Change entry' %}" title="{% translate 'Change entry' %}">{% icon "edit" %}</a>
+  {% if section == "groups" %}
+  <a class="icon-btn" href="{% url 'projects:template_entry_delete' template.pk section key %}" aria-label="{% translate 'Delete entry' %}" title="{% translate 'Delete entry' %}">{% icon "trash" %}</a>
+  {% else %}
+  <form class="inline-form" method="post" action="{% url 'projects:template_entry_delete' template.pk section key %}">{% csrf_token %}{% if expect %}<input type="hidden" name="expect" value="{{ expect }}">{% endif %}<button class="icon-btn" type="submit" aria-label="{% translate 'Delete entry' %}" title="{% translate 'Delete entry' %}" data-confirm="{% translate 'Delete this entry from the template?' %}">{% icon "trash" %}</button></form>
+  {% endif %}
+</td>

@@ -1,0 +1,22 @@
+{% load i18n rentalars %}
+{% comment %}
+  The exchange about a price, round by round (PER-038). Expects rows (the proposals, oldest first) and
+  show_reference (whether the stored rate may be shown). Only for the person it is about and for the company.
+{% endcomment %}
+<table class="table stack offer-log">
+  <caption class="visually-hidden">{% translate "Price offers for this deployment" %}</caption>
+  <thead><tr><th scope="col">{% translate "Round" %}</th><th scope="col">{% translate "From" %}</th><th scope="col" class="num">{% translate "Offer" %}</th>{% if show_reference %}<th scope="col" class="num">{% translate "Stored rate" %}</th>{% endif %}<th scope="col">{% translate "Message" context "offer" %}</th><th scope="col">{% translate "Valid until" %}</th><th scope="col">{% translate "Status" %}</th></tr></thead>
+  <tbody>
+  {% for offer in rows %}
+    <tr>
+      <td data-label="{% translate 'Round' %}">{{ offer.round }}</td>
+      <td data-label="{% translate 'From' %}">{{ offer.get_side_display|capfirst }}</td>
+      <td class="num" data-label="{% translate 'Offer' %}">{{ offer.amount|money }} <span class="muted small">{{ offer.get_unit_display }}</span></td>
+      {% if show_reference %}<td class="num" data-label="{% translate 'Stored rate' %}">{% if offer.reference_amount %}{{ offer.reference_amount|money }}{% else %}–{% endif %}</td>{% endif %}
+      <td data-label="{% translate 'Message' context 'offer' %}">{% if offer.message %}„{{ offer.message }}“{% endif %}{% if offer.decision_note %}<div class="muted small">{{ offer.decision_note }}</div>{% endif %}</td>
+      <td data-label="{% translate 'Valid until' %}">{% if offer.valid_until %}{{ offer.valid_until|date:"d.m.Y" }}{% else %}–{% endif %}</td>
+      <td data-label="{% translate 'Status' %}">{% if offer.shown_status == "expired" %}<span class="badge">{% translate "expired" %}</span>{% else %}<span class="badge {% if offer.status == 'accepted' %}green{% elif offer.status == 'open' %}yellow{% elif offer.status == 'rejected' %}red{% endif %}">{{ offer.get_status_display }}</span>{% endif %}{% if offer.applied %} <span class="badge accent">{% translate "applies" %}</span>{% endif %}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>

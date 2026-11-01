@@ -1,0 +1,27 @@
+{% load i18n l10n rentalars %}
+{% comment %}
+  MAT-075 (MAT-061): show, below, for cross-checking, the sum (net and gross) of the
+  positions entered. The sum of the rows as typed – each price times its pieces, a set once, a row
+  without price as 0 –, net and gross (MAT-059: typed gross, the net sum is what is stored), and the total of the read
+  invoice with the difference. Rendered by the server on every step; the page script recomputes it while the user
+  types (static/js/app.js, "purchase sums"). Only with the right to see purchase prices. Expects: sums
+  (rentalars.material.purchase_forms.PurchaseSums).
+{% endcomment %}
+<div class="purchase-sum" data-purchase-sum role="status" aria-live="polite"
+     data-rate="{{ sums.rate|default_if_none:''|unlocalize }}" data-max-pieces="{{ sums.max_pieces|unlocalize }}"
+     data-invoice-net="{{ sums.invoice_net|default_if_none:''|unlocalize }}" data-invoice-gross="{{ sums.invoice_gross|default_if_none:''|unlocalize }}"
+     data-unpriced-one="{{ sums.unpriced_texts.0 }}" data-unpriced-many="{{ sums.unpriced_texts.1 }}"
+     data-same-label="{% translate 'matches' %}">
+  <p class="purchase-sum-line"><strong>{% translate "Sum of the positions:" %}</strong>
+    <span data-sum-net>{{ sums.net|money }}</span> {% translate "net" %}<span data-sum-gross-part{% if sums.gross is None %} hidden{% endif %}> · <span data-sum-gross>{{ sums.gross|money }}</span> {% translate "gross" %}</span>
+    {% if sums.rate is not None %}<span class="muted small">({% translate "with the tax rate" %} <span data-sum-rate>{{ sums.rate|number }}</span> %)</span>{% endif %}
+  </p>
+  <p class="muted small" data-sum-unpriced{% if not sums.unpriced %} hidden{% endif %}>{{ sums.unpriced_text }}</p>
+  {% if sums.has_invoice %}
+  <p class="purchase-sum-line"><strong>{% translate "Invoice:" %}</strong>
+    {% if sums.invoice_net is not None %}{{ sums.invoice_net|money }} {% translate "net" %}{% endif %}{% if sums.invoice_net is not None and sums.invoice_gross is not None %} · {% endif %}{% if sums.invoice_gross is not None %}{{ sums.invoice_gross|money }} {% translate "gross" %}{% endif %}
+    {% if sums.compared %}· {% translate "difference:" %} <span data-sum-difference data-compared="{{ sums.compared }}" class="{% if sums.difference %}purchase-sum-off{% else %}purchase-sum-ok{% endif %}">{% if sums.difference %}{% if sums.difference > 0 %}+{% endif %}{{ sums.difference|money }}{% else %}{% translate "matches" %}{% endif %}</span>{% endif %}
+  </p>
+  <p class="muted small">{% translate "Shipping, discounts and deposits of the invoice are no positions: they may explain a difference." %}</p>
+  {% endif %}
+</div>

@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% blocktranslate with number=invoice.invoice_number %}Payments of {{ number }}{% endblocktranslate %}{% endblock %}
+{% block content %}
+{% comment %}
+  DOK-048: the payments to the supplier on an incoming invoice; as for outgoing invoices the rest is worked out and a
+  wrong payment is voided, not deleted. The amounts are in the currency of the invoice.
+{% endcomment %}
+<div class="page-head"><div>
+  <div class="breadcrumb"><a href="{% url 'incoming:list' %}">{% translate "Incoming documents" %}</a> / <a href="{% url 'incoming:detail' invoice.pk %}">{{ invoice.invoice_number|default:invoice.original_name }}</a></div>
+  <h1>{% blocktranslate with number=invoice.invoice_number|default:invoice.original_name %}Payments of {{ number }}{% endblocktranslate %}</h1>
+  <p class="lead">{{ invoice.supplier_label|default:"–" }}{% if invoice.invoice_date %} · {{ invoice.invoice_date|date:"d.m.Y" }}{% endif %}{% if invoice.due_date %} · {% blocktranslate with date=invoice.due_date|date:"d.m.Y" %}due {{ date }}{% endblocktranslate %}{% endif %}</p>
+</div></div>
+{% include "documents/_accounting_tabs.html" %}
+<section class="panel" aria-labelledby="balance-title">
+  <div class="panel-head"><h2 id="balance-title">{% translate "Balance" %}</h2>
+    {% if balance %}<span class="badge {% if balance.state == 'paid' %}green{% elif balance.overdue or balance.state == 'overpaid' %}red{% else %}yellow{% endif %}">{{ balance.label }}{% if balance.overdue %} · {% translate "overdue" %}{% endif %}</span>{% endif %}</div>
+  {% if balance %}
+  <dl class="facts panel-body">
+    <dt>{% translate "To pay" %}</dt><dd>{{ balance.payable|money }} {{ invoice.currency }}</dd>
+    <dt>{% translate "Paid" %}</dt><dd>{{ balance.paid|money }} {{ invoice.currency }}</dd>
+    <dt>{% translate "Open" %}</dt><dd><strong>{{ balance.remaining|money }} {{ invoice.currency }}</strong></dd>
+  </dl>
+  {% else %}
+  <p class="panel-body muted">{% translate "The totals of the invoice are not entered yet. Enter them first; a payment is compared with them." %} <a href="{% url 'incoming:detail' invoice.pk %}">{% translate "Open the invoice" %}</a></p>
+  {% endif %}
+</section>
+<section class="panel" aria-labelledby="payments-title">
+  <div class="panel-head"><h2 id="payments-title">{% translate "Payments" %}</h2></div>
+  {% url 'incoming:payments' invoice.pk as action_url %}
+  {% include "documents/_payment_table.html" with may_enter=may_change %}
+</section>
+{% if may_change and balance %}
+<form method="post" class="form" novalidate>{% csrf_token %}
+  <input type="hidden" name="action" value="add">
+  <section class="panel" aria-labelledby="new-payment-title">
+    <div class="panel-head"><h2 id="new-payment-title">{% translate "Enter a payment" %}</h2></div>
+    <div class="panel-body">
+      {% include "core/_form_errors.html" %}
+      <div class="form-grid">
+        {% include "core/_field.html" with field=form.paid_on %}
+        {% include "core/_field.html" with field=form.amount %}
+        {% include "core/_field.html" with field=form.method %}
+      </div>
+      <div class="form-grid">
+        {% include "core/_field.html" with field=form.reference %}
+        {% include "core/_field.html" with field=form.note %}
+      </div>
+      <div class="btn-row"><button class="btn" type="submit">{% translate "Enter payment" %}</button></div>
+    </div>
+  </section>
+</form>
+{% endif %}
+{% endblock %}

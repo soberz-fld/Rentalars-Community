@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Distribute lines" %} {{ project.number }}{% endblock %}
+{% block content %}
+{% include "projects/_head.html" %}
+{% comment %}PCK-008: which packlist each line goes on. Lines whose material is out stay where they are.{% endcomment %}
+<form method="post" class="panel">
+  {% csrf_token %}
+  <div class="panel-head"><h2>{% translate "Distribute lines" %}</h2><span class="muted small">{% translate "Each line goes on one packing list. Ticks of a line that moves are dropped." %}</span></div>
+  <table class="table stack" data-sort-table>
+    <thead><tr><th scope="col">{% translate "Group" %}</th><th scope="col" class="num">{% translate "Quantity" %}</th><th scope="col">{% translate "Line" %}</th><th scope="col">{% translate "Packing list" %}</th></tr></thead>
+    <tbody>
+    {% for line, current in lines %}
+      <tr>
+        <td>{{ line.group.path|default:"–" }}</td>
+        <td class="num" data-label="{% translate 'Quantity' %}">{{ line.quantity_display }}</td>
+        <td data-label="{% translate 'Line' %}"><span class="artno">{{ line.product.article_number }}</span> {{ line.title }}{% if line.is_addendum %} <span class="badge">{% translate "addendum" %}</span>{% endif %}</td>
+        <td data-label="{% translate 'Packing list' %}"><select name="line-{{ line.pk }}" aria-label="{% translate 'Packing list' %}">{% for packlist in packlists %}<option value="{{ packlist.pk }}"{% if packlist.pk == current.pk %} selected{% endif %}>{% if forloop.first and not packlist.title %}{% translate "Packing list" %}{% else %}{{ packlist.label }}{% endif %}</option>{% endfor %}</select></td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="4" class="muted">{% translate "The project has no material to pack." %}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <div class="panel-body btn-row"><button class="btn" type="submit">{% translate "Save distribution" %}</button><a class="btn secondary" href="{% url 'packing:packlist' project.pk %}">{% translate "Cancel" %}</a></div>
+</form>
+{% endblock %}

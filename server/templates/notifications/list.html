@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Notifications" %}{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>{% translate "Notifications" %}</h1></div>
+  <div class="actions">
+    {% if unread_notifications %}<form method="post" action="{% url 'notifications:mark_all_read' %}" class="inline-form">{% csrf_token %}<button class="btn secondary" type="submit">{% icon "check" %}{% translate "Mark all as read" %}</button></form>{% endif %}
+    <a class="btn secondary" href="{% url 'notifications:preferences' %}">{% icon "settings" %}{% translate "Settings" %}</a>
+  </div>
+</div>
+<nav class="tabs" aria-label="{% translate 'Notifications' %}">
+  <a href="{% url 'notifications:list' %}{% if category %}?category={{ category }}{% endif %}"{% if not unread_only %} aria-current="page"{% endif %}>{% translate "All" %}</a>
+  <a href="{% url 'notifications:list' %}?unread=1{% if category %}&amp;category={{ category }}{% endif %}"{% if unread_only %} aria-current="page"{% endif %}>{% translate "Unread" %}{% if unread_notifications %} <span class="badge accent">{{ unread_notifications }}</span>{% endif %}</a>
+</nav>
+<section class="panel">
+  {# UIX-039: one category only – Projekt, Personal, Material, System. #}
+  <form method="get" class="filters">
+    {% if unread_only %}<input type="hidden" name="unread" value="1">{% endif %}
+    {% filterpanel "notifications" %}
+    <div class="field"><label for="f-category">{% translate "Category" %}</label>
+      <select id="f-category" name="category" data-autosubmit><option value="">{% translate "All categories" %}</option>{% for value, label in categories %}<option value="{{ value }}"{% if category == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+    <button class="btn secondary" type="submit">{% translate "Filter" %}</button>
+    {% endfilterpanel %}
+  </form>
+  {# UIX-040: a table of core/tables.py (notifications/list_tables.py); unread rows in bold. #}
+  {% include "core/_table_tools.html" %}
+  {% if page.object_list %}
+  {% include "core/_table.html" with stack=True %}
+  {% include "core/_pagination.html" %}
+  {% else %}<div class="empty">{% if category %}{% translate "No notifications in this category." %}{% else %}{% translate "No notifications." %}{% endif %}</div>{% endif %}
+</section>
+{% endblock %}

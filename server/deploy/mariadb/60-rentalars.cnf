@@ -1,0 +1,46 @@
+# MariaDB settings for Rentalars on the reference system: 4 cores, 8 GB RAM,
+# everything on one server (NFA-038, NFA-042).
+#
+# Installed as /etc/mysql/mariadb.conf.d/60-rentalars.cnf. The numbers leave
+# more than half of the memory to the operating system, the application, PDF
+# creation and backups (NFA-040).
+#
+# Every setting here is known to MariaDB 10.11 (Ubuntu 24.04) and to MariaDB
+# 11.8 (Ubuntu 26.04) without a warning (NFA-063). Before adding one, check it
+# against both: a server that no longer knows a setting does not start.
+
+[mysqld]
+# The database is only used by the application on the same machine.
+bind-address            = 127.0.0.1
+skip-name-resolve
+
+# Text in every language, including emoji; sorting that follows the alphabet.
+character-set-server    = utf8mb4
+collation-server        = utf8mb4_unicode_ci
+
+# The memory for data and indexes. 1 GB holds a database of this size
+# (20,000 material items, 1,000 projects a year) many times over. On a larger
+# server this is the first value to raise; about a quarter of the RAM is safe
+# as long as the application runs on the same machine.
+innodb_buffer_pool_size = 1G
+innodb_log_file_size    = 256M
+
+# Every confirmed change is on disk before the user sees "saved".
+innodb_flush_log_at_trx_commit = 1
+
+# Two users work at the same time; the application server opens a handful of
+# connections, the backup one more.
+max_connections         = 50
+
+# Reject invalid data instead of silently changing it.
+sql_mode                = STRICT_TRANS_TABLES,NO_ZERO_DATE,NO_ZERO_IN_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
+
+# A row lock that is not released within this time gives up with an error
+# instead of making the user wait forever.
+innodb_lock_wait_timeout = 20
+
+# Queries that take longer than a second are written to a log. On a healthy
+# installation this file stays empty; if it does not, it says where to look.
+slow_query_log          = 1
+slow_query_log_file     = /var/log/mysql/rentalars-slow.log
+long_query_time         = 1

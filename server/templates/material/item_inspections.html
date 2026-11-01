@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{{ item.display_id }} – {% translate "Inspections" %}{% endblock %}
+{% block content %}
+{% include "material/_item_head.html" %}
+<div class="columns">
+<section class="panel">
+  <div class="panel-head"><h2>{% translate "Due" %}</h2></div>
+  {% if inspection_dues %}
+  <table class="table">
+    <thead><tr><th scope="col">{% translate "Inspection" %}</th><th scope="col">{% translate "Last" %}</th><th scope="col">{% translate "Next due" %}</th></tr></thead>
+    <tbody>{% for due in inspection_dues %}
+      <tr><td>{{ due.inspection_type.name }} <span class="muted small">{% blocktranslate count months=due.inspection_type.interval_months %}every month{% plural %}every {{ months }} months{% endblocktranslate %}</span></td>
+        <td>{% if due.last_date %}{{ due.last_date|date:"d.m.Y" }}{% if not due.last_passed %} <span class="badge red">{% translate "failed" %}</span>{% endif %}{% else %}<span class="muted">{% translate "never" %}</span>{% endif %}</td>
+        <td><span class="badge {% if due.state == 'overdue' %}red{% elif due.state == 'soon' %}yellow{% else %}green{% endif %}">{% if due.due_date %}{{ due.due_date|date:"d.m.Y" }}{% else %}{% translate "now" %}{% endif %}</span></td></tr>
+    {% endfor %}</tbody>
+  </table>
+  {% else %}<div class="empty">{% translate "No inspection applies to this item. Inspection types are set up per category or model in the master data." %}</div>{% endif %}
+</section>
+{% if can.write.material and types %}
+<section class="panel">
+  <div class="panel-head"><h2>{% translate "Record an inspection" %}</h2></div>
+  <form method="post" enctype="multipart/form-data" class="panel-body" autocomplete="off">
+    {% csrf_token %}
+    {% include "core/_form_errors.html" %}
+    {% include "core/_field.html" with field=form.inspection_type %}
+    <div class="inline-fields">{% include "core/_field.html" with field=form.date %}{% include "core/_field.html" with field=form.inspector %}</div>
+    {% if form.electrical_type_ids %}{% include "material/_dguv_fields.html" %}{% endif %}
+    {% include "core/_field.html" with field=form.result %}
+    {% include "core/_field.html" with field=form.note %}
+    {% include "core/_field.html" with field=form.protocol %}
+    <p class="help">{% translate "A failed inspection sets the item to “defective”." %}</p>
+    <button class="btn" type="submit">{% icon "inspection" %}{% translate "Record" %}</button>
+  </form>
+</section>
+{% endif %}
+</div>
+<section class="panel">
+  <div class="panel-head"><h2>{% translate "Inspections so far" %}</h2></div>
+  {% if inspections %}
+  <table class="table" data-sort-table>
+    <thead><tr><th scope="col">{% translate "Date" %}</th><th scope="col">{% translate "Inspection" %}</th><th scope="col">{% translate "Result" %}</th><th scope="col">{% translate "Inspected by" %}</th><th scope="col">{% translate "Note" %}</th>{% if has_measurements %}<th scope="col">{% translate "Measured values" %}</th>{% endif %}<th scope="col">{% translate "Protocol" %}</th></tr></thead>
+    <tbody>{% for inspection in inspections %}
+      <tr><td data-sort-value="{{ inspection.date|date:'Y-m-d' }}">{{ inspection.date|date:"d.m.Y" }}</td><td>{{ inspection.inspection_type.name }}</td>
+        <td><span class="badge {% if inspection.passed %}green{% else %}red{% endif %}">{{ inspection.get_result_display }}</span></td>
+        <td>{{ inspection.inspector }}</td><td>{{ inspection.note|linebreaksbr }}</td>
+        {% if has_measurements %}<td>{% if inspection.is_electrical %}{% include "material/_dguv_values.html" %}{% endif %}</td>{% endif %}
+        <td>{% if inspection.protocol %}<a href="{% url 'material:inspection_protocol' inspection.pk %}">{% icon "file" %}{{ inspection.protocol_name|default:_("protocol") }}</a>{% endif %}</td></tr>
+    {% endfor %}</tbody>
+  </table>
+  {% else %}<div class="empty">{% translate "No inspection recorded yet." %}</div>{% endif %}
+</section>
+{% endblock %}

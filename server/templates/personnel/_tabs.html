@@ -1,0 +1,16 @@
+{% load i18n price_offers %}
+{% comment %}
+The tabs of the personnel section. Approving times and the report over everybody's hours belong here (UIX-026):
+approving for those who may approve (ZEI-013), the report for those who see the times of others.
+{% endcomment %}
+<nav class="tabs" aria-label="{% translate 'Personnel' %}">
+  {% if can.read.personnel %}<a href="{% url 'personnel:person_list' %}"{% if tab == "people" %} aria-current="page"{% endif %}>{% translate "People" %}</a>
+  <a href="{% url 'personnel:availability' %}"{% if tab == "availability" %} aria-current="page"{% endif %}>{% translate "Availability" %}</a>
+  <a href="{% url 'personnel:job_function_list' %}"{% if tab == "functions" %} aria-current="page"{% endif %}>{% translate "Job functions" %}</a>
+  {# PER-038: the price offers of freelancers – only where switched on, and for whoever sees personnel costs (AUT-019). #}
+  {% price_offers_on as price_offers_switched_on %}{% if price_offers_switched_on and can.special.personnel_costs %}<a href="{% url 'personnel:offer_list' %}"{% if tab == "offers" %} aria-current="page"{% endif %}>{% translate "Price offers" %}</a>{% endif %}{% endif %}
+  {% if can.special.approve_times and can.write.time_tracking %}<a href="{% url 'timetracking:approval' %}"{% if tab == "approval" %} aria-current="page"{% endif %}>{% translate "Approve" %}</a>{% endif %}
+  {% if can.special.approve_times and can.read.time_tracking %}<a href="{% url 'timetracking:report' %}"{% if tab == "report" %} aria-current="page"{% endif %}>{% translate "Report" %}</a>
+  {# ZEI-019: expenses per month and person, to reimburse. #}
+  <a href="{% url 'timetracking:expense_report' %}"{% if tab == "expenses" %} aria-current="page"{% endif %}>{% translate "Expenses" %}</a>{% endif %}
+</nav>

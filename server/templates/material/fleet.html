@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Fleet" %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>{% translate "Material management" %}</h1></div>
+  <div class="actions">{% include "material/_item_jump.html" %}<a class="btn secondary" href="{% url 'material:fleet_utilization' %}">{% icon "timeline" %}{% translate "Utilization of the fleet" %}</a></div>
+</div>
+{% include "material/_tabs.html" %}
+{% comment %}
+  LOG-002: the vehicles and trailers are the items of material models whose product is a vehicle; they are
+  planned under "Logistik" in the projects. Licence plate, type, seats (LOG-003: a motor vehicle without them says so),
+  driving licence class, status, the most urgent inspection (LOG-014: overdue in red) and the booking that runs now or
+  comes next (LOG-004: overlapping bookings in red). A table of core/tables.py (material/fleet_tables.py).
+{% endcomment %}
+<div class="panel">
+  <form method="get" class="filters">
+    <div class="field grow"><label for="f-q">{% translate "Licence plate, model or serial number" %}</label><input type="search" id="f-q" name="q" value="{{ q }}"></div>
+    {% filterpanel "fleet" %}
+    <div class="field"><label for="f-type">{% translate "Type" %}</label>
+      <select id="f-type" name="type" data-autosubmit><option value="">{% translate "All" %}</option>{% for value, label in types %}<option value="{{ value }}"{% if vehicle_type == value %} selected{% endif %}>{{ label|capfirst }}</option>{% endfor %}</select></div>
+    <div class="field"><label for="f-status">{% translate "Status" %}</label>
+      <select id="f-status" name="status" data-autosubmit><option value="">{% translate "All in use" %}</option>{% for value, label in statuses %}<option value="{{ value }}"{% if status == value %} selected{% endif %}>{{ label|capfirst }}</option>{% endfor %}</select></div>
+    <button class="btn secondary" type="submit">{% translate "Filter" %}</button>
+    {% endfilterpanel %}
+  </form>
+  {% include "core/_table_tools.html" %}
+  {% if page.object_list %}
+  {% include "core/_table.html" with stack=True %}
+  {% elif has_vehicle_products %}
+  <div class="empty"><strong>{% translate "No vehicle matches." %}</strong>{% translate "Change the filters, or create the vehicles as items of a material model whose product is a vehicle." %}</div>
+  {% else %}
+  <div class="empty"><strong>{% translate "The fleet is empty." %}</strong>{% translate "Create a product of the kind “vehicle” – a motor vehicle or a trailer with its rates –, then a material model for it and its vehicles as items. A model of a vehicle category such as “Fuhrpark”, planned as material so far, can be taken into the fleet on its page." %}</div>
+  {% endif %}
+  {% include "core/_pagination.html" %}
+</div>
+{% endblock %}

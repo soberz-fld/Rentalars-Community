@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Change log" %}{% endblock %}
+{% block content %}
+<div class="page-head"><div><div class="breadcrumb"><a href="{% url 'core:administration' %}">{% translate "Settings" %}</a></div><h1>{% translate "Change log" %}</h1></div></div>
+<div class="panel">
+  <form method="get" class="filters">
+    <div class="field grow"><label for="f-q">{% translate "Object contains" %}</label><input type="search" id="f-q" name="q" value="{{ filters.q }}"></div>
+    {% filterpanel "audit-log" %}
+    <div class="field"><label for="f-type">{% translate "Kind of object" %}</label>
+      <select id="f-type" name="type" data-autosubmit><option value="">{% translate "All" %}</option>{% for value, label in type_choices %}<option value="{{ value }}"{% if filters.type == value|stringformat:"s" %} selected{% endif %}>{{ label|capfirst }}</option>{% endfor %}</select></div>
+    <div class="field"><label for="f-user">{% translate "User" %}</label>
+      <select id="f-user" name="user" data-autosubmit><option value="">{% translate "All" %}</option>{% for user in users %}<option value="{{ user.pk }}"{% if filters.user == user.pk|stringformat:"s" %} selected{% endif %}>{{ user }}</option>{% endfor %}</select></div>
+    <div class="field"><label for="f-since">{% translate "From" %}</label><input type="date" id="f-since" name="since" value="{{ filters.since }}"></div>
+    <div class="field"><label for="f-until">{% translate "Until" %}</label><input type="date" id="f-until" name="until" value="{{ filters.until }}"></div>
+    <button class="btn secondary" type="submit">{% translate "Filter" %}</button>
+    {% endfilterpanel %}
+  </form>
+  {% include "core/_history.html" %}
+  {% include "core/_pagination.html" %}
+</div>
+{% endblock %}

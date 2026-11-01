@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "My deployments" %}{% endblock %}
+{% block content %}
+{% comment %}
+  UIX-043: My area → Meine Einsätze, the first tab – the own crew lines as a table of core.tables: columns,
+  sorting by every heading, groups, CSV. Filters: period (coming by default, past, all; first and last day), state
+  (firm, option, inquiry as in the personnel plan), request, project. The block "Meine Einsätze" of the start page
+  leads here.
+{% endcomment %}
+<div class="page-head"><div><h1>{% translate "My area" %}</h1></div></div>
+{% include "personnel/_my_tabs.html" with tab="deployments" %}
+<p class="tab-lead">{% translate "Where and when you are planned. A project leads to its overview with times, place, colleagues and route." %}</p>
+<div class="panel">
+  <form method="get" class="filters">
+    {% for name, value in table.kept_parameters %}{% if name not in filter_names %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endif %}{% endfor %}
+    {% if table.group %}<input type="hidden" name="{{ table.group_param }}" value="{{ table.group.key }}">{% endif %}
+    {% filterpanel "my-deployments" %}
+    {% include "core/_field.html" with field=form.period %}
+    {% include "core/_field.html" with field=form.since %}
+    {% include "core/_field.html" with field=form.until %}
+    {% include "core/_field.html" with field=form.state %}
+    {% include "core/_field.html" with field=form.request %}
+    {% include "core/_field.html" with field=form.project %}
+    <button class="btn secondary" type="submit">{% translate "Filter" %}</button>
+    {% endfilterpanel %}
+  </form>
+  {% include "core/_table_tools.html" %}
+  {% if rows %}
+  {% include "core/_table.html" with stack=True %}
+  {% else %}
+  <div class="empty">{% if form.active_count %}{% translate "No deployment fits the filters." %}{% else %}{% translate "You are not scheduled for any upcoming project." %}{% endif %}</div>
+  {% endif %}
+  {% include "core/_pagination.html" %}
+</div>
+{% endblock %}

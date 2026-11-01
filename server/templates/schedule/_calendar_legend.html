@@ -1,0 +1,22 @@
+{% load i18n %}
+{% comment %}
+  VFG-020, VFG-021: what the colours and marks of the calendar mean. Beside the calendar on wide screens, below it
+  on narrow ones. The samples are the same elements as in the calendar. Expects: legend, view.
+{% endcomment %}
+<aside class="cal-legend" aria-labelledby="cal-legend-title">
+  <h2 id="cal-legend-title" class="cal-legend-title">{% translate "Legend" %}</h2>
+  <ul class="cal-legend-list">
+    {% for css, label in legend %}<li><span class="cal-swatch status-{{ css }}" aria-hidden="true"></span>{{ label }}</li>{% endfor %}
+  </ul>
+  {% if view == "week" %}
+  <ul class="cal-legend-list">
+    {% if options.phases %}<li><span class="cal-swatch phase" aria-hidden="true"></span>{% translate "Phase of a project, e.g. setup" %}</li>{% endif %}
+    {% if options.follow_ups %}<li><span class="cal-swatch follow-up" aria-hidden="true"></span>{% translate "Follow-up of a project or service case" %}</li>{% endif %}
+    <li><span class="cal-swatch now" aria-hidden="true"></span>{% translate "Now" %}</li>
+  </ul>
+  <p class="muted small">{% translate "Whatever lasts a whole day or longer is in the strip at the top. Click an entry to open the project." %}</p>
+  {% else %}
+  {% if options.follow_ups %}<ul class="cal-legend-list"><li><span class="cal-swatch follow-up" aria-hidden="true"></span>{% translate "Follow-up of a project or service case" %}</li></ul>{% endif %}
+  <p class="muted small">{% translate "A project lasting several days is one bar; at the end of a week it goes on in the next row. +3: more projects that day – click to open the week." %}</p>
+  {% endif %}
+</aside>

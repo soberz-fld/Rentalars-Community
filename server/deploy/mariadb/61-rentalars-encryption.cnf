@@ -1,0 +1,30 @@
+# MariaDB encrypts its files with a key of Rentalars (NFA-067).
+#
+# Installed as /etc/mysql/mariadb.conf.d/61-rentalars-encryption.cnf when the
+# installation (or "rentalars encryption enable") switched encryption on.
+# The key lies in /etc/mysql/rentalars-encryption, itself encrypted with the
+# recovery key (docs/betrieb/verschluesselung.md).
+#
+# NEVER delete this file or the key folder while the database holds data: the
+# server could not read its files any more. Everything here is known to
+# MariaDB 10.11 (Ubuntu 24.04) and 11.8 (Ubuntu 26.04).
+
+[mariadbd]
+plugin_load_add                          = file_key_management
+file_key_management_filename             = /etc/mysql/rentalars-encryption/keys.enc
+file_key_management_filekey              = FILE:/etc/mysql/rentalars-encryption/filekey
+file_key_management_encryption_algorithm = AES_CTR
+
+# Tables, also existing ones (encrypted in the background), the system
+# tablespace, temporary tables and the redo log.
+innodb_encrypt_tables            = ON
+innodb_encrypt_temporary_tables  = ON
+innodb_encrypt_log               = ON
+innodb_encryption_threads        = 4
+
+# Temporary files of large sorts, the binary log (if switched on) and newly
+# created Aria tables.
+encrypt_tmp_disk_tables = ON
+encrypt_tmp_files       = ON
+encrypt_binlog          = ON
+aria_encrypt_tables     = ON

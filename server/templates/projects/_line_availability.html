@@ -1,0 +1,26 @@
+{% load i18n rentalars %}
+{% comment %}
+  The content of the cell "Availability" of a line of the planning (PRJ-012, PRJ-054, PRJ-084, PRJ-096). Expects: planned
+  (PlannedLine), line, can, can_edit, urls and the texts t_free, t_tight, t_not_checked, t_from_supplier, t_collides. Shown by _lines.html, and by _planning_stock.html when an open planning page
+  asks for the current state after the material changed (stock refresh; UIX-056).
+{% endcomment %}
+        {% if not can.special.availability %}{# AUT-032 #}
+        {% elif planned.status == "unchecked" %}<span class="avail unchecked">{% if line.is_covering_subrental or line.is_subrental %}{{ t_from_supplier }}{% else %}{{ t_not_checked }}{% endif %}</span>
+        {% else %}
+          {% with info=planned.stock_info %}
+          <span class="avail {{ planned.status }}" title="{{ info.explanation }}">
+            {% if planned.status == "short" %}{% blocktranslate count count=planned.availability.shortage_total %}{{ count }} missing{% plural %}{{ count }} missing{% endblocktranslate %}{% elif planned.status == "tight" %}{{ t_tight }}{% else %}{{ t_free }}{% endif %}
+          </span>
+          <div class="sub">{{ info.summary }}</div>
+          {% endwith %}
+          {% if planned.status == "tight" %}<div class="sub">{{ t_collides }}</div>{% endif %}
+          {% if can_edit %}{% for shortage in planned.shortages %}
+          {# PRJ-054, PRJ-084: the suggestion opens a dialog for supplier, quantity, purchase price and status. #}
+          {# PRJ-096: customer material cannot be subrented – nobody else can supply it. #}
+          {% if shortage.product.owner_id %}<div class="sub">{% translate "Customer material cannot be subrented." %}</div>{% else %}
+          <form class="inline-form no-print" action="{{ urls.subrental_accept|fill:line.pk }}" hx-get="{{ urls.subrental_accept|fill:line.pk }}" hx-target="#dialog">
+            <input type="hidden" name="product" value="{{ shortage.product.pk }}"><input type="hidden" name="quantity" value="{{ shortage.quantity }}">
+            <button class="btn secondary small" type="submit" aria-haspopup="dialog">{% blocktranslate with quantity=shortage.quantity number=shortage.product.article_number %}Subrent {{ quantity }} × {{ number }}{% endblocktranslate %}</button>
+          </form>{% endif %}
+          {% endfor %}{% endif %}
+        {% endif %}

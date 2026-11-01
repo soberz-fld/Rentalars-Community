@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Accounting" %}{% endblock %}
+{% block content %}
+{% comment %}
+  DOK-011: invoices and cancellations to Lexware Office – the settings, the check of the connection and the
+  handings over that need attention. DOK-012: the DATEV export of a period for the tax adviser, with its settings.
+  The page needs read access to the settings and the price right; changing needs write access to the settings.
+  DOK-014: with "use Rentalars as accounting software" off, the page only says so.
+{% endcomment %}
+<div class="page-head"><div><div class="breadcrumb"><a href="{% url 'core:administration' %}">{% translate "Settings" %}</a></div><h1>{% translate "Accounting" %}</h1>
+<p class="lead">{% translate "Invoices and cancellations go to Lexware Office as vouchers with their own number, their amounts per tax rate and the PDF – or, for the tax adviser, as a DATEV file per period." %}</p></div></div>
+
+{% if not invoices_on %}
+{# DOK-014: invoices are written in another program – nothing to hand over or to export. #}
+<section class="panel" id="invoices-off" aria-labelledby="invoices-off-head">
+  <div class="panel-head"><h2 id="invoices-off-head">{% translate "Invoices are switched off" %}</h2></div>
+  <div class="panel-body">
+    <p>{% translate "Rentalars makes no invoices and no cancellations: the setting “Use Rentalars as accounting software” is off. Handing over to Lexware Office and the DATEV export are therefore hidden. Invoices made before stay with their projects and can be read and sent." %}</p>
+    {% if can_edit %}<p><a href="{% url 'core:company_settings' %}">{% translate "Change the setting under “Company data and settings”" %}</a></p>{% endif %}
+  </div>
+</section>
+{% else %}
+<section class="panel" id="lexware" aria-labelledby="lexware-head">
+  <div class="panel-head"><h2 id="lexware-head">{% translate "Lexware Office" %}</h2>
+    {% if can_edit and settings.has_lexware_api_key %}<form method="post" action="{% url 'documents:lexware_check' %}" class="inline-form">{% csrf_token %}<button class="btn secondary small" type="submit">{% icon "refresh" %}{% translate "Check connection" %}</button></form>{% endif %}
+  </div>
+  <div class="panel-body">
+    <dl class="facts accounting-facts">
+      <dt>{% translate "Handing over" %}</dt><dd>{% if settings.lexware_enabled %}{% if settings.lexware_automatic %}{% translate "on, at once when an invoice is made" %}{% else %}{% translate "on, by hand on the tab “Documents” of a project" %}{% endif %}{% else %}{% translate "off" %}{% endif %}</dd>
+      <dt>{% translate "API key" %}</dt><dd>{% if settings.has_lexware_api_key %}{% blocktranslate with hint=settings.lexware_api_key_hint %}stored, ends with {{ hint }}{% endblocktranslate %}{% else %}{% translate "none" %}{% endif %}</dd>
+      {% if settings.lexware_checked_at %}<dt>{% translate "Account" %}</dt><dd>{{ settings.lexware_organization|default:"–" }} <span class="muted small">{% blocktranslate with moment=settings.lexware_checked_at|date:"d.m.Y H:i" %}checked {{ moment }}{% endblocktranslate %}</span></dd>{% endif %}
+    </dl>
+    {% if not key_readable %}<p class="note accent">{% translate "The stored API key cannot be read any more – the secret key of the configuration was changed. Enter the API key again." %}</p>{% endif %}
+  </div>
+  {% if can_edit %}
+  <form method="post" action="{% url 'documents:accounting' %}#lexware" class="panel-body form wide" novalidate autocomplete="off">
+    {% csrf_token %}<input type="hidden" name="section" value="lexware">
+    {% with form=lexware_form %}{% include "core/_form_errors.html" %}{% endwith %}
+    {% include "core/_field.html" with field=lexware_form.lexware_enabled %}
+    <div class="form-grid">{% include "core/_field.html" with field=lexware_form.api_key %}</div>
+    {% include "core/_field.html" with field=lexware_form.lexware_automatic %}
+    {% include "core/_field.html" with field=lexware_form.lexware_collective_contact %}
+    <fieldset class="field">
+      <legend>{% translate "Posting category per tax rate" %}</legend>
+      <p class="help">{% translate "The categories of the account appear here after “Check connection”." %}</p>
+      <div class="form-grid">{% for field in lexware_form.rate_fields %}{% include "core/_field.html" %}{% endfor %}</div>
+    </fieldset>
+    <div class="btn-row"><button class="btn" type="submit">{% translate "Save" %}</button></div>
+  </form>
+  {% endif %}
+</section>
+
+<section class="panel" id="transfers" aria-labelledby="transfers-head">
+  <div class="panel-head"><h2 id="transfers-head">{% translate "Handing over to Lexware Office" %}</h2><span class="muted">{% blocktranslate count count=done_count %}{{ count }} document handed over{% plural %}{{ count }} documents handed over{% endblocktranslate %}</span></div>
+  {% if transfers %}
+  <table class="table stack">
+    <thead><tr><th scope="col">{% translate "Document" %}</th><th scope="col">{% translate "State" %}</th><th scope="col">{% translate "Error" %}</th><th scope="col"></th></tr></thead>
+    <tbody>
+    {% for transfer in transfers %}
+      <tr>
+        <td><a href="{% if transfer.document.project_id %}{% url 'documents:list' transfer.document.project_id %}{% else %}{% url 'documents:outgoing' %}{% endif %}">{{ transfer.document.title }} {{ transfer.document.number }}</a><div class="muted small">{{ transfer.document.issued_on|date:"d.m.Y" }} · {{ transfer.document.gross_total|money }}</div></td>
+        <td data-label="{% translate 'State' %}">{{ transfer.get_state_display }}<div class="muted small">{% blocktranslate count count=transfer.attempts %}{{ count }} attempt{% plural %}{{ count }} attempts{% endblocktranslate %}, {{ transfer.updated_at|date:"d.m.Y H:i" }}</div></td>
+        <td data-label="{% translate 'Error' %}" class="lexware-error">{{ transfer.error|default:"–" }}</td>
+        <td class="actions">{% if can_edit and transfer.state == "failed" %}{% include "documents/_lexware_button.html" with document=transfer.document %}{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<div class="empty">{% translate "Nothing waits and nothing failed." %}</div>{% endif %}
+</section>
+
+<section class="panel" id="datev-export" aria-labelledby="datev-export-head">
+  <div class="panel-head"><h2 id="datev-export-head">{% translate "DATEV export" %}</h2></div>
+  <form method="get" action="{% url 'documents:datev_export' %}" class="panel-body form" novalidate hx-get="{% url 'documents:datev_preview' %}" hx-trigger="change" hx-target="#datev-preview" hx-swap="outerHTML">
+    <div class="form-grid">{% include "core/_field.html" with field=export_form.date_from %}{% include "core/_field.html" with field=export_form.date_to %}</div>
+    <p class="help">{% translate "All invoices and cancellations dated in the period, one booking per tax rate. A cancelled invoice and its cancellation are two documents, each in the period of its date. The period must lie within one fiscal year." %}</p>
+    {# Legacy import: invoices taken over from an old system were booked there – left out unless asked for. #}
+    <div class="field"><div class="check"><input type="checkbox" id="datev-include-historic" name="include_historic" value="1"><label for="datev-include-historic">{% translate "Include invoices taken over from an old system" %}</label></div></div>
+    {% include "documents/_datev_preview.html" %}
+    <div class="btn-row">
+      <button class="btn" type="submit" name="what" value="bookings">{% icon "download" %}{% translate "Bookings (Buchungsstapel)" %}</button>
+      {% if settings.datev_debitor_mode == "per_customer" %}<button class="btn secondary" type="submit" name="what" value="debitors">{% icon "download" %}{% translate "Debtors of the period" %}</button>{% endif %}
+    </div>
+  </form>
+</section>
+
+<section class="panel" id="datev" aria-labelledby="datev-head">
+  <div class="panel-head"><h2 id="datev-head">{% translate "DATEV settings" %}</h2></div>
+  <form method="post" action="{% url 'documents:accounting' %}#datev" class="panel-body form wide" novalidate>
+    {% csrf_token %}<input type="hidden" name="section" value="datev">
+    {% with form=datev_form %}{% include "core/_form_errors.html" %}{% endwith %}
+    <div class="form-grid">
+      {% include "core/_field.html" with field=datev_form.datev_consultant_number %}
+      {% include "core/_field.html" with field=datev_form.datev_client_number %}
+      {% include "core/_field.html" with field=datev_form.datev_fiscal_year_start %}
+      {% include "core/_field.html" with field=datev_form.datev_account_length %}
+      {% include "core/_field.html" with field=datev_form.datev_chart %}
+    </div>
+    <fieldset class="field">
+      <legend>{% translate "Revenue accounts" %}</legend>
+      <p class="help">{% translate "The standard accounts are automatic accounts: DATEV books the output tax itself. Ask your tax adviser before you change them." %}</p>
+      <div class="form-grid">{% for field in datev_form.rate_fields %}{% include "core/_field.html" %}{% endfor %}</div>
+    </fieldset>
+    <div class="form-grid">
+      {% include "core/_field.html" with field=datev_form.datev_debitor_mode %}
+      <div data-show-if="datev-datev_debitor_mode=per_customer">{% include "core/_field.html" with field=datev_form.datev_debitor_offset %}</div>
+      <div data-show-if="datev-datev_debitor_mode=collective">{% include "core/_field.html" with field=datev_form.datev_collective_account %}</div>
+    </div>
+    {% if can_edit %}<div class="btn-row"><button class="btn" type="submit">{% translate "Save" %}</button></div>{% endif %}
+  </form>
+</section>
+
+<section class="panel" id="books" aria-labelledby="books-head">
+  <div class="panel-head"><h2 id="books-head">{% translate "E-invoice, EÜR and archive" %}</h2></div>
+  <form method="post" action="{% url 'documents:accounting' %}#books" class="panel-body form wide" novalidate>
+    {% csrf_token %}<input type="hidden" name="section" value="books">
+    {% with form=books_form %}{% include "core/_form_errors.html" %}{% endwith %}
+    <div class="form-grid">
+      {% include "core/_field.html" with field=books_form.invoice_format %}
+      {% include "core/_field.html" with field=books_form.einvoice_blocks %}
+      {% include "core/_field.html" with field=books_form.small_business %}
+      {% include "core/_field.html" with field=books_form.retention_invoice_years %}
+      {% include "core/_field.html" with field=books_form.retention_letter_years %}
+      {% include "core/_field.html" with field=books_form.archive_check_days %}
+    </div>
+    <p class="help">{% translate "The retention periods are the usual ones in Germany; ask your tax adviser before you change them. Rentalars checks e-invoices against the core rules itself; this is no replacement for a validator." %}</p>
+    {% if can_edit %}<div class="btn-row"><button class="btn" type="submit">{% translate "Save" %}</button></div>{% endif %}
+  </form>
+</section>
+{% endif %}
+{% endblock %}

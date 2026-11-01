@@ -1,0 +1,33 @@
+{% load i18n rentalars %}
+{% comment %}
+  UIX-006, MAT-027 (scanning in the browser; PCK-010, PCK-011): the button that opens the scan dialog of static/js/scan.js.
+  The dialog reads QR and bar codes with the camera where the browser can (BarcodeDetector; the page must be
+  served over HTTPS), and always has a field for typing a code or for a hand scanner. Parameters:
+    scan_mode        "submit" (default): the code goes into the field scan_input and its form is sent;
+                     "plan": the code is resolved (material:scan_resolve) and its product added with scan_post.
+    scan_input       CSS selector of the field (mode submit).
+    scan_post        address that adds the product (mode plan).
+    scan_continuous  keep the dialog open for the next code.
+    scan_label       text of the button, default "Scan".
+  Without scripts the button does nothing; the field next to it works as before.
+{% endcomment %}
+<button type="button" class="btn secondary scan-open no-print" data-scan-open
+  data-scan-mode="{{ scan_mode|default:'submit' }}"{% if scan_input %} data-scan-input="{{ scan_input }}"{% endif %}{% if scan_post %} data-scan-post="{{ scan_post }}"{% endif %}
+  data-scan-resolve="{% url 'material:scan_resolve' %}"{% if scan_continuous %} data-scan-continuous{% endif %}
+  data-t-title="{% translate 'Scan a code' %}"
+  data-t-close="{% translate 'Close' %}"
+  data-t-ok="{% translate 'OK' %}"
+  data-t-torch="{% translate 'Torch' %}"
+  data-t-manual="{% translate 'Type or scan the code' %}"
+  data-t-manual-hint="{% translate 'A hand scanner types the code into this field. An ID, the address of a label’s QR code or a serial number all work.' %}"
+  data-t-starting="{% translate 'Starting the camera …' %}"
+  data-t-ready="{% translate 'Hold the code in front of the camera.' %}"
+  data-t-insecure="{% translate 'The camera needs a secure connection (HTTPS). Type the code or use a hand scanner.' %}"
+  data-t-unsupported="{% translate 'This browser cannot read codes from the camera picture. Type the code or use a hand scanner.' %}"
+  data-t-denied="{% translate 'The camera is not allowed. Allow it in the settings of the browser, or type the code.' %}"
+  data-t-no-camera="{% translate 'No camera found. Type the code or use a hand scanner.' %}"
+  data-t-failed="{% translate 'The camera could not be started. Type the code or use a hand scanner.' %}"
+  data-t-working="{% translate 'Checking …' %}"
+  data-t-nothing="{% translate 'Nothing is known under this code.' %}"
+  data-t-not-plannable="{% translate 'cannot be planned.' %}"
+  data-t-added="{% translate 'Added:' %}">{% icon "camera" %}{% if scan_label %}{{ scan_label }}{% else %}{% translate "Scan" %}{% endif %}</button>

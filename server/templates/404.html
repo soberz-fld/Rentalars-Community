@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}{% translate "Page not found" %}{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>{% translate "Page not found" %}</h1><p class="lead">{% translate "This address does not exist, or the record was deleted." %}</p></div></div>
+<p><a class="btn secondary" href="{% url 'core:home' %}">{% translate "To the start page" %}</a></p>
+{% endblock %}

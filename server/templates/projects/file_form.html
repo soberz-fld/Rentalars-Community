@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}{{ project_file.label }}{% endblock %}
+{% block content %}
+<div class="page-head"><div><div class="breadcrumb"><a href="{% url 'documents:list' project.pk %}#files">{{ project.number }} {{ project.name }}</a></div><h1>{{ project_file.label }}</h1><p class="lead">{{ project_file.original_name }}</p></div></div>
+<div class="panel"><div class="panel-body">
+  <form method="post" class="form wide" novalidate>
+    {% csrf_token %}
+    {% include "core/_form_errors.html" %}
+    <div class="form-grid">
+      {% include "core/_field.html" with field=form.title %}
+      {% include "core/_field.html" with field=form.document_type %}
+      {# PRJ-106: a document of a supplier of subrentals. #}
+      {% if project_file.supplier_id %}{% include "core/_field.html" with field=form.supplier_document_kind %}{% endif %}
+    </div>
+    {% include "core/_field.html" with field=form.visible_to_crew %}
+    {# PRJ-089: console, version and the current show of a show file; shown while a type for show files is chosen. #}
+    <div data-showfile-fields>
+      <div class="form-grid">
+        {% include "core/_field.html" with field=form.show_system %}
+        {% include "core/_field.html" with field=form.show_version %}
+      </div>
+      {% include "core/_field.html" with field=form.is_current_show %}
+      <datalist id="show-systems">{% for name in form.show_system_names %}<option value="{{ name }}"></option>{% endfor %}</datalist>
+    </div>
+    <div class="btn-row"><button class="btn" type="submit">{% translate "Save" %}</button><a class="btn secondary" href="{% url 'documents:list' project.pk %}#files">{% translate "Cancel" %}</a></div>
+  </form>
+</div></div>
+{% endblock %}

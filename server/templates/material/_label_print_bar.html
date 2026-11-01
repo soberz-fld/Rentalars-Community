@@ -1,0 +1,10 @@
+{% load i18n static %}
+{% comment %}
+  MAT-056: above the labels printed from the browser – not printed itself. The print dialog opens by itself;
+  the hints say how to set it up for a Brother label printer. Expects: kind, page_width, page_height.
+{% endcomment %}
+<div class="print-bar">
+  <button type="button" class="print-button" data-print-now>{% translate "Print" %}</button>
+  <p>{% blocktranslate with width=page_width|floatformat:"0" height=page_height|floatformat:"0" %}In the print dialog choose the label printer and the paper {{ width }} × {{ height }} mm, scale 100 % (actual size) and no margins.{% endblocktranslate %}
+  {% if kind == "small" %}{% translate "Brother: DK-11204, 17 mm × 54 mm." %}{% elif kind == "large" %}{% translate "Brother: DK-11201, 29 mm × 90 mm." %}{% elif kind == "cable" %}{% translate "Brother: DK-22210, the 29 mm roll, cut after each label." %}{% endif %}</p>
+</div>

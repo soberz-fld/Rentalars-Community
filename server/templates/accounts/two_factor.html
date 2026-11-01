@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Two-factor login" %}{% endblock %}
+{% block content %}
+<div class="page-head"><div><div class="breadcrumb"><a href="{% url 'accounts:account' %}">{% translate "My account" %}</a></div><h1>{% translate "Two-factor login" %}</h1>
+<p class="lead">{% blocktranslate with since=request.user.totp_enabled_at|date:"d.m.Y" %}Switched on since {{ since }}.{% endblocktranslate %}
+{% with left=request.user.recovery_code_hashes|length %}{% blocktranslate count count=left %}{{ count }} recovery code left.{% plural %}{{ count }} recovery codes left.{% endblocktranslate %}{% endwith %}</p></div></div>
+{% if required %}
+<p class="note">{% translate "A role of yours requires two-factor login; it cannot be switched off. Lost the phone? An administrator can reset it." %}</p>
+{% else %}
+<section class="panel"><div class="panel-head"><h2>{% translate "Switch off" %}</h2></div><div class="panel-body">
+  <form method="post" action="{% url 'accounts:two_factor_disable' %}" class="form" novalidate>
+    {% csrf_token %}
+    {# AUT-029: an account of the directory has no password here – the current code (or a recovery code) takes its place. #}
+    {% if password_external %}<div class="field"><label for="f-code">{% translate "Current code or recovery code" %}</label><input type="text" id="f-code" name="code" autocomplete="one-time-code" required></div>
+    {% else %}<div class="field"><label for="f-password">{% translate "Your password" %}</label><input type="password" id="f-password" name="password" autocomplete="current-password" required></div>{% endif %}
+    <div class="btn-row"><button class="btn danger" type="submit">{% translate "Switch two-factor login off" %}</button></div>
+  </form>
+</div></section>
+{% endif %}
+{% endblock %}

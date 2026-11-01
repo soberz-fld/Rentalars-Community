@@ -1,0 +1,15 @@
+{% load i18n rentalars %}
+{# Expects: stock, firm, optional, own (may be 0), free. Shows "9 stock, 6 firm, 2 optional, 1 free" (VFG-003). #}
+<div class="stockbar" role="img" aria-label="{% blocktranslate %}{{ stock }} in stock, {{ firm }} firmly reserved, {{ optional }} optional, {{ free }} free{% endblocktranslate %}">
+  <span class="firm" style="width: {{ firm|percent_of:stock }}%"></span>
+  {% if own %}<span class="own" style="width: {{ own|percent_of:stock }}%"></span>{% endif %}
+  <span class="optional" style="width: {{ optional|percent_of:stock }}%"></span>
+  <span class="free" style="flex: 1"></span>
+</div>
+<div class="stock-legend">
+  <span>{% translate "Stock" %} <b>{{ stock }}</b></span>
+  <span>{% translate "firm" %} <b>{{ firm }}</b></span>
+  {% if own %}<span>{% translate "this project" %} <b>{{ own }}</b></span>{% endif %}
+  <span>{% translate "optional" %} <b>{{ optional }}</b></span>
+  <span>{% translate "free" %} <b>{{ free }}</b></span>
+</div>

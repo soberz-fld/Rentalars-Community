@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Outgoing documents" %}{% endblock %}
+{% block content %}
+{% comment %}
+  DOK-020: Buchhaltung → Ausgangsbelege. Every document a customer got – offers, order confirmations, delivery notes,
+  invoices, cancellations; no crew dispositions – with the amounts stored with it (DOK-007). A table of core/tables.py
+  (documents/outgoing_tables.py): columns, sorting, groups, CSV (UIX-015, UIX-040); the filters behind one button
+  (UIX-038). Below it the sums of all filtered documents per kind – not only of this page.
+{% endcomment %}
+<div class="page-head">
+  <div><h1>{% translate "Accounting" %}</h1></div>
+  {# DOK-011, DOK-012: handing over and the DATEV export stay in the settings – a way there for who may open them. #}
+  {% if can.read.administration or may_make_free %}<div class="actions">
+    {% if can.read.administration %}<a class="btn secondary" href="{% url 'documents:accounting' %}">{% icon "settings" %}{% translate "DATEV export and Lexware Office" %}</a>{% endif %}
+    {# A document without a project or service case – the dialog asks for kind and customer, then the draft opens. #}
+    {% if may_make_free %}<a class="btn" href="{% url 'documents:free_new' %}" hx-get="{% url 'documents:free_new' %}" hx-target="#dialog" aria-haspopup="dialog">{% icon "plus" %}{% translate "New outgoing document" %}</a>{% endif %}
+  </div>{% endif %}
+</div>
+{% include "documents/_accounting_tabs.html" %}
+{% if free_drafts %}
+<section class="panel" id="free-drafts" aria-labelledby="free-drafts-title">
+  <div class="panel-head"><h2 id="free-drafts-title">{% translate "Drafts" %}</h2><span class="muted small">{% translate "Documents without a project that are not issued yet. They have no number." %}</span></div>
+  <table class="table stack">
+    <thead><tr><th scope="col">{% translate "Kind" %}</th><th scope="col">{% translate "Customer" %}</th><th scope="col">{% translate "Reference" %}</th><th scope="col">{% translate "Changed" %}</th></tr></thead>
+    <tbody>{% for draft in free_drafts %}
+      <tr><td><a href="{% url 'documents:free_edit' draft.pk %}">{{ draft.get_kind_display|capfirst }}</a></td><td data-label="{% translate 'Customer' %}">{{ draft.customer.name }}</td><td data-label="{% translate 'Reference' %}">{{ draft.reference|default:"–" }}</td><td data-label="{% translate 'Changed' %}">{{ draft.changed_at|date:"d.m.Y H:i" }}</td></tr>
+    {% endfor %}</tbody>
+  </table>
+</section>
+{% endif %}
+<div class="panel">
+  <div class="panel-head"><h2>{% translate "Outgoing documents" %}</h2><span class="muted small">{% translate "Every document a customer got – offers, order confirmations, delivery notes, invoices and cancellations – with the amounts stored with it. Crew dispositions go to the crew and are not listed." %}</span></div>
+  <form method="get" class="filters">
+    <div class="field grow"><label for="f-q">{% translate "Number, project or customer" %}</label><input type="search" id="f-q" name="q" value="{{ filters.text }}"></div>
+    {% filterpanel "outgoing" %}
+    <div class="field"><label for="f-kind">{% translate "Kind" %}</label>
+      <select id="f-kind" name="kind" data-autosubmit><option value="">{% translate "All" %}</option>{% for value, label in kind_choices %}<option value="{{ value }}"{% if filters.kind == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+    <div class="field"><label for="f-state">{% translate "Status" %}</label>
+      <select id="f-state" name="state" data-autosubmit><option value="">{% translate "All" %}</option>{% for value, label in state_choices %}<option value="{{ value }}"{% if filters.state == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+    <div class="field"><label for="f-origin">{% translate "Origin" %}</label>
+      <select id="f-origin" name="origin" data-autosubmit><option value="">{% translate "All" %}</option>{% for value, label in origin_choices %}<option value="{{ value }}"{% if filters.origin == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+    {% if lexware_choices %}<div class="field"><label for="f-lexware">{% translate "Lexware Office" %}</label>
+      <select id="f-lexware" name="lexware" data-autosubmit><option value="">{% translate "All" %}</option>{% for value, label in lexware_choices %}<option value="{{ value }}"{% if filters.lexware == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>{% endif %}
+    <div class="field"><label for="f-customer">{% translate "Customer" %}</label>
+      <select id="f-customer" name="customer" data-autosubmit><option value="">{% translate "All" %}</option>{% for customer in customers %}<option value="{{ customer.pk }}"{% if filters.customer == customer.pk %} selected{% endif %}>{{ customer.name }}</option>{% endfor %}</select></div>
+    {# A link may name one project (?project=); it shows here and can be taken away. #}
+    {% if project %}<div class="field"><label for="f-project">{% translate "Project" %}</label>
+      <select id="f-project" name="project" data-autosubmit><option value="">{% translate "All" %}</option><option value="{{ project.pk }}" selected>{{ project.number }} {{ project.name }}</option></select></div>{% endif %}
+    <div class="field"><label for="f-since">{% translate "From" %}</label><input type="date" id="f-since" name="since" value="{{ filters.since|date:'Y-m-d' }}"></div>
+    <div class="field"><label for="f-until">{% translate "Until" %}</label><input type="date" id="f-until" name="until" value="{{ filters.until|date:'Y-m-d' }}"></div>
+    <button class="btn secondary" type="submit">{% translate "Filter" %}</button>
+    {% endfilterpanel %}
+  </form>
+  {% include "core/_table_tools.html" %}
+  {% if rows %}
+  {% include "core/_table.html" with stack=True %}
+  {% else %}
+  <div class="empty"><strong>{% translate "No documents match." %}</strong>{% translate "Documents are made on the tab “Documents” of a project, monthly invoices under “Monthly statement”, documents without a project with “New outgoing document”." %}</div>
+  {% endif %}
+  {% include "core/_pagination.html" %}
+</div>
+{% if totals.kinds %}
+<section class="panel" aria-labelledby="outgoing-sums">
+  <div class="panel-head"><h2 id="outgoing-sums">{% translate "Sums of the filtered documents" %}</h2><span class="muted small">{% translate "Of all documents of the filter, not only of this page; as stored with the documents. Cancellations count negative." %}</span></div>
+  <table class="table stack outgoing-sums">
+    <thead><tr><th scope="col">{% translate "Kind" %}</th><th scope="col" class="num">{% translate "Count" %}</th><th scope="col" class="num">{% translate "Net" %}</th><th scope="col" class="num">{% translate "Tax" %}</th><th scope="col" class="num">{% translate "Gross" %}</th></tr></thead>
+    <tbody>
+    {% for entry in totals.kinds %}
+      <tr><td>{{ entry.label }}</td><td class="num" data-label="{% translate 'Count' %}">{{ entry.count|thousands }}</td>{% if entry.priced %}<td class="num" data-label="{% translate 'Net' %}">{{ entry.net|money }}</td><td class="num" data-label="{% translate 'Tax' %}">{{ entry.tax|money }}</td><td class="num" data-label="{% translate 'Gross' %}">{{ entry.gross|money }}</td>{% else %}<td class="num muted" data-label="{% translate 'Net' %}">–</td><td class="num muted" data-label="{% translate 'Tax' %}">–</td><td class="num muted" data-label="{% translate 'Gross' %}">–</td>{% endif %}</tr>
+    {% endfor %}
+    {% if totals.bookable %}
+      <tr class="sum"><td>{{ totals.bookable.label }}</td><td class="num" data-label="{% translate 'Count' %}">{{ totals.bookable.count|thousands }}</td><td class="num" data-label="{% translate 'Net' %}">{{ totals.bookable.net|money }}</td><td class="num" data-label="{% translate 'Tax' %}">{{ totals.bookable.tax|money }}</td><td class="num" data-label="{% translate 'Gross' %}">{{ totals.bookable.gross|money }}</td></tr>
+    {% endif %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+{% endblock %}

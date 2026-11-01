@@ -1,0 +1,5 @@
+{% load i18n %}
+{# AUT-034: what the columns "Finances", "Personnel data" and "Customer data" mean (accounts/data_access.py) – below Personal → Personen and Einstellungen → Nutzer when one of them is shown. #}
+{% if "finances" in table.shown_keys or "personnel_data" in table.shown_keys or "customer_data" in table.shown_keys %}
+<p class="panel-body muted small data-access-legend">{% translate "Finances: prices and calculation, purchase prices. Personnel data: the people in Personnel with their contact data, and hourly rates and personnel costs. Customer data: the module Customers. From the roles of the account; “no access”: the account cannot log in – no password set yet, deactivated or past its “valid until”." %}</p>
+{% endif %}

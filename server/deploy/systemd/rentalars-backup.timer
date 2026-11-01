@@ -1,0 +1,14 @@
+# Runs the backup every night (NFA-015, NFA-036).
+
+[Unit]
+Description=Rentalars – tägliche Sicherung
+
+[Timer]
+OnCalendar=*-*-* 02:30:00
+# If the server was switched off at that time, the backup is made up for
+# right after the next start.
+Persistent=true
+RandomizedDelaySec=10min
+
+[Install]
+WantedBy=timers.target

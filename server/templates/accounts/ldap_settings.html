@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Directory (LDAP)" %}{% endblock %}
+{% block content %}
+{# AUT-029: login with LDAP / Active Directory and the assignment of groups to roles. #}
+<div class="page-head"><div><div class="breadcrumb"><a href="{% url 'core:administration' %}">{% translate "Settings" %}</a></div><h1>{% translate "Directory (LDAP)" %}</h1>
+<p class="lead">{% translate "Colleagues log in with their account of the company directory (OpenLDAP, Active Directory). The groups they are in decide which roles they get." %}</p></div></div>
+
+{% if settings.enabled and not mappings %}<p class="note red" role="status">{% translate "No group has roles yet: nobody can log in with the directory. Add an assignment below." %}</p>{% endif %}
+{% if settings.enabled and not local_administrator %}<p class="note" role="status">{% translate "There is no local (emergency) account that can change the settings. Mark an administrator’s account as “local” in the user list – so that you can still get in when the directory is down." %}</p>{% endif %}
+{% if warnings %}<div class="note red" role="alert" id="ldap-warnings"><strong>{% translate "Please check:" %}</strong><ul class="plain">{% for warning in warnings %}<li>{{ warning }}</li>{% endfor %}</ul></div>{% endif %}
+{% if password_unreadable %}<p class="note red" role="alert">{% translate "The stored password of the search account cannot be read any more (the secret key was changed). Enter it again." %}</p>{% endif %}
+
+<form method="post" class="form wide" novalidate autocomplete="off" id="ldap-settings-form">
+  {% csrf_token %}
+  {% include "core/_form_errors.html" %}
+  <section class="panel" aria-labelledby="ldap-connection-title">
+    <div class="panel-head"><h2 id="ldap-connection-title">{% translate "Connection" %}</h2>
+      {% if can_write %}<span class="muted small">{% translate "Fill in suggestions:" %} <a href="?preset=openldap">OpenLDAP</a> · <a href="?preset=ad">Active Directory</a></span>{% endif %}</div>
+    <div class="panel-body">
+      {% include "core/_field.html" with field=form.enabled %}
+      {% include "core/_field.html" with field=form.server_uris %}
+      <div class="form-grid">
+        {% include "core/_field.html" with field=form.start_tls %}
+        {% include "core/_field.html" with field=form.verify_certificate %}
+        {% include "core/_field.html" with field=form.timeout_seconds %}
+      </div>
+      {% include "core/_field.html" with field=form.ca_certificate_path %}
+      {% include "core/_field.html" with field=form.ca_certificate_pem %}
+      <p class="muted small">{% translate "The servers are usually in the company network. Rentalars connects to internal addresses only if the operator allows them in the configuration file (section [network], allow_internal)." %}</p>
+    </div>
+  </section>
+  <section class="panel" aria-labelledby="ldap-search-title">
+    <div class="panel-head"><h2 id="ldap-search-title">{% translate "Search account" %}</h2></div>
+    <div class="panel-body">
+      <div class="form-grid">
+        {% include "core/_field.html" with field=form.bind_dn %}
+        {% include "core/_field.html" with field=form.bind_password %}
+      </div>
+      {% if settings.has_bind_password %}<p class="muted small">{% translate "A password is stored. It is never shown again." %}</p>{% endif %}
+      {% if form.remove_bind_password %}{% include "core/_field.html" with field=form.remove_bind_password %}{% endif %}
+    </div>
+  </section>
+  <section class="panel" aria-labelledby="ldap-users-title">
+    <div class="panel-head"><h2 id="ldap-users-title">{% translate "Finding users" %}</h2></div>
+    <div class="panel-body">
+      {% include "core/_field.html" with field=form.user_search_base %}
+      {% include "core/_field.html" with field=form.user_search_filter %}
+      <div class="form-grid">
+        {% include "core/_field.html" with field=form.attribute_username %}
+        {% include "core/_field.html" with field=form.attribute_email %}
+        {% include "core/_field.html" with field=form.attribute_first_name %}
+        {% include "core/_field.html" with field=form.attribute_last_name %}
+      </div>
+    </div>
+  </section>
+  <section class="panel" aria-labelledby="ldap-groups-title">
+    <div class="panel-head"><h2 id="ldap-groups-title">{% translate "Finding groups" %}</h2></div>
+    <div class="panel-body">
+      {% include "core/_field.html" with field=form.group_mode %}
+      {% include "core/_field.html" with field=form.member_of_attribute %}
+      {% include "core/_field.html" with field=form.group_search_base %}
+      {% include "core/_field.html" with field=form.group_search_filter %}
+    </div>
+  </section>
+  <section class="panel" aria-labelledby="ldap-behaviour-title">
+    <div class="panel-head"><h2 id="ldap-behaviour-title">{% translate "At the login" %}</h2></div>
+    <div class="panel-body">
+      {% include "core/_field.html" with field=form.allow_local_login %}
+      {% include "core/_field.html" with field=form.auto_create_users %}
+      {% include "core/_field.html" with field=form.link_existing_accounts %}
+      {% if settings.link_existing_accounts %}<p class="note red" role="status">{% translate "Linking by name is on: a user of the directory with the name of an existing account takes it over, with the roles an administrator gave it." %}</p>{% endif %}
+      {% include "core/_field.html" with field=form.sync_daily %}
+      <p class="muted small">{% translate "Two-factor login (if a user or a role has it) is asked for after the directory has accepted the password, as with any other login." %}</p>
+    </div>
+  </section>
+  {% if can_write %}<div class="btn-row"><button class="btn" type="submit">{% translate "Save settings" %}</button><a class="btn secondary" href="{% url 'core:administration' %}">{% translate "Cancel" %}</a></div>{% endif %}
+</form>
+
+<section class="panel" id="assignments" aria-labelledby="ldap-assignments-title">
+  <div class="panel-head"><h2 id="ldap-assignments-title">{% translate "Groups and roles" %}</h2>
+    {% if can_write %}<a class="btn small" href="{% url 'accounts:ldap_mapping_create' %}">{% icon "plus" %}{% translate "New assignment" %}</a>{% endif %}</div>
+  <div class="panel-body"><p class="muted small">{% translate "A user gets the roles of all groups they are in. The lowest priority number is applied first; “last match” ends the list for the users of that group. Roles from the directory cannot be taken away by hand; roles an administrator gave stay. Whoever is in none of these groups cannot log in, and an account of theirs is deactivated." %}</p></div>
+  {% if mappings %}
+  <table class="table stack">
+    <thead><tr><th scope="col">{% translate "Directory group" %}</th><th scope="col">{% translate "Roles" %}</th><th scope="col">{% translate "Priority" %}</th><th scope="col"><span class="visually-hidden">{% translate "Actions" %}</span></th></tr></thead>
+    <tbody>{% for mapping in mappings %}
+      <tr>
+        <td>{% if can_write %}<a href="{% url 'accounts:ldap_mapping_edit' mapping.pk %}">{{ mapping.group }}</a>{% else %}{{ mapping.group }}{% endif %}{% if mapping.is_name_only %} <span class="badge red">{% translate "name only" %}</span><div class="small">{% translate "Matches a group of this name anywhere in the directory. Use the full DN." %}</div>{% endif %}{% if mapping.note %}<div class="muted small">{{ mapping.note }}</div>{% endif %}</td>
+        <td data-label="{% translate 'Roles' %}">{% for role in mapping.roles.all %}{{ role.name }}{% if not forloop.last %}, {% endif %}{% endfor %}</td>
+        <td data-label="{% translate 'Priority' %}">{{ mapping.priority }}{% if mapping.last_match %} <span class="badge outline">{% translate "last match" %}</span>{% endif %}</td>
+        <td class="actions">{% if can_delete %}<form method="post" action="{% url 'accounts:ldap_mapping_delete' mapping.pk %}" class="inline-form">{% csrf_token %}<button class="btn secondary small" type="submit" data-confirm="{% translate 'Delete this assignment? The roles it gave are taken back at the next login.' %}">{% translate "Delete" %}<span class="visually-hidden"> – {{ mapping.group }}</span></button></form>{% endif %}</td>
+      </tr>{% endfor %}
+    </tbody>
+  </table>
+  {% else %}<div class="empty">{% translate "No assignment yet." %}</div>{% endif %}
+</section>
+
+{% if can_write %}
+<section class="panel" id="tests" aria-labelledby="ldap-tests-title">
+  <div class="panel-head"><h2 id="ldap-tests-title">{% translate "Test" %}</h2></div>
+  <div class="panel-body">
+    <p class="muted small">{% translate "The tests use the saved settings. Nothing is written." %}</p>
+    <form method="post" action="{% url 'accounts:ldap_test_connection' %}" class="btn-row">{% csrf_token %}<button class="btn secondary" type="submit">{% translate "Test connection" %}</button></form>
+
+    {% if connection_report %}
+    <div id="connection-report" role="status" aria-live="polite">
+      <h3>{% translate "Result of the connection test" %}</h3>
+      <p>{% if connection_report.ok %}<span class="badge green">{% translate "all good" %}</span>{% else %}<span class="badge red">{% translate "problems found" %}</span>{% endif %}</p>
+      <table class="table stack"><thead><tr><th scope="col">{% translate "Step" %}</th><th scope="col">{% translate "Result" %}</th><th scope="col">{% translate "Detail" %}</th></tr></thead>
+      <tbody>{% for step in connection_report.steps %}<tr><td>{{ step.step }}</td><td data-label="{% translate 'Result' %}">{% if step.ok %}{% translate "OK" %}{% else %}<strong>{% translate "Problem" %}</strong>{% endif %}</td><td data-label="{% translate 'Detail' %}">{{ step.detail }}</td></tr>{% endfor %}</tbody></table>
+    </div>
+    {% endif %}
+
+    <h3 id="try-title">{% translate "Test login for a user" %}</h3>
+    <form method="post" action="{% url 'accounts:ldap_test_login' %}" class="form" novalidate autocomplete="off" aria-labelledby="try-title">
+      {% csrf_token %}{% include "core/_required_note.html" with form=login_form %}
+      <div class="form-grid">{% include "core/_field.html" with field=login_form.username %}{% include "core/_field.html" with field=login_form.password %}</div>
+      <div class="btn-row"><button class="btn secondary" type="submit">{% translate "Test login" %}</button></div>
+    </form>
+    {% if login_error %}<p class="note red" role="alert">{{ login_error }}</p>{% endif %}
+    {% if login_preview %}
+    <div id="login-preview" role="status" aria-live="polite">
+      <h4>{% blocktranslate with name=login_name %}Result for “{{ name }}”{% endblocktranslate %}</h4>
+      {% if not login_preview.found %}<p class="note">{{ login_preview.message }}</p>{% else %}
+      <dl class="facts">
+        <dt>{% translate "Entry in the directory" %}</dt><dd><code>{{ login_preview.dn }}</code></dd>
+        <dt>{% translate "Username" %}</dt><dd>{{ login_preview.attributes.username|default:"–" }}</dd>
+        <dt>{% translate "Name" %}</dt><dd>{{ login_preview.attributes.first_name }} {{ login_preview.attributes.last_name }}</dd>
+        <dt>{% translate "E-mail address" %}</dt><dd>{{ login_preview.attributes.email|default:"–" }}</dd>
+        <dt>{% translate "Groups" context "directory" %}</dt><dd>{% if login_preview.groups %}<ul class="plain">{% for group in login_preview.groups %}<li><code>{{ group }}</code></li>{% endfor %}</ul>{% else %}{% translate "none" %}{% endif %}</dd>
+        <dt>{% translate "Assignments that apply" %}</dt><dd>{% for group in login_preview.matched_assignments %}{{ group }}{% if not forloop.last %}; {% endif %}{% empty %}{% translate "none" %}{% endfor %}</dd>
+        <dt>{% translate "Roles from the directory" %}</dt><dd>{% for role in login_preview.roles_from_directory %}{{ role }}{% if not forloop.last %}, {% endif %}{% empty %}{% translate "none" %}{% endfor %}</dd>
+        {% if login_preview.password_checked %}<dt>{% translate "Password" %}</dt><dd>{% if login_preview.password_ok %}{% translate "accepted by the directory" %}{% else %}<strong>{% translate "refused by the directory" %}</strong>{% endif %}</dd>{% endif %}
+        <dt>{% translate "Login would" %}</dt><dd>{% if login_preview.action == "create" %}{% translate "create a new account" %}{% elif login_preview.action == "link" %}{% translate "take over the existing account of the same name" %}{% elif login_preview.action == "update" or login_preview.action == "unchanged" %}{% translate "use the existing account" %}{% elif login_preview.action == "reactivate" %}{% translate "activate the account again" %}{% elif login_preview.action == "deactivate" %}<strong>{% translate "be refused and deactivate the account" %}</strong>{% else %}<strong>{% translate "be refused" %}</strong>{% endif %}</dd>
+        {% if login_preview.message %}<dt>{% translate "Why" %}</dt><dd>{{ login_preview.message }}</dd>{% endif %}
+        {% if login_preview.reason == "moved" %}<dt>{% translate "Moved in the directory?" %}</dt><dd><form method="post" action="{% url 'accounts:ldap_adopt_dn' %}" class="inline-form">{% csrf_token %}<input type="hidden" name="username" value="{{ login_name }}"><button class="btn secondary small" type="submit" data-confirm="{% translate 'Link the account to the new entry? Do this only if it is the same person.' %}">{% translate "Adopt the new entry" %}</button></form></dd>{% endif %}
+        {% if login_preview.account_id %}<dt>{% translate "Roles now" %}</dt><dd>{{ login_preview.roles_before|join:", "|default:"–" }}</dd>{% endif %}
+        {% if not login_preview.reason or login_preview.action == "create" %}<dt>{% translate "Roles after the login" %}</dt><dd>{{ login_preview.roles_after|join:", "|default:"–" }}</dd>{% endif %}
+      </dl>
+      {% for note in login_preview.notes %}<p class="muted small">{{ note }}</p>{% endfor %}
+      {% endif %}
+    </div>
+    {% endif %}
+
+    <h3 id="sync-title">{% translate "Compare accounts with the directory" %}</h3>
+    <p class="muted small">{% blocktranslate count count=linked_users %}{{ count }} account is kept by the directory.{% plural %}{{ count }} accounts are kept by the directory.{% endblocktranslate %}
+      {% if settings.last_sync_at %}{% blocktranslate with when=settings.last_sync_at|date:"SHORT_DATETIME_FORMAT" what=settings.last_sync_summary %}Last comparison: {{ when }} – {{ what }}{% endblocktranslate %}{% endif %}
+      {% translate "Users who left their groups are deactivated, names and roles brought up to date. Nobody is created." %}</p>
+    <form method="post" action="{% url 'accounts:ldap_sync' %}" class="btn-row" aria-labelledby="sync-title">{% csrf_token %}<input type="hidden" name="mode" value="preview"><button class="btn secondary" type="submit">{% translate "Show the differences" %}</button></form>
+    {% if sync_report %}
+    <div id="sync-report" role="status" aria-live="polite">
+      {% if sync_stopped %}<p class="note red">{{ sync_stopped }}</p>{% endif %}
+      {% if sync_report.accounts %}
+      <table class="table stack"><thead><tr><th scope="col">{% translate "Account" %}</th><th scope="col">{% translate "What happens" %}</th><th scope="col">{% translate "Roles" %}</th></tr></thead>
+      <tbody>{% for item in sync_report.accounts %}<tr><td>{{ item.username }}</td><td data-label="{% translate 'What happens' %}">{% if item.action == "deactivate" %}{% translate "deactivate" %}{% elif item.action == "reactivate" %}{% translate "activate again" %}{% elif item.action == "update" %}{% translate "bring up to date" %}{% elif item.action == "link" %}{% translate "link to the directory" %}{% else %}{{ item.action }}{% endif %}{% if item.message %}<div class="muted small">{{ item.message }}</div>{% endif %}</td><td data-label="{% translate 'Roles' %}">{{ item.roles_before|join:", "|default:"–" }} → {{ item.roles_after|join:", "|default:"–" }}</td></tr>{% endfor %}</tbody></table>
+      {% if not sync_stopped and not sync_report.applied %}
+      <form method="post" action="{% url 'accounts:ldap_sync' %}" class="btn-row">{% csrf_token %}<input type="hidden" name="mode" value="apply"><button class="btn" type="submit" data-confirm="{% translate 'Apply these changes to the accounts?' %}">{% translate "Apply these changes" %}</button></form>
+      {% endif %}
+      {% else %}<p>{% translate "No differences: all accounts are as the directory says." %}</p>{% endif %}
+    </div>
+    {% endif %}
+  </div>
+</section>
+{% endif %}
+{% endblock %}

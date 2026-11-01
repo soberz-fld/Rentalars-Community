@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{{ project.number }} {{ project.name }}{% endblock %}
+{% block content %}
+{% include "projects/_head.html" %}
+
+{% if project.is_locked %}<p class="note accent">{% translate "This project is closed and protected against changes." %}</p>{% endif %}
+
+{% if suggest_confirmation and can_change_status %}
+<form method="post" action="{% url 'projects:set_status' project.pk %}" class="note accent statusline no-print">
+  {% csrf_token %}<span>{% translate "All open items are done." %}</span>
+  <button class="btn small" name="status" value="confirmed">{% icon "check" %}{% translate "Set to “Confirmed”" %}</button>
+</form>
+{% elif project.status == "confirmed_open" and project.open_item_count %}
+<p class="note no-print"><a href="{% url 'projects:course' project.pk %}">{% blocktranslate count count=project.open_item_count %}{{ count }} item is still open.{% plural %}{{ count }} items are still open.{% endblocktranslate %}</a></p>
+{% endif %}
+
+{% if family_members %}
+{# PRJ-044: the whole project and its parts, one click away. #}
+<nav class="family-strip no-print" aria-label="{% translate 'Whole project and subprojects' %}">
+  {% for member in family_members %}<a href="{% url 'projects:detail' member.pk %}"{% if member.pk == project.pk %} aria-current="page"{% endif %}><span class="number">{{ member.number }}</span> {% if forloop.first %}{% translate "Whole project" %}{% else %}{{ member.name }}{% endif %} <span class="badge {{ member.status|status_colour }}">{{ member.get_status_display }}</span></a>{% endfor %}
+</nav>
+{% endif %}
+
+{% if project.notes %}<div class="panel section"><div class="panel-body">{{ project.notes|linebreaksbr }}</div></div>{% endif %}
+
+{% include "projects/_planning.html" %}
+
+{% if can.delete.projects %}
+<form method="post" action="{% url 'projects:delete' project.pk %}" class="section no-print">{% csrf_token %}<button class="btn danger" type="submit" data-confirm="{% translate 'Delete this project with all its lines for good?' %}">{% icon "trash" %}{% translate "Delete project" %}</button></form>
+{% endif %}
+{% endblock %}

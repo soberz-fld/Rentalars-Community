@@ -1,0 +1,91 @@
+{% load i18n rentalars price_offers %}
+{% comment %}
+  The crew lines of the block "personnel" (projects/_planning_crew.html): the head with the open places, the table and
+  the bar of the chosen lines. PRJ-120: a part of its own (#planning-crew-lines), so that a phase created
+  with places in the dialog "Neue Phase …" can show the new places at once (lines_oob) while the crew add form below,
+  which opened that dialog, keeps what was typed. Expects what _planning_crew.html expects; lines_oob (optional).
+{% endcomment %}
+<div id="planning-crew-lines"{% if lines_oob %} hx-swap-oob="true"{% endif %}>
+  <div class="group-head">
+    <h3>{% translate "Personnel" %}</h3>
+    {% if planning.open_places %}<span class="badge yellow">{% blocktranslate count count=planning.open_places %}{{ count }} place open{% plural %}{{ count }} places open{% endblocktranslate %}</span>{% endif %}
+  </div>
+  {% if planning.crew %}
+  <table class="table stack lines crew{% if can_plan_crew %} with-select{% endif %}">
+    <colgroup>
+      {% if can_plan_crew %}<col class="c-select">{% endif %}<col><col class="c-person"><col class="c-period"><col class="c-hours">
+      {% if can_see_prices %}<col class="c-price"><col class="c-amount">{% endif %}
+      {% if show_personnel_costs %}<col class="c-amount">{% endif %}
+      <col class="c-actions">
+    </colgroup>
+    <thead><tr>
+      {% if can_plan_crew %}<th class="select no-print">{% translate "Choose all crew lines" as select_label %}<label class="select-all"><input type="checkbox" data-check-all="crew_lines" aria-label="{{ select_label }}" title="{{ select_label }}"><span class="select-all-text" aria-hidden="true">{{ select_label }}</span></label></th>{% endif %}
+      <th>{% translate "Job function" %}</th>
+      <th>{% translate "Person" %}</th>
+      <th>{% translate "Period" %}</th>
+      <th class="num">{% translate "Hours" %}</th>
+      {% if can_see_prices %}<th class="num">{% translate "Price" %}</th><th class="num">{% translate "Amount" %}</th>{% endif %}
+      {% if show_personnel_costs %}<th class="num">{% translate "Costs" %}</th>{% endif %}
+      <th class="no-print"></th>
+    </tr></thead>
+    <tbody>
+    {% for planned in planning.crew %}{% with line=planned.line price=planned.price %}
+      <tr data-crew-line="{{ line.pk }}">
+        {% if can_plan_crew %}<td class="select no-print"><input type="checkbox" name="crew_lines" value="{{ line.pk }}" form="crew-selection" aria-label="{% translate 'Choose crew line' %}: {{ line.title }} – {% if line.person %}{{ line.person.name }}{% else %}{% translate 'open' context 'crew' %}{% endif %}"></td>{% endif %}
+        <td>
+          {% if line.service_product %}{% if can.read.products %}<a class="artno" href="{% url 'products:detail' line.service_product_id %}" title="{% translate 'Service product' %}">{{ line.service_product.article_number }}</a>{% else %}<span class="artno">{{ line.service_product.article_number }}</span>{% endif %}{% endif %}
+          <span class="title">{{ line.title }}</span>
+          {% if line.title != line.job_function.name %}<div class="sub">{{ line.job_function.name }}</div>{% endif %}
+          {% if line.billing == "flat" %}<span class="badge">{% translate "flat rate" %}</span>{% elif line.billing == "effort" %}<span class="badge">{% translate "by effort" %}</span>{% if price.is_estimate %} <span class="badge yellow">{% translate "estimate" %}</span>{% endif %}{% elif line.billing == "day" %}<span class="badge">{% translate "per day" %}</span>{% endif %}
+          {% if line.meeting_point %}<div class="sub">{% translate "Meeting point" %}: {{ line.meeting_point }}</div>{% endif %}
+          {% if line.note %}<div class="sub">{{ line.note }}</div>{% endif %}
+        </td>
+        <td data-label="{% translate 'Person' %}">
+          {% if line.person %}{% if can.read.personnel %}<a href="{% url 'personnel:person_detail' line.person_id %}">{{ line.person.name }}</a>{% else %}{{ line.person.name }}{% endif %}{% else %}<span class="badge yellow">{% translate "open" context "crew" %}</span>{% endif %}
+          {% if line.person %}{% include "projects/_crew_request.html" %}{% endif %}
+          {% if line.vehicle_line_id %}<div class="sub crew-vehicle">{% icon "route" %}{{ line.vehicle_line.label }}{% if line.is_driver %} · {% translate "driver" %}{% endif %}</div>{% endif %}
+          {% for warning in planned.warnings %}<div class="sub wish-warning">{{ warning }}</div>{% endfor %}
+        </td>
+        <td data-label="{% translate 'Period' %}">{{ line.start|date:"D d.m. H:i" }} –<br>{{ line.end|date:"D d.m. H:i" }}{% if line.phase %}<div class="sub crew-phase">{% blocktranslate with phase=line.phase.label %}Phase: {{ phase }}{% endblocktranslate %}</div>{% endif %}</td>
+        <td class="num" data-label="{% translate 'Hours' %}">{{ price.planned_hours|number }}{% if price.days is not None %}<div class="sub">{% blocktranslate count days=price.days %}{{ days }} day{% plural %}{{ days }} days{% endblocktranslate %}</div>{% endif %}{% if price.approved_hours %}<div class="sub">{% blocktranslate with hours=price.approved_hours|number %}worked {{ hours }}{% endblocktranslate %}</div>{% endif %}</td>
+        {% if can_see_prices %}
+        <td class="num" data-label="{% translate 'Price' %}">{{ line.unit_price|money }}{% if line.billing == "day" %}<div class="sub">{% translate "per day" %}</div>{% elif line.billing != "flat" %}<div class="sub">{% translate "per hour" %}</div>{% endif %}{% if price.hours_limit is not None %}<div class="sub hour-tier">{% blocktranslate with limit=price.hours_limit|number price=price.unit_price_above_limit|money %}from {{ limit }} h a day: {{ price }}{% endblocktranslate %}</div>{% endif %}{% if price.discount_percent %}<div class="sub">− {{ price.discount_percent|number }} %</div>{% endif %}{% if price.discount_is_capped %}<div class="sub capped">{% blocktranslate with percent=price.max_discount_percent|number %}at most {{ percent }} % (job function){% endblocktranslate %}</div>{% endif %}</td>
+        <td class="num" data-label="{% translate 'Amount' %}">{{ price.amount|money }}{% if price.days is not None %}<div class="sub">{% blocktranslate count days=price.days %}for {{ days }} day{% plural %}for {{ days }} days{% endblocktranslate %}</div>{% elif price.charged_hours is not None and price.charged_hours != price.planned_hours %}<div class="sub">{% blocktranslate with hours=price.charged_hours|number %}for {{ hours }} h{% endblocktranslate %}</div>{% endif %}{% if price.has_hours_above_limit %}<div class="sub hour-tier" data-hours-above-limit>{% blocktranslate with hours=price.hours_above_limit|number %}of which {{ hours }} h beyond the limit{% endblocktranslate %}</div>{% endif %}{% include "projects/_time_surcharges.html" with parts=price.time_surcharges amount=price.time_surcharge_amount %}</td>
+        {% endif %}
+        {% if show_personnel_costs %}
+        <td class="num" data-label="{% translate 'Costs' %}">{{ price.cost|money }}<div class="sub">{% if line.cost_flat_rate is not None %}{% translate "flat rate" %}{% elif price.cost_rate is None %}{% translate "no rate" %}{% else %}{{ price.cost_rate|money }} / {% if price.cost_per_day %}{% translate "day" %}{% else %}{% translate "h" %}{% endif %}{% if price.cost_is_guide %} · {% translate "guide value" %}{% endif %}{% endif %}</div>{% offer_mark line %}{% if price.cost_hours_above_limit %}<div class="sub hour-tier">{% blocktranslate with hours=price.cost_hours_above_limit|number rate=price.cost_rate_above_limit|money %}{{ hours }} h at {{ rate }}{% endblocktranslate %}</div>{% endif %}{% include "projects/_time_surcharges.html" with parts=price.cost_time_surcharges amount=price.cost_time_surcharge_amount %}</td>
+        {% endif %}
+        <td class="actions no-print">
+          {% if can_plan_crew %}
+          <button class="icon-btn" type="button" hx-get="{% url 'projects:crew_edit' project.pk line.pk %}" hx-target="#dialog" aria-label="{% translate 'Edit crew line' %}" title="{% translate 'Edit crew line' %}">{% icon "edit" %}</button>
+          <form class="inline-form" hx-post="{% url 'projects:crew_delete' project.pk line.pk %}" hx-target="#planning" hx-swap="outerHTML"><button class="icon-btn" type="submit" aria-label="{% translate 'Delete crew line' %}" title="{% translate 'Delete crew line' %}" data-confirm="{% translate 'Delete this crew line?' %}">{% icon "trash" %}</button></form>
+          {% endif %}
+        </td>
+      </tr>
+    {% endwith %}{% endfor %}
+    </tbody>
+    {% if can_see_prices or show_personnel_costs %}
+    <tfoot>
+      <tr class="subtotal-row"><td colspan="{% if can_plan_crew %}5{% else %}4{% endif %}" class="num">{% translate "Subtotal personnel" %}</td>{% if can_see_prices %}<td></td><td class="num" data-label="{% translate 'Amount' %}">{{ planning.prices.personnel_total|money }}</td>{% endif %}{% if show_personnel_costs %}<td class="num" data-label="{% translate 'Costs' %}">{{ planning.prices.personnel_cost|money }}</td>{% endif %}<td></td></tr>
+    </tfoot>
+    {% endif %}
+  </table>
+  {% if can_plan_crew %}
+  {# PRJ-117, PRJ-118: what can be done with the ticked crew lines – one request, one notification per person. #}
+  {% url 'projects:crew_bulk' project.pk as crew_bulk_url %}{% url 'projects:crew_bulk_edit' project.pk as crew_bulk_edit_url %}
+  <form id="crew-selection" method="post" action="{{ crew_bulk_url }}" hx-post="{{ crew_bulk_url }}" hx-target="#planning" hx-swap="outerHTML" class="bulk-bar crew-selection no-print" data-bulk-bar="crew_lines" aria-label="{% translate 'Chosen crew lines' %}" hidden>
+    {% csrf_token %}
+    <span class="count" role="status"><span data-chosen-count="crew_lines">0</span> {% translate "chosen" %}</span>
+    <span class="bulk-buttons">
+      <button class="btn secondary small" type="submit" name="step" value="choose" formaction="{{ crew_bulk_edit_url }}" hx-get="{{ crew_bulk_edit_url }}" hx-include="[name=crew_lines]:checked" hx-target="#dialog" hx-swap="innerHTML" aria-haspopup="dialog">{% icon "edit" %}{% translate "Set values …" %}</button>
+      <button class="btn secondary small" type="submit" name="action" value="firm">{% icon "check" %}{% translate "Plan firmly" %}</button>
+      <button class="btn secondary small" type="submit" name="action" value="ask">{% translate "Ask" %}</button>
+      <button class="btn secondary small danger" type="submit" name="action" value="delete" data-confirm="{% translate 'Delete the chosen crew lines?' %}">{% icon "trash" %}{% translate "Delete" %}</button>
+      <button class="btn secondary small" type="button" data-bulk-clear="crew_lines">{% translate "Clear choice" %}</button>
+    </span>
+  </form>
+  {% endif %}
+  {% else %}
+  <p class="group-desc muted">{% translate "Nobody is planned yet." %}</p>
+  {% endif %}
+</div>

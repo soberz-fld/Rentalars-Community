@@ -1,0 +1,8 @@
+{% load i18n %}
+<div class="page-head"><div><h1>{% translate "Material management" %}</h1></div><div class="actions">{% include "material/_item_jump.html" %}</div></div>
+{% include "material/_tabs.html" with tab="import" %}
+{# IMP-001: material items and products are imported here; customers and people from their lists. #}
+<nav class="tabs sub" aria-label="{% translate 'What to import' %}">
+  <a href="{% url 'material:import' %}"{% if kind.key == "material" %} aria-current="page"{% endif %}>{% translate "Material items" %}</a>
+  {% if can.write.products %}<a href="{% url 'core:import' 'products' %}"{% if kind.key == "products" %} aria-current="page"{% endif %}>{% translate "Products" %}</a>{% endif %}
+</nav>

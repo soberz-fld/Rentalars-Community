@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Two-factor login" %}{% endblock %}
+{% block content %}
+<div class="page-head"><div><div class="breadcrumb"><a href="{% url 'accounts:account' %}">{% translate "My account" %}</a></div><h1>{% translate "Set up two-factor login" %}</h1>
+<p class="lead">{% translate "After the password, Rentalars asks for a six-digit code from an app on your phone – FreeOTP, Aegis, a password manager or the authenticator of Google or Microsoft." %}</p></div></div>
+{% if required %}<p class="note accent">{% translate "Your role requires two-factor login. Set it up to continue." %}</p>{% endif %}
+<div class="columns">
+  <section class="panel">
+    <div class="panel-head"><h2>{% translate "1. Scan the code" %}</h2></div>
+    <div class="panel-body">
+      <div class="qr">{{ qr }}</div>
+      <p class="muted small">{% translate "Cannot scan? Enter this key in the app:" %}</p>
+      <p class="secret">{{ secret }}</p>
+    </div>
+  </section>
+  <section class="panel">
+    <div class="panel-head"><h2>{% translate "2. Confirm with a code" %}</h2></div>
+    <div class="panel-body">
+      <form method="post" class="form" novalidate>
+        {% csrf_token %}
+        {% include "core/_required_note.html" with always=True %}
+        {% if error %}<div class="form-errors" role="alert">{{ error }}</div>{% endif %}
+        <div class="field"><label for="f-code">{% translate "The code the app shows now" %}{% include "core/_required_star.html" %}</label><input type="text" id="f-code" name="code" inputmode="numeric" autocomplete="one-time-code" required maxlength="8"></div>
+        <div class="btn-row"><button class="btn" type="submit">{% icon "lock" %}{% translate "Switch on" %}</button></div>
+      </form>
+    </div>
+  </section>
+</div>
+{% endblock %}

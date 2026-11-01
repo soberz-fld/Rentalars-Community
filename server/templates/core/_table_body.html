@@ -1,0 +1,20 @@
+{% load i18n %}
+{# The table itself; core/_table.html chooses whether it comes with tick boxes and the bar. #}
+{% if table.sort_notice %}<ul class="messages"><li class="message info" role="status">{{ table.sort_notice }}</li></ul>{% endif %}
+<div class="table-scroll">
+<table class="table{% if dense %} dense{% endif %}{% if stack %} stack{% endif %}">
+  <thead><tr>
+    {% if select %}<th class="c-check" scope="col"><input type="checkbox" data-check-all="{{ select }}" aria-label="{% translate 'Choose all on this page' %}"></th>{% endif %}
+    {% for header in table.headers %}
+    <th class="{{ header.column.css }}"{% if header.is_active %} aria-sort="{% if header.descending %}descending{% else %}ascending{% endif %}"{% endif %} scope="col">{% if header.sortable %}<a href="{{ header.url }}">{{ header.column.label }}{% if header.is_active %}<span class="sort" aria-hidden="true">{% if header.descending %}▼{% else %}▲{% endif %}</span>{% endif %}</a>{% else %}{{ header.column.label }}{% endif %}</th>
+    {% endfor %}
+  </tr></thead>
+  <tbody>
+  {% for row in rows %}
+    {% if row.group %}<tr class="table-group"><th colspan="{% if select %}{{ row.group.span|add:1 }}{% else %}{{ row.group.span }}{% endif %}" scope="colgroup">{{ row.group.label }} <span class="table-group-count">{% blocktranslate count count=row.group.count %}{{ count }} entry{% plural %}{{ count }} entries{% endblocktranslate %}</span></th></tr>{% endif %}
+    <tr{% if row.css %} class="{{ row.css }}"{% endif %}>{% if select %}<td class="c-check"><input type="checkbox" name="{{ select }}" value="{{ row.pk }}" form="{{ select_form }}" aria-label="{% translate 'Choose' %}"></td>{% endif %}{% for cell in row.cells %}<td{% if cell.css %} class="{{ cell.css }}"{% endif %}{% if stack and cell.label %} data-label="{{ cell.label }}"{% endif %}>{{ cell.html }}</td>{% endfor %}</tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% if bulk_auto %}{% include "core/_table_bulk.html" %}{% endif %}

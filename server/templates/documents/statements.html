@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Monthly statement" %} {{ month_label }}{% endblock %}
+{% block content %}
+{% comment %}
+  DOK-016: Buchhaltung → Monatsabrechnung (DOK-019). Per customer the service cases of the month to bill – done in the
+  month, or with approved times or expenses in it – with hours and net sum, and the statements made. "Entwurf
+  anlegen" collects them into a draft that is checked and changed before it becomes an invoice (DOK-014 on) or is
+  marked as invoiced elsewhere (off). Only cases the user may read are counted.
+{% endcomment %}
+<div class="page-head">
+  <div><h1>{% translate "Accounting" %}</h1></div>
+  {% if can.read.administration %}<div class="actions"><a class="btn secondary" href="{% url 'documents:accounting' %}">{% icon "settings" %}{% translate "DATEV export and Lexware Office" %}</a></div>{% endif %}
+</div>
+{% include "documents/_accounting_tabs.html" %}
+<div class="panel statements">
+  <div class="panel-head"><h2>{% blocktranslate with month=month_label %}Monthly statement {{ month }}{% endblocktranslate %}</h2>
+    <span class="muted small">{% if invoices_on %}{% translate "Per customer the service cases of the month – done in it, or with approved times or expenses. A draft is checked and changed, then becomes an invoice." %}{% else %}{% translate "Per customer the service cases of the month – done in it, or with approved times or expenses. The draft shows the values to copy into your accounting program; then mark it as invoiced." %}{% endif %}</span></div>
+  <form method="get" class="filters">
+    <div class="field"><label for="f-month">{% translate "Month" %}</label>
+      <select id="f-month" name="month" data-autosubmit>{% for value, label in months %}<option value="{{ value }}"{% if value == month_value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+    <button class="btn secondary" type="submit">{% translate "Show" %}</button>
+    <span class="btn-row"><a class="btn secondary" href="?month={{ previous }}" aria-label="{% translate 'Previous month' %}">‹</a><a class="btn secondary" href="?month={{ next }}" aria-label="{% translate 'Next month' %}">›</a></span>
+  </form>
+  {% if without_project %}<p class="note">{% blocktranslate count count=without_project %}{{ count }} time of this month has no project yet: it belongs to no service case and is not billed. Assign it under Personnel → Approve.{% plural %}{{ count }} times of this month have no project yet: they belong to no service case and are not billed. Assign them under Personnel → Approve.{% endblocktranslate %}</p>{% endif %}
+  {% if rows %}
+  <table class="table stack statement-overview">
+    <thead><tr><th scope="col">{% translate "Customer" %}</th><th scope="col">{% translate "Service cases" %}</th><th scope="col" class="num">{% translate "Hours" %}</th><th scope="col" class="num">{% translate "Net" %}</th><th scope="col">{% translate "Status" %}</th><th scope="col"><span class="visually-hidden">{% translate "Actions" %}</span></th></tr></thead>
+    <tbody>
+    {% for row in rows %}
+      {% for statement in row.statements %}
+      <tr>
+        <td><strong>{{ row.customer.name }}</strong> <span class="muted small">{{ row.customer.number }}</span></td>
+        <td data-label="{% translate 'Service cases' %}">{% for case in statement.cases.all %}<a href="{% url 'projects:case_detail' case.pk %}">{{ case.number }}</a>{% if not forloop.last %}, {% endif %}{% empty %}–{% endfor %}</td>
+        <td class="num" data-label="{% translate 'Hours' %}">{{ statement.hours|number }}</td>
+        <td class="num" data-label="{% translate 'Net' %}">{{ statement.net_total|money }}</td>
+        <td data-label="{% translate 'Status' %}">{% if statement.status == "invoiced" %}<span class="badge green">{% blocktranslate with number=statement.invoice.number %}Invoice {{ number }}{% endblocktranslate %}</span>{% elif statement.status == "marked" %}<span class="badge green">{% translate "marked as invoiced" %}</span>{% else %}<span class="badge yellow">{% translate "draft" %}</span>{% endif %}</td>
+        <td class="actions"><a class="btn secondary small" href="{% url 'documents:statement' statement.pk %}">{% if statement.is_draft %}{% icon "edit" %}{% translate "Open draft" %}{% else %}{% translate "Open" %}{% endif %}</a></td>
+      </tr>
+      {% endfor %}
+      {% if row.collected %}
+      <tr>
+        <td><strong>{{ row.customer.name }}</strong> <span class="muted small">{{ row.customer.number }}</span></td>
+        <td data-label="{% translate 'Service cases' %}">{% for item in row.collected %}<a href="{% url 'projects:case_detail' item.case.pk %}" title="{{ item.case.name }}">{{ item.case.number }}</a>{% if item.done_in_month %} <span class="muted small">{% translate "done" %}</span>{% endif %}{% if not forloop.last %}, {% endif %}{% endfor %}</td>
+        <td class="num" data-label="{% translate 'Hours' %}">{{ row.hours|number }}</td>
+        <td class="num" data-label="{% translate 'Net' %}">{{ row.net_total|money }}</td>
+        <td data-label="{% translate 'Status' %}">{% if row.draft %}<span class="badge yellow">{% translate "not in the draft yet" %}</span>{% else %}<span class="badge">{% translate "open" %}</span>{% endif %}</td>
+        <td class="actions">{% if row.draft %}<a class="btn secondary small" href="{% url 'documents:statement' row.draft.pk %}">{% icon "edit" %}{% translate "Open draft" %}</a><div class="muted small">{% translate "There: “Collect again”" %}</div>{% elif may_change %}<form method="post" action="{% url 'documents:statement_create' %}" class="inline-form">{% csrf_token %}<input type="hidden" name="customer" value="{{ row.customer.pk }}"><input type="hidden" name="month" value="{{ month_value }}"><button class="btn small" type="submit">{% icon "plus" %}{% translate "Make draft" %}</button></form>{% endif %}</td>
+      </tr>
+      {% endif %}
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty"><strong>{% translate "No service cases to bill in this month." %}</strong>{% translate "A case counts once it is done in the month or has approved times or expenses in it – internal cases and those with an invoice or “No invoice” do not." %}</div>
+  {% endif %}
+</div>
+{% endblock %}

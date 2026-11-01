@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Self-check" %}{% endblock %}
+{% block content %}
+<div class="page-head"><div><div class="breadcrumb"><a href="{% url 'core:administration' %}">{% translate "Settings" %}</a></div><h1>{% translate "Self-check" %}</h1>
+<p class="lead">{% translate "The state of the installation. The same check on the server: sudo rentalars selfcheck" %}</p></div>
+<div class="actions">
+  <form method="post" class="inline-form">{% csrf_token %}<input type="hidden" name="action" value="test_mail"><button class="btn secondary" type="submit">{% icon "mail" %}{% translate "Send a test mail to me" %}</button></form>
+  <a class="btn secondary" href="{% url 'core:backup' %}">{% icon "lock" %}{% translate "Backup and encryption" %}</a>
+  <a class="btn secondary" href="{% url 'core:self_check' %}">{% icon "refresh" %}{% translate "Check again" %}</a>
+</div></div>
+{% if report.worst == "error" %}<p class="note red">{% translate "There are errors. They are listed first in each group." %}</p>
+{% elif report.worst == "warning" %}<p class="note">{% translate "Everything works; some things deserve a look." %}</p>
+{% else %}<p class="note accent">{% translate "Everything in order." %}</p>{% endif %}
+<div class="checks">
+{% for group, findings in report.groups %}
+  <section class="panel">
+    <div class="panel-head"><h2>{{ group }}</h2></div>
+    <table class="table"><tbody>
+    {% for finding in findings %}
+      <tr><td class="check-title"><span class="check-state is-{{ finding.state }}">{% if finding.state == "ok" %}✓{% elif finding.state == "note" %}i{% elif finding.state == "warning" %}!{% else %}✗{% endif %}</span> {{ finding.title }}</td><td class="check-detail">{{ finding.detail }}</td></tr>
+    {% endfor %}
+    </tbody></table>
+  </section>
+{% endfor %}
+</div>
+{% endblock %}

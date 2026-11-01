@@ -1,0 +1,83 @@
+{% load i18n rentalars product_relations %}
+{% comment %}
+  The planning block of a project. After a change either the whole block is swapped in again, or – for
+  the frequent changes of single lines – only the parts that were touched (_planning_patch.html).
+{% endcomment %}
+<div id="planning" data-arrange-url="{% url 'projects:arrange' project.pk %}" data-refresh-url="{% url 'projects:detail' project.pk %}"{% if can.special.availability %} data-stock-url="{% url 'projects:planning_availability' project.pk %}"{% endif %}>
+  {% include "projects/_planning_messages.html" %}
+  {% include "projects/_planning_notes.html" %}
+  {# PRD-023, VFG-015: accessory and replacement suggestions; the slot is empty until the first is named. #}
+  {% suggestions_slot project %}
+  {# PRJ-037: the groups as a tree; each node holds its section, its subgroups and its subtotal with them. #}
+  <div class="group-tree" data-group-tree data-parent="">
+    {% for group in planning.root_groups %}{% include "projects/_group_node.html" %}{% endfor %}
+  </div>
+  {% include "projects/_group_none.html" %}
+
+  {% if can_edit %}
+  {% comment %}
+    PRJ-086: what else can be added, right below the material and in the order of the work: material is added in
+    the field of each group above; then the structure (a new group), then special lines (without product, taken
+    over from another part), then imports (an MVR file). One row of buttons of the same kind.
+  {% endcomment %}
+  <div class="planning-actions no-print" role="group" aria-label="{% translate 'More to add to the planning' %}">
+    <form class="planning-new-group" hx-post="{% url 'projects:group_add' project.pk %}" hx-target="#planning" hx-swap="outerHTML">
+      <input type="text" name="name" placeholder="{% translate 'New group' %}" aria-label="{% translate 'Name of the new group' %}" class="group-name">
+      {% if planning.groups %}{# PRJ-037: straight into another group, without dragging. #}
+      <select name="parent" class="group-parent" aria-label="{% translate 'Parent group of the new group' %}">
+        <option value="">{% translate "at the top level" %}</option>
+        {% for other in planning.groups %}{% if other.can_take_subgroups %}<option value="{{ other.group.pk }}">{% blocktranslate with name=other.path %}in {{ name }}{% endblocktranslate %}</option>{% endif %}{% endfor %}
+      </select>
+      {% endif %}
+      <button class="btn secondary" type="submit">{% icon "plus" %}{% translate "Add group" %}</button>
+    </form>
+    <span class="planning-actions-gap" aria-hidden="true"></span>
+    <button class="btn secondary" type="button" hx-get="{% url 'projects:free_line_add' project.pk %}" hx-target="#dialog" aria-haspopup="dialog">{% icon "plus" %}{% translate "Line without product" %}</button>
+    {# A line that only carries a text – a heading or a remark for the documents. #}
+    <button class="btn secondary" type="button" hx-get="{% url 'projects:text_line_add' project.pk %}" hx-target="#dialog" aria-haspopup="dialog">{% icon "plus" %}{% translate "Insert text line" %}</button>
+    {# UIX-006: items read from their labels are added as a wish for exactly that item (PRJ-065). #}
+    {% translate "Scan items" as scan_items_label %}{% url 'projects:line_add' project.pk as line_add_url %}
+    {% include "material/_scan.html" with scan_mode="plan" scan_post=line_add_url scan_continuous=True scan_label=scan_items_label %}
+    {# PRJ-060: the same pieces, straight from another part of the whole project. #}
+    {% if project.is_in_family %}<button class="btn secondary" type="button" hx-get="{% url 'projects:takeover' project.pk %}" hx-target="#dialog" aria-haspopup="dialog">{% icon "duplicate" %}{% translate "Take over from another subproject" %}</button>{% endif %}
+    <span class="planning-actions-gap" aria-hidden="true"></span>
+    {# PRJ-077, PRJ-086: the fixtures of a light plot (MVR file) as lines; the file is kept in the files of the project. #}
+    <a class="btn secondary" href="{% url 'projects:mvr_import' project.pk %}">{% icon "upload" %}{% translate "Import light plot (MVR)" %}</a>
+  </div>
+  {% endif %}
+
+  {% include "projects/_planning_crew.html" %}
+  {% include "projects/_planning_logistics.html" %}
+  {% include "projects/_planning_surcharges.html" %}
+
+  {% if can_edit %}
+  {% comment %}
+    PRJ-082: the lines ticked in the planning (their boxes name this form) and what can be done with all of them at
+    once. Hidden while nothing is ticked; app.js shows it, counts the lines and keeps the boxes "all" in step.
+  {% endcomment %}
+  <form id="line-selection" class="selection-bar no-print" hx-post="{{ urls.lines_bulk }}" hx-target="#planning" hx-swap="outerHTML" aria-label="{% translate 'Chosen lines' %}" data-selection-bar hidden>
+    <span class="selection-count" role="status"><strong data-selection-count>0</strong> <span data-selection-one hidden>{% translate "line chosen" %}</span><span data-selection-many>{% translate "lines chosen" %}</span></span>
+    <button class="btn secondary small" type="submit" name="action" value="optional">{% icon "optional" %}{% translate "Optional" %}</button>
+    <button class="btn secondary small" type="submit" name="action" value="normal">{% translate "No longer optional" %}</button>
+    <button class="btn secondary small" type="button" hx-get="{{ urls.lines_alternative }}" hx-include="[data-select-line]:checked" hx-target="#dialog" hx-swap="innerHTML" aria-haspopup="dialog">{% icon "alternative" %}{% translate "Alternative to …" %}</button>
+    <span class="selection-field">
+      <select name="group" aria-label="{% translate 'Group to move the chosen lines to' %}">
+        <option value="" selected disabled>{% translate "Move to …" %}</option>
+        <option value="none">{% translate "without group" %}</option>
+        {% for other in planning.groups %}<option value="{{ other.group.pk }}">{{ other.path }}</option>{% endfor %}
+      </select>
+      <button class="btn secondary small" type="submit" name="action" value="move">{% translate "Move" %}</button>
+    </span>
+    {% if can_see_prices %}
+    <span class="selection-field">
+      <input type="text" name="discount_percent" inputmode="decimal" class="discount" autocomplete="off" placeholder="%" aria-label="{% translate 'Discount in percent for the chosen lines' %}">
+      <button class="btn secondary small" type="submit" name="action" value="discount">{% translate "Set discount" %}</button>
+    </span>
+    {% endif %}
+    <button class="btn secondary small danger" type="submit" name="action" value="delete" data-confirm="{% translate 'Delete the chosen lines?' %}">{% icon "trash" %}{% translate "Delete" %}</button>
+    <button class="btn secondary small" type="button" data-selection-clear>{% translate "Clear choice" %}</button>
+  </form>
+  {% endif %}
+
+  {% include "projects/_planning_totals.html" %}
+</div>

@@ -1,0 +1,55 @@
+{% load i18n rentalars %}
+{% comment %}
+  The files of a project (PRJ-007): stage plans, riders, contracts, MVR files. Files marked "visible to the crew"
+  also show in the deployment view (AUT-023). Uploads follow NFA-007. They are on the tab "Documents"
+  together with the documents (PRJ-079). Expects: project, files, file_form (None without the right to change).
+{% endcomment %}
+<section class="panel" id="files">
+  <div class="panel-head"><h2>{% translate "Files" %}</h2></div>
+  {% if files %}
+  <table class="table stack">
+    <thead><tr><th>{% translate "File" %}</th><th>{% translate "Document type" %}</th><th>{% translate "Uploaded" %}</th><th class="num">{% translate "Size" %}</th><th></th></tr></thead>
+    <tbody>
+    {% for item in files %}
+      <tr>
+        <td><a href="{% url 'projects:file_download' project.pk item.pk %}" target="_blank" rel="noopener">{% icon "file" %}{{ item.label }}</a>{% if item.title %}<div class="muted small">{{ item.original_name }}</div>{% endif %}
+          {% if item.visible_to_crew %} <span class="badge">{% translate "for the crew" %}</span>{% endif %}
+          {% include "projects/_show_info.html" %}{# PRJ-089 #}
+          {# PRJ-106: a document of a supplier of subrentals – kept on the page of its subrentals as well. #}
+          {% if item.supplier_id %}<div class="muted small">{{ item.get_supplier_document_kind_display }} · <a href="{% url 'projects:subrental' project item.supplier_id %}">{% blocktranslate with name=item.supplier.name %}subrental at {{ name }}{% endblocktranslate %}</a></div>{% endif %}
+          {% if item.source_attachment %}<div class="muted small">{% blocktranslate with subject=item.source_attachment.mail.subject %}from the mail “{{ subject }}”{% endblocktranslate %}</div>{% endif %}</td>
+        <td data-label="{% translate 'Document type' %}">{{ item.document_type|default:"–" }}</td>
+        <td data-label="{% translate 'Uploaded' %}">{{ item.uploaded_at|date:"d.m.Y H:i" }}{% if item.uploaded_by %}<div class="muted small">{{ item.uploaded_by }}</div>{% endif %}</td>
+        <td class="num" data-label="{% translate 'Size' %}">{{ item.size|filesizeformat }}</td>
+        <td class="actions">{% if file_form %}<a class="icon-btn" href="{% url 'projects:file_edit' project.pk item.pk %}" aria-label="{% translate 'Edit' %}">{% icon "edit" %}</a>
+          <form method="post" action="{% url 'projects:file_delete' project.pk item.pk %}" class="inline-form">{% csrf_token %}<button class="icon-btn" type="submit" aria-label="{% translate 'Remove file' %}" data-confirm="{% translate 'Remove this file for good?' %}">{% icon "trash" %}</button></form>{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {# PRJ-089: the empty text names the show files as well. #}
+  {% else %}<div class="empty"><strong>{% translate "No files yet." %}</strong>{% if project.is_service_case %}{% translate "Stage plans, riders, show files, contracts – everything about the service case in one place." %}{% else %}{% translate "Stage plans, riders, show files, contracts – everything about the project in one place." %}{% endif %}</div>{% endif %}
+  {% if file_form %}
+  <div class="panel-body">
+    <h3>{% translate "Upload a file" %}</h3>
+    <form method="post" action="{% url 'projects:files' project.pk %}" enctype="multipart/form-data" class="form wide" novalidate>
+      {% csrf_token %}
+      {% include "core/_form_errors.html" with form=file_form %}
+      <div class="form-grid">
+        {% include "core/_field.html" with field=file_form.file %}
+        {% include "core/_field.html" with field=file_form.title %}
+        {% include "core/_field.html" with field=file_form.document_type %}
+        {% include "core/_field.html" with field=file_form.visible_to_crew %}
+      </div>
+      {# PRJ-089: console and version of a show file; shown while a type for show files is chosen (app.js). #}
+      <div class="form-grid" data-showfile-fields>
+        {% include "core/_field.html" with field=file_form.show_system %}
+        {% include "core/_field.html" with field=file_form.show_version %}
+      </div>
+      <datalist id="show-systems">{% for name in file_form.show_system_names %}<option value="{{ name }}"></option>{% endfor %}</datalist>
+      <p class="help-line">{% blocktranslate with megabytes=file_form.max_upload_mb %}Show files of consoles, media servers and sound systems are welcome; a show that is a folder goes as a ZIP file. At most {{ megabytes }} MB per file.{% endblocktranslate %}</p>
+      <div class="btn-row"><button class="btn" type="submit">{% icon "upload" %}{% translate "Upload" %}</button></div>
+    </form>
+  </div>
+  {% endif %}
+</section>

@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Delete group" %} – {{ template.name }}{% endblock %}
+{% block content %}
+{% comment %}PRJ-135: delete a group of a template – keep what is in it, or delete that too. Expects template, group, lines, subgroups.{% endcomment %}
+<div class="page-head"><div>
+  <div class="breadcrumb"><a href="{% url 'projects:template_content' template.pk %}">{{ template.name }}</a></div>
+  <h1>{% translate "Delete group" %}: {{ group.name }}</h1>
+</div></div>
+<div class="panel"><div class="panel-body">
+  {% if lines or subgroups %}
+  <p>{% blocktranslate count lines=lines %}The group holds one line{% plural %}The group holds {{ lines }} lines{% endblocktranslate %}
+     {% blocktranslate count subgroups=subgroups %}and one subgroup.{% plural %}and {{ subgroups }} subgroups.{% endblocktranslate %}</p>
+  {% else %}<p>{% translate "The group is empty." %}</p>{% endif %}
+  <form method="post" class="btn-row">
+    {% csrf_token %}
+    <button class="btn" type="submit">{% if lines or subgroups %}{% translate "Delete the group, keep its content" %}{% else %}{% translate "Delete group" %}{% endif %}</button>
+    {% if lines or subgroups %}<button class="btn danger" type="submit" name="with_content" value="1" data-confirm="{% translate 'Delete the group with everything in it?' %}">{% translate "Delete the group with its content" %}</button>{% endif %}
+    <a class="btn secondary" href="{% url 'projects:template_content' template.pk %}">{% translate "Cancel" %}</a>
+  </form>
+  {% if lines or subgroups %}<p class="help">{% translate "Keeping the content moves lines and subgroups up to the group above." %}</p>{% endif %}
+</div></div>
+{% endblock %}

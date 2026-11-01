@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Job functions" %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>{% translate "Personnel" %}</h1></div>
+  <div class="actions">{% if can.write.personnel %}<a class="btn" href="{% url 'personnel:job_function_create' %}">{% icon "plus" %}{% translate "New job function" %}</a>{% endif %}</div>
+</div>
+{% include "personnel/_tabs.html" %}
+<p class="lead tab-lead">{% translate "What people are planned as. The customer pays the price of the service product; what the work costs the company is the hourly rate of the person." %}</p>
+{% include "personnel/_customer_price_note.html" with list=True %}{# Where the customer price is changed #}
+<div class="panel">
+  {% include "core/_table_tools.html" %}
+  {% if rows %}
+  {% include "core/_table.html" with stack=True %}
+  {% include "core/_pagination.html" %}
+  {% else %}
+  <div class="empty">{% translate "No job functions yet." %}</div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,45 @@
+{% load i18n rentalars %}
+{% comment %}
+  The crew lines of one phase on the page "Zeitplanung" (PRJ-080): job function, person or "open", the
+  period where it differs from the phase's (always without a phase), and the planned hours.
+  PRJ-110: for whoever plans the crew (can_plan_crew) each line can be changed in the crew dialog of the
+  planning – an open place filled with a person, person, job function, times – asked, and removed; the line names
+  where its request stands and the warnings of the dialog (line.warnings, PRJ-022). Every change leads back here
+  (from=course).
+  Expects: lines, phase (None for the lines without phase), project, can_plan_crew.
+{% endcomment %}
+{% if lines %}
+<ul class="phase-crew{% if can_plan_crew %} with-actions{% endif %}">
+  {% for line in lines %}
+  <li data-crew-line="{{ line.pk }}">
+    <span class="phase-crew-function">{{ line.job_function.name }}</span>
+    <span class="phase-crew-person">{% if line.person %}{{ line.person.name }}{% else %}<span class="badge yellow">{% translate "open" context "crew" %}</span>{% endif %}</span>
+    <span class="phase-crew-period muted small">{% if not phase or line.start != phase.start or line.end != phase.end %}{{ line.start|date:"D d.m. H:i" }} – {{ line.end|date:"D d.m. H:i" }}{% endif %}</span>
+    <span class="phase-crew-hours num">{{ line.planned_hours|number }} {% translate "h" %}</span>
+    {% if can_plan_crew %}
+    <span class="phase-crew-actions">
+      {% url 'projects:crew_edit' project.pk line.pk as edit_url %}
+      <a class="icon-btn" href="{{ edit_url }}?from=course" hx-get="{{ edit_url }}?from=course" hx-target="#dialog" aria-label="{% if line.person %}{% blocktranslate with function=line.job_function.name person=line.person.name %}Change {{ function }} – {{ person }}{% endblocktranslate %}{% else %}{% blocktranslate with function=line.job_function.name %}Fill the open place {{ function }}{% endblocktranslate %}{% endif %}" title="{% if line.person %}{% translate 'Edit crew line' %}{% else %}{% translate 'Fill with a person' %}{% endif %}">{% icon "edit" %}</a>
+      <form method="post" action="{% url 'projects:crew_delete' project.pk line.pk %}" class="inline-form">{% csrf_token %}<input type="hidden" name="from" value="course"><button class="icon-btn" type="submit" aria-label="{% blocktranslate with function=line.job_function.name %}Remove crew line {{ function }}{% endblocktranslate %}" title="{% translate 'Delete crew line' %}" data-confirm="{% translate 'Delete this crew line?' %}">{% icon "trash" %}</button></form>
+    </span>
+    {% if line.person %}
+    <div class="phase-crew-request small">
+      {% if line.request_status == "requested" %}<span class="badge yellow">{% translate "asked" %}</span>
+      {% elif line.request_status == "accepted" %}<span class="badge green">{% translate "accepted" %}</span>
+      {% elif line.request_status == "declined" %}<span class="badge red">{% translate "declined" %}</span>
+      {% elif line.request_status == "firm" %}<span class="badge green">{% translate "planned firmly" %}</span>{% endif %}
+      {% if line.times_changed_since_request %}<span class="request-changed">{% translate "Times changed since the request" %}</span>{% endif %}
+      {% if not line.request_status or line.times_changed_since_request %}
+      <form method="post" action="{% url 'projects:crew_request' project.pk line.pk %}" class="inline-form">{% csrf_token %}<input type="hidden" name="from" value="course"><button class="link-btn" type="submit">{% if line.request_status %}{% translate "ask again" %}{% else %}{% translate "ask" %}{% endif %}</button></form>
+      {% endif %}
+      {% if line.request_status == "requested" %}
+      <form method="post" action="{% url 'projects:crew_answer' project.pk line.pk %}" class="inline-form">{% csrf_token %}<input type="hidden" name="next" value="{% url 'projects:course' project.pk %}#phases"><button class="link-btn" name="answer" value="accept" type="submit">{% translate "enter: accepted" %}</button> · <button class="link-btn" name="answer" value="decline" type="submit">{% translate "declined" %}</button></form>
+      {% endif %}
+    </div>
+    {% endif %}
+    {% for warning in line.warnings %}<div class="small wish-warning phase-crew-warning">{% icon "alert" %}{{ warning }}</div>{% endfor %}
+    {% endif %}
+  </li>
+  {% endfor %}
+</ul>
+{% elif phase %}<p class="muted small">{% translate "Nobody is planned for this phase yet." %}</p>{% endif %}

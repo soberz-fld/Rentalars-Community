@@ -1,0 +1,89 @@
+{% load static i18n rentalars %}{% get_current_language as LANGUAGE_CODE %}<!doctype html>
+<html lang="{% if LANGUAGE_CODE == 'en' %}en-GB{% else %}{{ LANGUAGE_CODE }}{% endif %}" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  {# The dark theme in the house colours (UIX-008); "light" is prepared in app.css. #}
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#0d0d0d">
+  {# htmx must not evaluate code from attributes; the content security policy forbids it anyway. #}
+  <meta name="htmx-config" content='{"allowEval": false, "includeIndicatorStyles": false, "allowScriptTags": false}'>
+  <title>{% block title %}Rentalars{% endblock %} – Rentalars</title>
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+  {# UIX-048: the bar for ticked rows waits for a tick – without scripts nobody could tick it awake, so it shows. #}
+  <noscript><style>.bulk-bar[hidden] { display: flex; }</style></noscript>
+  {# UIX-016: the logo of Rentalars, also as the icon of the tab and of the home screen. #}
+  <link rel="icon" href="{% static 'img/favicon.svg' %}" type="image/svg+xml">
+  <link rel="icon" href="{% static 'img/favicon-32.png' %}" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="{% static 'img/apple-touch-icon.png' %}">
+</head>
+<body hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}' data-csrf="{{ csrf_token }}" data-text-forbidden="{% translate 'You do not have the right to do this.' %}" data-text-error="{% translate 'The request failed. Please reload the page and try again.' %}" data-text-cancel="{% translate 'Cancel' %}" data-text-confirm="{% translate 'Yes, go ahead' %}" data-text-delete="{% translate 'Yes, delete' %}" data-text-range="{% translate 'Choose the period in the calendar' %}" data-text-pick-start="{% translate 'Click the first day' %}" data-text-pick-end="{% translate 'now the last day' %}" data-text-from-time="{% translate 'From (time)' %}" data-text-until-time="{% translate 'Until (time)' %}" data-text-apply="{% translate 'Apply' %}" data-text-earlier="{% translate 'Earlier' %}" data-text-later="{% translate 'Later' %}" data-text-pick-date="{% translate 'Choose the date' %}" data-text-pick-date-time="{% translate 'Choose date and time' %}" data-text-pick-time="{% translate 'Choose the time' %}" data-text-date="{% translate 'Date' %}" data-text-time="{% translate 'Time' %}" data-text-hour="{% translate 'Hour' %}" data-text-minute="{% translate 'Minute' %}" data-text-clock-hint="{% translate 'Tap the hour first, then the minute.' %}" data-text-today="{% translate 'Today' %}" data-text-now="{% translate 'Now' %}" data-text-clear="{% translate 'Clear' %}" data-text-route-busy="{% translate 'Asking the route service …' %}" data-text-route-done="{% translate '{km} km by the route – a suggestion you can change.' %}">
+{# NFA-025: the first stop of the keyboard leads past the navigation (WCAG 2.4.1). #}
+<a class="skip-link" href="#content">{% translate "Skip to content" %}</a>
+<div class="app">
+  <header class="topbar">
+    {# UIX-027: on the phone "Back" is always here – to the page before, on the pages of the tabs to wherever one came from. #}
+    {% if request.resolver_match.view_name != "core:home" %}<a class="icon-btn topbar-back" href="{% if back_url %}{{ back_url }}{% else %}{% url 'core:home' %}{% endif %}"{% if not back_url %} data-history-back{% endif %} aria-label="{% translate 'Back' %}">{% icon "back" %}</a>{% endif %}
+    <a class="brand" href="{% url 'core:home' %}"><img class="brand-logo" src="{% static 'img/logo-64.png' %}" srcset="{% static 'img/logo-128.png' %} 2x" width="32" height="32" alt=""><span class="brand-text"><span class="brand-name">Rentalars</span>{% if company_name %}<span class="brand-company">{{ company_name }}</span>{% endif %}</span></a>
+    <span class="topbar-actions">
+      <button type="button" class="icon-btn" data-open-search aria-controls="sidebar" aria-label="{% translate 'Search' %}">{% icon "search" %}</button>
+      <a class="icon-btn bell" href="{% url 'notifications:list' %}" aria-label="{% translate 'Notifications' %}">{% icon "bell" %}<span class="count{% if not unread_notifications %} hidden{% endif %}">{{ unread_notifications }}</span></a>
+      {% if can_record_time %}<a class="icon-btn" href="{% url 'timetracking:quick' %}" hx-get="{% url 'timetracking:quick' %}" hx-target="#dialog" aria-label="{% translate 'Record time' %}">{% icon "clock" %}</a>{% endif %}
+      <button type="button" class="icon-btn" data-toggle-nav aria-controls="sidebar" aria-expanded="false" aria-label="{% translate 'Menu' %}">{% icon "menu" %}</button>
+    </span>
+  </header>
+  <nav class="sidebar" id="sidebar" aria-label="{% translate 'Main navigation' %}">
+    {# UIX-045: on the phone the menu slides in from the right over the page; this closes it again. #}
+    <button type="button" class="icon-btn nav-close" data-close-nav aria-controls="sidebar" aria-label="{% translate 'Close menu' %}">{% icon "close" %}</button>
+    <a class="brand" href="{% url 'core:home' %}"><img class="brand-logo" src="{% static 'img/logo-64.png' %}" srcset="{% static 'img/logo-128.png' %} 2x" width="32" height="32" alt=""><span class="brand-text">Rentalars{% if company_name %}<span class="brand-company">{{ company_name }}</span>{% endif %}</span></a>
+    {# UIX-032: in which installation one is – in the menu of a phone, where the top bar has no room for it. #}
+    {% if company_name %}<p class="sidebar-company">{{ company_name }}</p>{% endif %}
+    {# UIX-019: the search of the start page, from every page. "/" puts the cursor into it. #}
+    <form class="nav-search" method="get" action="{% url 'core:search' %}" role="search" aria-label="{% translate 'Quick search' %}">
+      <input type="search" name="q" id="nav-search" value="{% if request.resolver_match.view_name == 'core:search' %}{{ request.GET.q }}{% endif %}" placeholder="{% translate 'Search' %} …" aria-label="{% translate 'Search projects, customers, products, material ID or serial number' %}" autocomplete="off">
+      <button class="icon-btn" type="submit" aria-label="{% translate 'Search' %}">{% icon "search" %}</button>
+    </form>
+    <ul class="nav">
+      {% for entry in navigation %}
+        <li><a href="{{ entry.url }}"{% if entry == current_navigation %} aria-current="page"{% endif %}>{% icon entry.icon %}{{ entry.label }}</a></li>
+      {% endfor %}
+    </ul>
+    {# ZEI-003: recording a time is one tap away from every page. #}
+    {% if can_record_time %}<div class="sidebar-action"><a class="btn block" href="{% url 'timetracking:quick' %}" hx-get="{% url 'timetracking:quick' %}" hx-target="#dialog">{% icon "clock" %}{% translate "Record time" %}</a></div>{% endif %}
+    <div class="sidebar-foot">
+      {# UIX-005: notifications, with the number of unread ones. #}
+      <a class="bell-link" href="{% url 'notifications:list' %}">{% icon "bell" %}{% translate "Notifications" %} <span class="badge accent{% if not unread_notifications %} hidden{% endif %}">{{ unread_notifications }}</span></a>
+      <span class="user">{{ request.user }}</span>
+      {# UIX-047: account, manual and logging out one below the other, each a row of its own to tap. #}
+      <ul class="sidebar-links">
+        <li><a href="{% url 'accounts:account' %}"{% if request.resolver_match.view_name == "accounts:account" %} aria-current="page"{% endif %}>{% icon "user" %}{% translate "My account" %}</a></li>
+        {# UIX-029: the user manual in the user's language. #}
+        <li><a href="{% url 'core:manual' %}"{% if request.resolver_match.view_name == "core:manual" or request.resolver_match.view_name == "core:manual_chapter" %} aria-current="page"{% endif %}>{% icon "book" %}{% translate "Manual" %}</a></li>
+        <li><form method="post" action="{% url 'accounts:logout' %}">
+          {% csrf_token %}
+          <button type="submit" class="link-btn">{% icon "logout" %}{% translate "Log out" %}</button>
+        </form></li>
+      </ul>
+      <div class="version">Rentalars {{ rentalars_version }}</div>
+      {# NFA-075: an author attribution under GPL section 7 b – keep it when conveying Rentalars, see ADDITIONAL-TERMS.md. #}
+      <div class="credit-line">{% include "core/_credit.html" %} · <a href="{% url 'core:about' %}">{% translate "About" context "credit" %}</a></div>
+    </div>
+  </nav>
+  <div class="nav-scrim" data-close-nav></div>
+  <main class="main" id="content" tabindex="-1" data-watch="{{ watch_keys }}" data-changes-url="{% url 'core:changes' %}">
+    <div class="main-inner">
+      {% if back_url %}<a class="back-link no-print" href="{{ back_url }}">{% icon "back" %}{% translate "Back" %}</a>{% endif %}
+      {% include "core/_messages.html" %}
+      {% block content %}{% endblock %}
+    </div>
+  </main>
+</div>
+<dialog class="dialog" id="dialog"></dialog>
+{# UIX-020: shown when the page changed while somebody was typing in it. #}
+<div class="changed-note hidden" id="changed-note" role="status"><span>{% translate "There is something new on this page." %}</span> <button type="button" class="btn small" data-reload-page>{% translate "Show" %}</button></div>
+<script src="{% static 'vendor/htmx.min.js' %}" defer></script>
+<script src="{% static 'vendor/sortable.min.js' %}" defer></script>
+<script src="{% static 'js/app.js' %}" defer></script>
+<script src="{% static 'js/scan.js' %}" defer></script>
+</body>
+</html>

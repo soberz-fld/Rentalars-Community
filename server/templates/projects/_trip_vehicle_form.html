@@ -1,0 +1,24 @@
+{% load i18n rentalars %}
+{% comment %}
+  LOG-007: a motor vehicle on a trip of the project – trailer, planned and driven kilometres, what is charged
+  (price right). LOG-017: with a route service set up, a button suggests the planned kilometres (static/js/app.js,
+  data-route-suggest). Also a page of its own for a browser without scripts (trip_vehicle_form.html).
+{% endcomment %}
+<form method="post" action="{{ action }}" hx-post="{{ action }}" hx-target="#dialog" novalidate autocomplete="off">
+  {% csrf_token %}
+  <div class="dialog-head"><h2>{% if use %}{% translate "Vehicle on the trip" %}{% else %}{% translate "Put a vehicle on the trip" %}{% endif %}</h2><button type="button" class="icon-btn" data-close-dialog aria-label="{% translate 'Close' %}">{% icon "close" %}</button></div>
+  <div class="dialog-body form">
+    {% include "core/_form_errors.html" %}
+    {% for row in form.rows %}
+    <div class="form-row{% if row|length > 1 %} pair{% endif %}">{% for field in row %}{% include "core/_field.html" %}{% endfor %}</div>
+    {% endfor %}
+    {% if route_url %}
+    <p class="route-suggest"><button type="button" class="btn secondary small" data-route-suggest="{{ route_url }}" data-route-target="planned_km">{% icon "route" %}{% translate "Suggest planned km from the route" %}</button> <span class="small" data-route-status role="status"></span></p>
+    {% endif %}
+    <p class="muted small">{% translate "A motor vehicle pulling a trailer costs its trailer surcharge per kilometre more on this trip. A trailer billed per kilometre is charged the same kilometres." %}</p>
+  </div>
+  <div class="dialog-foot">
+    <button type="button" class="btn secondary" data-close-dialog>{% translate "Cancel" %}</button>
+    <button type="submit" class="btn">{% translate "Save" %}</button>
+  </div>
+</form>

@@ -1,0 +1,7 @@
+{% comment %}
+  One-time messages (errors, hints) about the change just made. A page that is loaded as a whole shows
+  them in its layout; a block or patch that is swapped in has to carry them itself.
+{% endcomment %}
+<div id="planning-messages"{% if oob %} hx-swap-oob="true"{% endif %}>
+  {% if is_fragment %}{% include "core/_messages.html" %}{% endif %}
+</div>

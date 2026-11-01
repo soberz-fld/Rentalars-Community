@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}{% translate "Take into the fleet" %} – {{ model.name }}{% endblock %}
+{% block content %}
+{# LOG-016: the dialog "In den Fuhrpark übernehmen" as a page of its own, without the page script. #}
+<div class="page-head"><div><div class="breadcrumb"><a href="{% url 'material:model_detail' model.pk %}">{{ model.name }}</a></div><h1>{% translate "Take into the fleet" %}</h1></div></div>
+<div class="panel dialog-page">{% include "material/_fleet_transition_form.html" %}</div>
+{% endblock %}

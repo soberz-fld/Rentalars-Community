@@ -1,0 +1,55 @@
+{% load i18n rentalars %}
+{% comment %}
+  IMP-011: every row of the file with its outcome – new, changed (each field old → new), unchanged, error.
+  The filter is a form of its own (GET), so outcome, search and page are part of the address and work without
+  scripts. Expects "rows" from core.import_views.row_list and "report".
+{% endcomment %}
+<section class="panel import-preview" aria-labelledby="import-rows-title">
+  <div class="panel-head"><h2 id="import-rows-title">{% if report.dry_run %}{% translate "Rows of the file" %}{% else %}{% translate "Imported rows" %}{% endif %}</h2><span class="muted">{% blocktranslate count count=rows.total with total=rows.total|thousands %}{{ total }} row{% plural %}{{ total }} rows{% endblocktranslate %}</span></div>
+  <form method="get" class="filters" role="search" aria-label="{% translate 'Filter the rows' %}">
+    {% if rows.job %}<input type="hidden" name="job" value="{{ rows.job }}">{% endif %}
+    <div class="field"><label for="import-rows-show">{% translate "Show" %}</label>
+      <select id="import-rows-show" name="show" data-autosubmit>
+        {% for value, label, amount in rows.choices %}<option value="{{ value }}"{% if value == rows.show %} selected{% endif %}>{{ label }} ({{ amount|thousands }})</option>{% endfor %}
+      </select></div>
+    <div class="field grow"><label for="import-rows-q">{% translate "Row, ID or name" %}</label><input type="search" id="import-rows-q" name="q" value="{{ rows.q }}"></div>
+    <button class="btn secondary" type="submit">{% translate "Filter" %}</button>
+  </form>
+  {% if rows.incomplete %}<p class="panel-body muted small">{% translate "Only the rows with errors are listed. The other rows are checked once the errors are corrected." %}</p>{% endif %}
+  {% if rows.page.object_list %}
+  <div class="table-scroll">
+  <table class="table stack small import-preview-table">
+    <caption class="visually-hidden">{% blocktranslate with filter=rows.show_label %}Rows of the file: {{ filter }}{% endblocktranslate %}{% if rows.q %}{% blocktranslate with search=rows.q %}, search “{{ search }}”{% endblocktranslate %}{% endif %}</caption>
+    <thead><tr><th scope="col" class="num">{% translate "Row" %}</th><th scope="col">{% translate "Record" context "import column" %}</th><th scope="col">{% translate "Outcome" %}</th><th scope="col">{% translate "Details" %}</th></tr></thead>
+    <tbody>
+    {% for row in rows.page %}
+      <tr>
+        <td class="num" data-label="{% translate 'Row' %}">{{ row.row }}</td>
+        <td data-label="{% translate 'Record' context 'import column' %}">{{ row.label|default:"–" }}</td>
+        <td data-label="{% translate 'Outcome' %}"><span class="badge {% if row.status == 'new' %}green{% elif row.status == 'changed' %}accent{% elif row.status == 'error' %}red{% endif %}">{{ rows.outcomes|get_item:row.status }}</span>
+          {% if row.found_by %}<div class="muted small">{{ row.text }}</div>{% endif %}</td>
+        <td data-label="{% translate 'Details' %}">
+          {% if row.errors %}<ul class="import-row-errors">{% for message in row.errors %}<li>{{ message }}</li>{% endfor %}</ul>{% endif %}
+          {% if row.changes %}
+          <table class="import-changes">
+            <caption class="visually-hidden">{% blocktranslate with row=row.row %}Changes in row {{ row }}{% endblocktranslate %}</caption>
+            <thead><tr><th scope="col">{% translate "Field" %}</th><th scope="col">{% translate "previously" %}</th><th scope="col">{% translate "new" context "import value" %}</th></tr></thead>
+            <tbody>
+            {% for change in row.changes %}
+              <tr><th scope="row">{{ change.label }}</th>{% if change.hidden %}<td colspan="2" class="muted">{% translate "not visible" %}</td>{% else %}<td><del>{{ change.old }}</del></td><td>{{ change.new }}</td>{% endif %}</tr>
+            {% endfor %}
+            </tbody>
+          </table>
+          {% endif %}
+          {% if row.notes %}<ul class="import-row-notes muted">{% for note in row.notes %}<li>{{ note }}</li>{% endfor %}</ul>{% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% include "core/_pagination.html" with page=rows.page %}
+  {% else %}
+  <div class="empty">{% translate "No row matches the filter." %}</div>
+  {% endif %}
+</section>

@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% load i18n rentalars subprojects %}
+{% block title %}{% translate "Shortages" %}{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>{% translate "Planning" %}</h1></div></div>
+{% include "schedule/_tabs.html" %}
+<p class="tab-lead">{% translate "Where running and coming projects need more than the stock gives, and what is ordered from suppliers." %}</p>
+<form method="get" class="filters">
+  {% filterpanel "shortages" %}
+  <div class="field"><label for="f-weeks">{% translate "Coming" %}</label>
+    <select id="f-weeks" name="weeks" data-autosubmit><option value="">{% translate "all" %}</option>{% for choice in week_choices %}<option value="{{ choice }}"{% if weeks == choice|stringformat:"d" %} selected{% endif %}>{% blocktranslate count count=choice %}{{ count }} week{% plural %}{{ count }} weeks{% endblocktranslate %}</option>{% endfor %}</select></div>
+  {# PRJ-106: the subrentals of one supplier. #}
+  {% if suppliers %}<div class="field"><label for="f-supplier">{% translate "Supplier" %}</label>
+    <select id="f-supplier" name="supplier" data-autosubmit><option value="">{% translate "all" %}</option>{% for choice in suppliers %}<option value="{{ choice.pk }}"{% if supplier.pk == choice.pk %} selected{% endif %}>{{ choice.name }}</option>{% endfor %}</select></div>{% endif %}
+  {% endfilterpanel %}
+</form>
+
+{% if by_product %}
+<section class="panel">
+  <div class="panel-head"><h2>{% translate "Bottlenecks by product" %}</h2></div>
+  {# UIX-040: tables of core/tables.py (availability/shortage_tables.py), each with its own prefix. #}
+  {% include "core/_table_tools.html" with table=bottleneck_table %}
+  {% include "core/_table.html" with table=bottleneck_table rows=bottleneck_rows stack=True %}
+  {% include "core/_pagination.html" with page=bottleneck_page %}
+</section>
+{% endif %}
+
+<section class="panel">
+  <div class="panel-head"><h2>{% translate "Open shortages" %}</h2></div>
+  {% if shortages %}
+  {% include "core/_table_tools.html" with table=shortage_table %}
+  {% include "core/_table.html" with table=shortage_table rows=shortage_rows stack=True %}
+  {% include "core/_pagination.html" with page=shortage_page %}
+  {% else %}
+  <div class="empty"><strong>{% translate "No open shortages." %}</strong>{% translate "Every planned line is covered by the stock or by a subrental." %}</div>
+  {% endif %}
+</section>
+
+<section class="panel" id="subrentals">
+  <div class="panel-head"><h2>{% if supplier %}{% blocktranslate with name=supplier.name %}Subrentals at {{ name }}{% endblocktranslate %}{% else %}{% translate "Subrentals" %}{% endif %}</h2></div>
+  {% if subrentals %}
+  {% include "core/_table_tools.html" with table=subrental_table %}
+  {% include "core/_table.html" with table=subrental_table rows=subrental_rows stack=True %}
+  {% include "core/_pagination.html" with page=subrental_page %}
+  {% else %}
+  <div class="empty">{% translate "Nothing is subrented at the moment." %}</div>
+  {% endif %}
+</section>
+{% endblock %}

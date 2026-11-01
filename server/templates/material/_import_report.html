@@ -1,0 +1,38 @@
+{% load i18n %}
+<div class="panel">
+  <div class="panel-head"><h2>{% if report.dry_run %}{% translate "Result of the dry run" %}{% else %}{% translate "Result of the import" %}{% endif %}</h2></div>
+  <div class="panel-body">
+    {% if report.errors %}
+      <div class="note red"><strong>{% blocktranslate count count=report.errors|length %}{{ count }} error – nothing was written.{% plural %}{{ count }} errors – nothing was written.{% endblocktranslate %}</strong> {% translate "Correct the file or the column assignment and try again." %}</div>
+      <ul>{% for issue in report.errors|slice:":50" %}<li>{{ issue.text|default:issue }}</li>{% endfor %}</ul>{% if report.errors|length > 50 %}<p class="muted small">{% blocktranslate count count=report.errors|length|add:"-50" %}… and {{ count }} more error, listed with its row below.{% plural %}… and {{ count }} more errors, listed with their rows below.{% endblocktranslate %}</p>{% endif %}
+    {% else %}
+      <dl class="facts">
+        <dt>{% translate "Rows read" %}</dt><dd>{{ report.rows_read }}</dd>
+        <dt>{% translate "Material models" %}</dt><dd>{% blocktranslate with created=report.models_created updated=report.models_updated %}{{ created }} new, {{ updated }} changed{% endblocktranslate %}</dd>
+        <dt>{% translate "Items" %}</dt><dd>{% blocktranslate with created=report.items_created updated=report.items_updated unchanged=report.items_unchanged %}{{ created }} new, {{ updated }} changed, {{ unchanged }} unchanged{% endblocktranslate %}</dd>
+        {% if report.items_flagged %}<dt>{% translate "Import errors" %}</dt><dd>{% blocktranslate count count=report.items_flagged %}{{ count }} item gets the status “import error”: what could not be taken over is in its note. Fill in the fields by hand and choose another status – until then it is not fit for rental.{% plural %}{{ count }} items get the status “import error”: what could not be taken over is in their notes. Fill in the fields by hand and choose another status – until then they are not fit for rental.{% endblocktranslate %}</dd>{% endif %}
+        {% if report.categories_created %}<dt>{% translate "New categories" %}</dt><dd>{{ report.categories_created|join:", " }}<div class="muted small">{% translate "Check the codes in brackets; they become part of article numbers." %}</div></dd>{% endif %}
+        {% if report.suppliers_created %}<dt>{% translate "New suppliers" %}</dt><dd>{{ report.suppliers_created|join:", " }}</dd>{% endif %}
+        {% if report.manufacturers_created %}<dt>{% translate "New manufacturers" %}</dt><dd>{{ report.manufacturers_created|join:", " }}</dd>{% endif %}
+        {# IMP-014: gross prices were turned into net ones. #}
+        {% if report.prices_gross_rate %}<dt>{% translate "Purchase prices" %}</dt><dd>{% blocktranslate with rate=report.prices_gross_rate %}read as gross with {{ rate }} % tax and stored net{% endblocktranslate %}</dd>{% endif %}
+        <dt>{% translate "Next new ID" %}</dt><dd><span class="tape">{{ report.next_id }}</span></dd>
+      </dl>
+      {% if report.purchase_sets %}
+      {# MAT-054, IMP-016: price cells like #0851 – bought together, the price at the first item. #}
+      <h3 class="section">{% blocktranslate count count=report.purchase_sets|length %}{{ count }} set bought together{% plural %}{{ count }} sets bought together{% endblocktranslate %}</h3>
+      <p class="muted small">{% translate "The first ID carries the price of the set; the IDs after it have no price of their own." %}</p>
+      <ul class="small">{% for line in report.purchase_sets %}<li>{{ line }}</li>{% endfor %}</ul>
+      {% endif %}
+      {% if report.installed_links %}
+      <h3 class="section">{% blocktranslate count count=report.installed_links|length %}{{ count }} item linked as “permanently installed”{% plural %}{{ count }} items linked as “permanently installed”{% endblocktranslate %}</h3>
+      <p class="muted small">{% translate "Every entry in “Einsatz/Verbindung” is taken over as permanently installed. Switch single items to “loosely contained” afterwards where that fits better." %}</p>
+      <p class="small">{{ report.installed_links|join:", " }}</p>
+      {% endif %}
+    {% endif %}
+    {% if report.warnings %}
+      <h3 class="section">{% translate "Notes" %}</h3>
+      <ul>{% for issue in report.warnings|slice:":50" %}<li>{{ issue.text|default:issue }}</li>{% endfor %}</ul>{% if report.warnings|length > 50 %}<p class="muted small">{% blocktranslate count count=report.warnings|length|add:"-50" %}… and {{ count }} more note, listed with its row below.{% plural %}… and {{ count }} more notes, listed with their rows below.{% endblocktranslate %}</p>{% endif %}
+    {% endif %}
+  </div>
+</div>

@@ -1,0 +1,93 @@
+{% load i18n rentalars %}
+{% comment %}
+  PRD-023, VFG-015: suggestions in the planning – accessories not planned yet, replacements for a short
+  line. A hint, never a block: every entry can be added with one click or dismissed for this project. In the offer
+  step (offer=True) they are only listed, nothing is added there.
+{% endcomment %}
+{# (R3-6) The page script reads this to announce the panel only when the number of suggestions changes. #}
+<span hidden data-suggestion-count="{{ found.count }}" data-suggestion-text="{% if found.count %}{% blocktranslate count count=found.count %}{{ count }} suggestion for the planning{% plural %}{{ count }} suggestions for the planning{% endblocktranslate %}{% else %}{% translate "No suggestions for the planning" %}{% endif %}"></span>
+{% if found.accessories or found.replacements %}
+<section class="note suggestions" aria-labelledby="suggestions-title">
+  <h3 id="suggestions-title" class="subhead">{% if offer %}{% translate "Accessories and replacements to think of" %}{% else %}{% translate "Suggestions for the planning" %}{% endif %}</h3>
+  {% if found.accessories %}
+  <p class="muted small">{% translate "These accessories belong with products of this planning and are not planned yet." %}</p>
+  <ul class="plain suggestion-list">
+    {% for suggestion in found.accessories %}
+    <li>
+      {% if can_edit %}
+      <form class="inline-fields" hx-post="{% url 'products:suggestion_accept' project.pk suggestion.relation.pk %}" hx-target="#planning" hx-swap="outerHTML" hx-disabled-elt="find button[type='submit']" autocomplete="off">
+        <input type="hidden" name="line" value="{{ suggestion.line.pk }}">
+        <span class="grow">
+          <a class="artno" href="{% url 'products:detail' suggestion.accessory.pk %}">{{ suggestion.accessory.article_number }}</a> {{ suggestion.accessory.name }}
+          <span class="muted small">{% blocktranslate with name=suggestion.product_names %}goes with {{ name }}{% endblocktranslate %}</span>
+          {% if suggestion.is_required %}<span class="badge red">{% translate "required" %}</span>{% else %}<span class="badge">{% translate "recommended" %}</span>{% endif %}
+          {% if suggestion.relation.note %}<span class="muted small">{{ suggestion.relation.note }}</span>{% endif %}
+          {% if suggestion.planned %}<span class="muted small">{% blocktranslate with count=suggestion.planned %}{{ count }} already planned{% endblocktranslate %}</span>{% endif %}
+          {% if sees_availability and suggestion.free is not None %}<span class="muted small{% if suggestion.is_short %} red-text{% endif %}">{% blocktranslate with free=suggestion.free %}{{ free }} free in the period{% endblocktranslate %}</span>{% endif %}
+        </span>
+        <label class="visually-hidden" for="suggestion-qty-{{ suggestion.relation.pk }}">{% translate "Quantity" %}: {{ suggestion.accessory.article_number }}</label>
+        <input class="qty" type="text" inputmode="numeric" name="quantity" id="suggestion-qty-{{ suggestion.relation.pk }}" value="{{ suggestion.quantity }}" autocomplete="off">
+        <button class="btn secondary" type="submit">{% icon "plus" %}{% translate "Add" %}<span class="visually-hidden"> {{ suggestion.accessory.article_number }}</span></button>
+      </form>
+      <form class="inline-form" hx-post="{% url 'products:suggestion_dismiss' project.pk %}" hx-target="#suggestions" hx-swap="innerHTML">
+        {% for named in suggestion.relations %}<input type="hidden" name="relation" value="{{ named.pk }}">{% endfor %}
+        <button class="link-btn" type="submit">{% translate "Dismiss" %}<span class="visually-hidden"> {{ suggestion.accessory.article_number }}</span></button>
+      </form>
+      {% else %}
+      <a class="artno" href="{% url 'products:detail' suggestion.accessory.pk %}">{{ suggestion.accessory.article_number }}</a> {{ suggestion.accessory.name }}
+      <span class="muted small">{% blocktranslate with name=suggestion.product_names %}goes with {{ name }}{% endblocktranslate %}</span>
+      {% if suggestion.is_required %}<span class="badge red">{% translate "required" %}</span>{% else %}<span class="badge">{% translate "recommended" %}</span>{% endif %}
+      – {{ suggestion.quantity }} ×{% if suggestion.planned %} <span class="muted small">{% blocktranslate with count=suggestion.planned %}{{ count }} already planned{% endblocktranslate %}</span>{% endif %}{% if suggestion.relation.note %} <span class="muted small">{{ suggestion.relation.note }}</span>{% endif %}
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+  {% if found.replacements %}
+  <p class="muted small">{% translate "These lines are short or their product is deactivated. These replacements could stand in; the numbers are what is free in the period of the line." %}</p>
+  <ul class="plain suggestion-list">
+    {% for suggestion in found.replacements %}
+    <li>
+      {% if can_edit %}
+      <form class="inline-fields" hx-post="{% url 'products:suggestion_accept' project.pk suggestion.relation.pk %}" hx-target="#planning" hx-swap="outerHTML" hx-disabled-elt="find button[type='submit']" autocomplete="off">
+        <input type="hidden" name="line" value="{{ suggestion.line.pk }}">
+        <span class="grow">
+          <strong>{{ suggestion.line.title }}</strong>:
+          {% if suggestion.reason == "inactive" %}{% translate "product is deactivated" %}{% else %}{% blocktranslate count count=suggestion.missing %}{{ count }} piece is missing{% plural %}{{ count }} pieces are missing{% endblocktranslate %}{% endif %}
+          → <a class="artno" href="{% url 'products:detail' suggestion.replacement.pk %}">{{ suggestion.replacement.article_number }}</a> {{ suggestion.replacement.name }}
+          {% if suggestion.relation.note %}<span class="muted small">{{ suggestion.relation.note }}</span>{% endif %}
+          <span class="badge {% if suggestion.covers %}green{% else %}yellow{% endif %}">{% blocktranslate with free=suggestion.free|default:0 %}{{ free }} free{% endblocktranslate %}{% if suggestion.covers %}, {% translate "covers it" %}{% else %}, {% translate "only partly" %}{% endif %}</span>
+        </span>
+        <label class="visually-hidden" for="suggestion-qty-{{ suggestion.relation.pk }}-{{ suggestion.line.pk }}">{% translate "Quantity" %}: {{ suggestion.replacement.article_number }}</label>
+        <input class="qty" type="text" inputmode="numeric" name="quantity" id="suggestion-qty-{{ suggestion.relation.pk }}-{{ suggestion.line.pk }}" value="{{ suggestion.quantity }}" autocomplete="off">
+        <button class="btn secondary" type="submit">{% icon "plus" %}{% translate "Add replacement" %}<span class="visually-hidden"> {{ suggestion.replacement.article_number }}</span></button>
+      </form>
+      <form class="inline-form" hx-post="{% url 'products:suggestion_dismiss' project.pk %}" hx-target="#suggestions" hx-swap="innerHTML">
+        <input type="hidden" name="relation" value="{{ suggestion.relation.pk }}">
+        <button class="link-btn" type="submit">{% translate "Dismiss" %}<span class="visually-hidden"> {{ suggestion.replacement.article_number }}</span></button>
+      </form>
+      {% else %}
+      <strong>{{ suggestion.line.title }}</strong>:
+      {% if suggestion.reason == "inactive" %}{% translate "product is deactivated" %}{% else %}{% blocktranslate count count=suggestion.missing %}{{ count }} piece is missing{% plural %}{{ count }} pieces are missing{% endblocktranslate %}{% endif %}
+      → <a class="artno" href="{% url 'products:detail' suggestion.replacement.pk %}">{{ suggestion.replacement.article_number }}</a> {{ suggestion.replacement.name }}
+      <span class="badge {% if suggestion.covers %}green{% else %}yellow{% endif %}">{% blocktranslate with free=suggestion.free|default:0 %}{{ free }} free{% endblocktranslate %}</span>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+  {% if can_edit %}
+  <form class="inline-form" hx-post="{% url 'products:suggestion_dismiss' project.pk %}" hx-target="#suggestions" hx-swap="innerHTML">
+    {% for suggestion in found.accessories %}{% for named in suggestion.relations %}<input type="hidden" name="relation" value="{{ named.pk }}">{% endfor %}{% endfor %}
+    {% for suggestion in found.replacements %}<input type="hidden" name="relation" value="{{ suggestion.relation.pk }}">{% endfor %}
+    <button class="link-btn" type="submit">{% translate "Dismiss all suggestions in this project" %}</button>
+  </form>
+  {% endif %}
+</section>
+{% endif %}
+{% if found.dismissed and can_edit %}
+<form class="inline-form muted small" hx-post="{% url 'products:suggestion_restore' project.pk %}" hx-target="#suggestions" hx-swap="innerHTML">
+  {% blocktranslate count count=found.dismissed|length %}{{ count }} suggestion is dismissed in this project.{% plural %}{{ count }} suggestions are dismissed in this project.{% endblocktranslate %}
+  <button class="link-btn" type="submit">{% translate "Bring them back" %}</button>
+</form>
+{% endif %}

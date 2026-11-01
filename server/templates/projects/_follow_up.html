@@ -1,0 +1,17 @@
+{% load i18n rentalars %}
+{% comment %}
+  PRJ-105: the follow-up of the project in the head of every project page, for who reads the planning – with
+  "Change" and "Done" for who may edit the project. Costs no query: ``project_for`` loads the user with it.
+{% endcomment %}
+{% if project.follow_up_on and project.shows_planning %}
+<div class="follow-up-note{% if project.follow_up_is_due %} is-due{% endif %}">
+  {% icon "bell" %}
+  <p><strong>{% blocktranslate with day=project.follow_up_on|date:"D d.m.Y" %}Follow-up on {{ day }}{% endblocktranslate %}{% if project.follow_up_at %} {% blocktranslate with time=project.follow_up_at|time:"H:i" %}at {{ time }}{% endblocktranslate %}{% endif %}</strong>{% if project.follow_up_user %} {% blocktranslate with user=project.follow_up_user %}for {{ user }}{% endblocktranslate %}{% endif %}{% if project.follow_up_is_due %} <span class="badge yellow">{% translate "due" context "follow-up" %}</span>{% endif %}{% if project.follow_up_note %}<span class="follow-up-text"> – {{ project.follow_up_note }}</span>{% endif %}</p>
+  {% if project.is_editable_by_user and can.write.projects %}
+  <div class="follow-up-actions no-print">
+    <a class="btn secondary small" href="{% url 'projects:follow_up' project.pk %}?next={{ request.get_full_path|urlencode }}" hx-get="{% url 'projects:follow_up' project.pk %}?next={{ request.get_full_path|urlencode }}" hx-target="#dialog">{% icon "edit" %}{% translate "Change" %}</a>
+    <form method="post" action="{% url 'projects:follow_up_done' project.pk %}" class="inline-form">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="btn secondary small" type="submit">{% icon "check" %}{% translate "Done" context "follow-up" %}</button></form>
+  </div>
+  {% endif %}
+</div>
+{% endif %}

@@ -1,0 +1,22 @@
+{% load i18n rentalars %}
+{# PRJ-140: a new contact person without leaving the project form – name and ways to reach the person. #}
+<form hx-post="{{ action }}" hx-target="#dialog" hx-disabled-elt="find button[type=submit]" novalidate autocomplete="off">
+  <div class="dialog-head"><h2>{% translate "New contact person" %}</h2><button type="button" class="icon-btn" data-close-dialog aria-label="{% translate 'Close' %}">{% icon "close" %}</button></div>
+  <div class="dialog-body form">
+    <p class="muted small">{% blocktranslate with customer=customer.name %}Contact person of {{ customer }}{% endblocktranslate %}</p>
+    {% include "core/_form_errors.html" %}
+    <div class="form-grid">
+      {% include "core/_field.html" with field=form.salutation %}
+      {% include "core/_field.html" with field=form.first_name %}
+      {% include "core/_field.html" with field=form.last_name %}
+      {% include "core/_field.html" with field=form.position %}
+      {% include "core/_field.html" with field=form.email %}
+      {% include "core/_field.html" with field=form.phone %}
+    </div>
+    <datalist id="salutation-suggestions">{% for suggestion in form.salutation_suggestions %}<option value="{{ suggestion }}"></option>{% endfor %}</datalist>
+  </div>
+  <div class="dialog-foot">
+    <button type="button" class="btn secondary" data-close-dialog>{% translate "Cancel" %}</button>
+    <button type="submit" class="btn">{% translate "Save contact person" %}</button>
+  </div>
+</form>

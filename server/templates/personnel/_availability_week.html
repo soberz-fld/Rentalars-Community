@@ -1,0 +1,29 @@
+{% load i18n %}
+{% comment %}
+PER-030: the week of the availability calendar as a time grid, with the classes of the planning calendar's week (VFG-021,
+schedule/_week.html): one scroll area, the heads of the days stay at the top and the hours at the left; it opens at 06:00
+(or earlier) and, on a narrow screen, at today (static/js/app.js, data-week-grid). In each column the availability that
+counts lies as bands over its hours, the deployments as blocks over the right part. The heads of the days carry the
+colour of the day and choose days for the form below, like the days of the month.
+PER-039: where the availability can be entered, a time range is marked in the columns – dragged with the mouse,
+or on a phone the start and then the end tapped – over one or several days (the same hours on each, as the form does
+it); the form below takes days and times (static/js/app.js, data-avail-select). Expects: week, availability_editable.
+{% endcomment %}
+<section class="week-grid avail-week" data-week-grid data-scroll-hour="{{ week.scroll_hour }}"{% if availability_editable %} data-avail-select data-text-anchor="{% translate 'Start: {first}, {start}. Now tap the end.' %}" data-text-day="{% translate 'Chosen: {first}, {start} to {end}.' %}" data-text-days="{% translate 'Chosen: {first} to {last}, each day {start} to {end}.' %}" data-text-whole-day="{% translate 'Chosen: {first}, the whole day.' %}" data-text-whole-days="{% translate 'Chosen: {first} to {last}, whole days.' %}" data-text-then="{% translate 'Now choose the availability below.' %}" data-text-clock="{% translate '{time}' context 'time of day' %}"{% endif %}>
+  <div class="wk-scroll" tabindex="0" role="region" aria-label="{% translate 'Week plan, scrolls up, down and sideways' %}">
+    <div class="wk" style="--days: 7">
+      <div class="wk-corner"></div>
+      {% for column in week.days %}{% with day=column.day %}
+      {% if availability_editable %}<button type="button"{% else %}<div{% endif %} class="wk-dayhead avail-dayhead{% if day.state %} {{ day.state }}{% endif %}{% if day.partial %} partial{% endif %}{% if day.from_feed %} feed{% endif %}{% if day.is_today %} today{% endif %}{% if column.is_weekend %} weekend{% endif %}" style="grid-column: {{ forloop.counter|add:1 }}"{% if availability_editable %} data-avail-day="{{ day.day|date:'Y-m-d' }}" aria-pressed="false" aria-label="{{ day.label }}"{% endif %} title="{{ day.label }}"{% if day.is_today %} data-today{% endif %}><span class="wd" aria-hidden="true">{{ day.day|date:"D" }}</span> <strong aria-hidden="true">{{ day.day|date:"j." }}</strong>{% if day.planned %}<span class="planned-dot" aria-hidden="true"></span>{% endif %}{% if not availability_editable %}<span class="visually-hidden">{{ day.label }}</span>{% endif %}{% if availability_editable %}</button>{% else %}</div>{% endif %}
+      {% endwith %}{% endfor %}
+      <div class="wk-hours" aria-hidden="true">{% for hour in week.hours %}<div class="wk-hour" data-hour="{{ forloop.counter0 }}"><span>{{ hour }}</span></div>{% endfor %}</div>
+      {% for column in week.days %}
+      <div class="wk-col{% if column.day.is_today %} today{% endif %}{% if column.is_weekend %} weekend{% endif %}" style="grid-column: {{ forloop.counter|add:1 }}" data-day="{{ column.day.day|date:'Y-m-d' }}" role="group" aria-label="{{ column.day.day|date:'l, j. F' }}">
+        {% for band in column.bands %}<div class="wk-band {{ band.css }}" style="{{ band.style }}" title="{{ band.times }}: {{ band.text }}"><span class="wk-band-text"><span class="sign" aria-hidden="true">{{ band.sign }}</span> {{ band.text }}<span class="time"> {{ band.times }}</span></span></div>{% endfor %}
+        {% for block in column.deployments %}{% if block.url %}<a href="{{ block.url }}"{% else %}<span{% endif %} class="wk-event avail-deploy {{ block.status_css }}{% if block.clash %} clash{% endif %}" style="{{ block.style }}" title="{{ block.times }} · {{ block.label }}{% if block.clash %} · {% translate 'not available' %}{% endif %}"><span class="time">{{ block.times }}</span> <span class="name">{{ block.label }}</span>{% if block.clash %}<span class="visually-hidden">, {% translate "although not available" %}</span>{% endif %}{% if block.url %}</a>{% else %}</span>{% endif %}{% endfor %}
+        {% if column.day.is_today %}<div class="wk-now" style="{{ column.now_style }}" data-now aria-hidden="true"></div>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>

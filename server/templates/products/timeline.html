@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{{ product.article_number }} – {% translate "Timeline" %}{% endblock %}
+{% block content %}
+{% include "products/_head.html" %}
+{% include "schedule/_timeline.html" %}
+{% endblock %}

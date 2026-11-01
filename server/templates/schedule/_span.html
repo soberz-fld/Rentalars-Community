@@ -1,0 +1,10 @@
+{% load i18n rentalars %}
+{# Moving through the weeks of a timeline. Expects: first, weeks, earlier, later, this_week, week_choices. #}
+<form method="get" class="filters timeline-nav">
+  {% for key, value in request.GET.items %}{% if key != "from" and key != "weeks" %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endif %}{% endfor %}
+  <a class="btn secondary small" href="{% querystring from=earlier|date:'Y-m-d' %}">‹ {% translate "earlier" %}</a>
+  <a class="btn secondary small" href="{% querystring from=this_week|date:'Y-m-d' %}">{% translate "this week" %}</a>
+  <a class="btn secondary small" href="{% querystring from=later|date:'Y-m-d' %}">{% translate "later" %} ›</a>
+  <div class="field"><label for="f-from">{% translate "From" %}</label><input type="date" id="f-from" name="from" value="{{ first|date:'Y-m-d' }}" data-autosubmit></div>
+  <div class="field"><label for="f-weeks">{% translate "Weeks" %}</label><select id="f-weeks" name="weeks" data-autosubmit>{% for choice in week_choices %}<option value="{{ choice }}"{% if choice == weeks %} selected{% endif %}>{{ choice }}</option>{% endfor %}</select></div>
+</form>

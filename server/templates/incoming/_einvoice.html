@@ -1,0 +1,36 @@
+{% load i18n rentalars %}
+{% comment %}
+  E-invoice receipt (DOK-040, DOK-041): what the file says about itself – structured e-invoice (XRechnung, ZUGFeRD /
+  Factur-X), its format and profile, the type, IBAN, references, the contradictions found, and the XML to download.
+  Expects: invoice. The details come from the reading (invoice.einvoice); an XML that was not read yet shows only the format.
+{% endcomment %}
+{% if invoice.is_einvoice or invoice.einvoice %}
+{% with info=invoice.einvoice %}
+<div class="incoming-einvoice" id="incoming-einvoice">
+  <p><span class="badge accent">{% translate "structured e-invoice" %}</span>
+    {% if invoice.einvoice_format == "ubl" %}<span class="badge">{% translate "UBL (XML)" %}</span>{% elif invoice.einvoice_format == "cii" %}<span class="badge">{% translate "CII (XML)" %}</span>{% endif %}
+    {% if info.profile %}<span class="badge">{{ info.profile }}</span>{% endif %}
+    {% if info.credit_note %}<span class="badge yellow">{% translate "credit note" %}</span>{% endif %}
+    {% if invoice.xml_name %}<a class="btn secondary small" href="{% url 'incoming:xml' invoice.pk %}">{% icon "download" %}{% if invoice.is_xml %}{% translate "Download the XML" %}{% else %}{% translate "Download the XML from the PDF" %}{% endif %}</a>{% endif %}</p>
+  {% if info %}
+  <dl class="facts small">
+    {% if info.customization_id %}<dt>{% translate "Specification" %}</dt><dd>{{ info.customization_id }}</dd>{% endif %}
+    {% if info.type_code %}<dt>{% translate "Type code" %}</dt><dd>{{ info.type_code }}</dd>{% endif %}
+    {% if info.supplier_vat_id %}<dt>{% translate "VAT ID of the supplier" %}</dt><dd>{{ info.supplier_vat_id }}</dd>{% endif %}
+    {% if info.iban %}<dt>{% translate "IBAN" %}</dt><dd>{{ info.iban }}</dd>{% endif %}
+    {% if info.buyer_reference %}<dt>{% translate "Buyer reference" %}</dt><dd>{{ info.buyer_reference }}</dd>{% endif %}
+    {% if info.order_reference %}<dt>{% translate "Order reference" %}</dt><dd>{{ info.order_reference }}</dd>{% endif %}
+    {% if info.payable %}<dt>{% translate "Amount to pay" %}</dt><dd>{{ info.payable }} {{ invoice.currency }}</dd>{% endif %}
+    <dt>{% translate "Positions in the file" %}</dt><dd>{{ info.lines }}</dd>
+  </dl>
+  {% if info.warnings %}
+  <div class="message warning" role="status"><strong>{% translate "The file contradicts itself:" %}</strong>
+    <ul>{% for warning in info.warnings %}<li>{{ warning }}</li>{% endfor %}</ul>
+    <span class="small">{% translate "The invoice is kept as it is; check the values against the original." %}</span></div>
+  {% endif %}
+  {% endif %}
+  {# DOK-042: the check against the rules of EN 16931 and the XRechnung #}
+  {% include "documents/_einvoice_check.html" with check=invoice.einvoice_check check_url=check_url next=check_next %}
+</div>
+{% endwith %}
+{% endif %}

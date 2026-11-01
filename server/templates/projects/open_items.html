@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% load i18n rentalars subprojects %}
+{% block title %}{% translate "Open items" %}{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>{% translate "Projects" %}</h1></div></div>
+{% include "projects/_list_tabs.html" %}
+{% comment %}
+  PRJ-059, scenario 20: every project with open items, and the confirmed ones still marked "details open".
+  PRJ-098: the shortages not resolved yet are further points of their project (projects/course_views.py).
+{% endcomment %}
+<div class="panel">
+  {% if rows %}
+  {# UIX-040: a table of core/tables.py (projects/open_item_tables.py). #}
+  {% include "core/_table_tools.html" %}
+  {% include "core/_table.html" with rows=table_rows stack=True %}
+  {% include "core/_pagination.html" %}
+  {% else %}
+  <div class="empty"><strong>{% translate "No open items." %}</strong>{% translate "Projects with open items or open shortages, and projects “Confirmed – details open”, appear here." %}</div>
+  {% endif %}
+</div>
+{% endblock %}

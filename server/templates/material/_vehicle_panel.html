@@ -1,0 +1,33 @@
+{% load i18n rentalars %}
+{% comment %}
+  LOG-002, LOG-003, LOG-012, LOG-013: the data of a vehicle or trailer – an item of a vehicle product – and,
+  LOG-004, its current and coming bookings in the projects; overlapping ones are marked. Projects the user may not open
+  show "Projekt" with their number only, without link (AUT-016). Expects: item, vehicle, vehicle_bookings,
+  seats_missing.
+{% endcomment %}
+<section class="panel" id="vehicle">
+  <div class="panel-head"><h2>{% translate "Vehicle data" %}</h2>{% if can.write.material %}<a class="btn secondary small" href="{% url 'material:vehicle_edit' item.pk %}" hx-get="{% url 'material:vehicle_edit' item.pk %}" hx-target="#dialog" aria-haspopup="dialog">{% icon "edit" %}{% translate "Edit vehicle data" %}</a>{% endif %}</div>
+  <div class="panel-body">
+    {% if seats_missing %}<p class="note">{% translate "Seats missing: a motor vehicle needs its seats as minimum and maximum." %}</p>{% endif %}
+    <dl class="facts">
+      <dt>{% translate "Type" %}</dt><dd>{% if item.product.vehicle_type %}{{ item.product.get_vehicle_type_display|capfirst }}{% else %}–{% endif %}</dd>
+      <dt>{% translate "Licence plate" %}</dt><dd>{% if vehicle.licence_plate %}<span class="nowrap">{{ vehicle.licence_plate }}</span>{% else %}–{% endif %}</dd>
+      {% if item.product.is_car %}
+      <dt>{% translate "Seats min." %}</dt><dd>{{ vehicle.seats_min|default:"–" }}</dd>
+      <dt>{% translate "Seats max." %}</dt><dd>{{ vehicle.seats_max|default:"–" }}</dd>
+      {% endif %}
+      <dt>{% translate "Driving licence class" %}</dt><dd>{{ vehicle.licence_class|default:"–" }}</dd>
+      {% if item.product.is_car %}<dt>{% translate "Towing capacity" %}</dt><dd>{% if vehicle.towing_capacity_kg is None or vehicle.towing_capacity_kg == "" %}–{% elif vehicle.towing_capacity_kg %}{{ vehicle.towing_capacity_kg }} kg{% else %}{% translate "may not tow" %}{% endif %}</dd>{% endif %}
+      <dt>{% translate "Permissible total weight" %}</dt><dd>{% if vehicle.gross_weight_kg %}{{ vehicle.gross_weight_kg }} kg{% else %}–{% endif %}</dd>
+    </dl>
+    <h3 class="spaced">{% translate "Bookings" %}</h3>
+    {% if vehicle_bookings %}
+    <ul class="plain-list">
+      {% for booking in vehicle_bookings %}
+      <li>{% if booking.url %}<a href="{{ booking.url }}">{{ booking.label }}</a>{% else %}{{ booking.label }}{% endif %} <span class="muted">{{ booking.start|date:"d.m.Y H:i" }} – {{ booking.end|date:"d.m.Y H:i" }}</span>{% if booking.is_current %} <span class="badge accent">{% translate "now" %}</span>{% endif %}{% if booking.overlaps %} <span class="badge red">{% translate "overlaps another booking" %}</span>{% endif %}</li>
+      {% endfor %}
+    </ul>
+    {% else %}<p class="muted">{% translate "No booking now or in the coming twelve months." %}</p>{% endif %}
+    <p class="small"><a href="{% url 'material:fleet_utilization' %}">{% translate "Utilization of the fleet" %}</a></p>
+  </div>
+</section>

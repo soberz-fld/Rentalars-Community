@@ -1,0 +1,25 @@
+{% load i18n rentalars period_marks %}
+{% comment %}
+  PRJ-094: a new phase without leaving the crew planning. Opened by "New phase …" in the list of phases of a crew
+  form, in a dialog of its own – it can stand over the dialog of a crew line – so the answer goes to the dialog
+  around the form ("closest dialog"). Saved, the server answers "phaseCreated"; app.js puts the phase into the
+  list and chooses it. Expects: project, form, action.
+{% endcomment %}
+{# PRJ-099: the calendars show the rental period and the event period of the project hatched. #}
+<form hx-post="{{ action }}" hx-target="closest dialog" novalidate autocomplete="off" data-calendar-marks="{% project_period_marks project %}">
+  <button type="submit" class="visually-hidden" tabindex="-1" aria-hidden="true">{% translate "Save phase" %}</button>
+  <div class="dialog-head"><h2 id="phase-dialog-title">{% translate "New phase" %}</h2><button type="button" class="icon-btn" data-close-dialog aria-label="{% translate 'Close' %}">{% icon "close" %}</button></div>
+  <div class="dialog-body form">
+    <p class="muted small">{% blocktranslate with number=project.number %}The phase is added to the schedule of {{ number }} and chosen for the crew line.{% endblocktranslate %}</p>
+    {% include "core/_form_errors.html" %}
+    <div class="form-row pair">{% include "core/_field.html" with field=form.kind %}{% include "core/_field.html" with field=form.title %}</div>
+    <div class="form-row pair">{% include "core/_field.html" with field=form.start %}{% include "core/_field.html" with field=form.end %}</div>
+    <div class="form-row pair">{% include "core/_field.html" with field=form.venue_site %}{% include "core/_field.html" with field=form.location %}</div>
+    {# PRJ-120: job functions with places – saving plans that many open places in the phase. #}
+    {% include "projects/_function_rows.html" %}
+  </div>
+  <div class="dialog-foot">
+    <button type="button" class="btn secondary" data-close-dialog>{% translate "Cancel" %}</button>
+    <button type="submit" class="btn">{% translate "Save phase" %}</button>
+  </div>
+</form>

@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Sale from stock" %} {{ sale.item.display_id }}{% endblock %}
+{% block content %}
+{% comment %}
+  Used sale from stock: one sale – buyer, price, the book value at the sale and the gain or loss, the reversal (MAT-087)
+  (Storno) with a reason, and "Rechnung dazu erstellen" (a draft of an invoice for the buyer, if the buyer is a customer).
+{% endcomment %}
+<div class="page-head">
+  <div>
+    <div class="breadcrumb"><a href="{% url 'material:sales' %}">{% translate "Sales from stock" %}</a></div>
+    <h1>{% blocktranslate with id=sale.item.display_id %}Sale of {{ id }}{% endblocktranslate %}</h1>
+    <p class="lead">{% if sale.is_cancelled %}<span class="badge red">{% translate "reversed" %}</span>{% else %}<span class="badge green">{% translate "sold" %}</span>{% endif %}</p>
+  </div>
+  <div class="actions">
+    <a class="btn secondary" href="{% url 'material:item_detail' sale.item_id %}#asset">{% icon "box-out" %}{% translate "Open the item" %}</a>
+    {% if may_invoice and not invoice %}<form method="post" action="{% url 'material:sale_invoice' sale.pk %}" class="inline-form">{% csrf_token %}<button class="btn secondary" type="submit">{% icon "invoice" %}{% translate "Create an invoice for it" %}</button></form>{% endif %}
+  </div>
+</div>
+{% include "documents/_accounting_tabs.html" %}
+<div class="columns">
+  <section class="panel" aria-labelledby="sale-facts">
+    <div class="panel-head"><h2 id="sale-facts">{% translate "The sale" %}</h2></div>
+    <div class="panel-body">
+      <dl class="facts">
+        <dt>{% translate "Item" %}</dt><dd><a class="tape" href="{% url 'material:item_detail' sale.item_id %}">{{ sale.item.display_id }}</a> {{ sale.item.material_model.name }}{% if sale.quantity > 1 %} · {{ sale.quantity }} ×{% endif %}</dd>
+        <dt>{% translate "Sold on" %}</dt><dd>{{ sale.sold_on|date:"d.m.Y" }}</dd>
+        <dt>{% translate "Buyer" %}</dt><dd>{{ buyer }}{% if sale.customer and not sale.customer.is_anonymised %} <span class="muted small">(<a href="{% url 'customers:detail' sale.customer_id %}">{{ sale.customer.number }}</a>)</span>{% endif %}</dd>
+        <dt>{% translate "Price (net)" %}</dt><dd>{{ sale.net_price|money }}</dd>
+        <dt>{% translate "Tax" %}</dt><dd>{{ sale.tax_amount|money }} <span class="muted small">({{ sale.tax_percent|floatformat:"-2" }} %)</span></dd>
+        <dt>{% translate "Price (gross)" %}</dt><dd>{{ sale.gross_price|money }}</dd>
+        {% if sale.note %}<dt>{% translate "Note" %}</dt><dd>{{ sale.note|linebreaksbr }}</dd>{% endif %}
+        {% if invoice %}<dt>{% translate "Invoice" %}</dt><dd><a href="{% url 'documents:free_document' invoice.pk %}">{{ invoice.number }}</a></dd>{% elif invoice_draft %}<dt>{% translate "Invoice" %}</dt><dd><a href="{% url 'documents:free_edit' invoice_draft.pk %}">{% translate "Draft – check and issue it" %}</a></dd>{% endif %}
+        <dt>{% translate "Sold by" %}</dt><dd>{{ sale.sold_by.get_full_name|default:sale.sold_by.username|default:"–" }}</dd>
+      </dl>
+    </div>
+  </section>
+  <section class="panel" aria-labelledby="sale-books">
+    <div class="panel-head"><h2 id="sale-books">{% translate "In the books" %}</h2></div>
+    <div class="panel-body">
+      <dl class="facts">
+        <dt>{% translate "Kind of asset" %}</dt><dd>{{ sale.kind_label|default:"–" }}</dd>
+        <dt>{% translate "Acquisition cost (net)" %}</dt><dd>{{ sale.cost|money|default:"–" }}</dd>
+        <dt>{% translate "Depreciation until the sale" %}</dt><dd>{{ sale.accumulated_depreciation|money|default:"–" }}</dd>
+        <dt>{% translate "Book value at the sale" %}</dt><dd>{{ sale.book_value|money }}</dd>
+        <dt>{% translate "Gain or loss" %}</dt><dd><span class="badge {% if sale.gain_loss >= 0 %}green{% else %}red{% endif %}">{{ sale.gain_loss|money }}</span> <span class="muted small">{% if sale.gain_loss >= 0 %}{% translate "gain" %}{% else %}{% translate "loss" %}{% endif %}</span></dd>
+      </dl>
+      {% if basis_unknown %}<p class="muted small">{% translate "The item was not recorded as an asset with cost and date when it was sold, so its book value was set to 0 €." %}</p>{% endif %}
+      <p class="muted small">{% translate "Simplified standard setting, no tax advice. There is no DATEV export for sales from stock." %}</p>
+    </div>
+  </section>
+</div>
+{% if sale.is_cancelled %}
+<section class="panel" aria-labelledby="sale-reversed">
+  <div class="panel-head"><h2 id="sale-reversed">{% translate "Reversed" %}</h2></div>
+  <div class="panel-body"><dl class="facts">
+    <dt>{% translate "Reversed" %}</dt><dd>{{ sale.cancelled_at|date:"d.m.Y H:i" }}</dd>
+    <dt>{% translate "By" %}</dt><dd>{{ sale.cancelled_by.get_full_name|default:sale.cancelled_by.username|default:"–" }}</dd>
+    <dt>{% translate "Reason" %}</dt><dd>{{ sale.cancel_reason }}</dd>
+  </dl></div>
+</section>
+{% elif may_change %}
+<section class="panel" aria-labelledby="sale-reverse">
+  <div class="panel-head"><h2 id="sale-reverse">{% translate "Reverse the sale" %}</h2></div>
+  <div class="panel-body">
+    <p class="muted">{% if sale.item_left %}{% translate "The item gets the status it had before the sale. The sale stays in the list, marked as reversed." %}{% else %}{% translate "The pieces go back into the row with their cost. The sale stays in the list, marked as reversed." %}{% endif %}</p>
+    <form method="post" action="{% url 'material:sale_cancel' sale.pk %}" class="inline-fields" autocomplete="off">
+      {% csrf_token %}
+      <div class="field grow"><label for="cancel-reason">{% translate "Reason" %} <span class="required" aria-hidden="true">*</span></label><input type="text" id="cancel-reason" name="reason" maxlength="250" required aria-required="true"></div>
+      <button class="btn danger" type="submit" data-confirm="{% translate 'Reverse this sale?' %}">{% translate "Reverse the sale" %}</button>
+    </form>
+  </div>
+</section>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Material models" %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>{% translate "Material management" %}</h1></div>
+  <div class="actions">{% include "material/_item_jump.html" %}{% if can.write.material %}<a class="btn" href="{% url 'material:model_create' %}">{% icon "plus" %}{% translate "New material model" %}</a><a class="btn secondary" href="{% url 'material:purchase' %}">{% icon "invoice" %}{% translate "Enter a purchase" %}</a>{% endif %}</div>
+</div>
+{% include "material/_tabs.html" with tab="models" %}
+<div class="panel">
+  <form method="get" class="filters">
+    <div class="field grow"><label for="f-q">{% translate "Article name" %}</label><input type="search" id="f-q" name="q" value="{{ q }}"></div>
+    {% filterpanel "material-models" %}
+    <div class="field"><label for="f-category">{% translate "Category" %}</label>
+      <select id="f-category" name="category" data-autosubmit><option value="">{% translate "All" %}</option>{% for category in categories %}<option value="{{ category.pk }}"{% if category_id == category.pk|stringformat:"s" %} selected{% endif %}>{{ category.path }}</option>{% endfor %}</select></div>
+    <button class="btn secondary" type="submit">{% translate "Filter" %}</button>
+    {% endfilterpanel %}
+  </form>
+  {% include "core/_table_tools.html" %}
+  {% if page.object_list %}
+  {% include "core/_table.html" with stack=True %}
+  {% else %}
+  <div class="empty"><strong>{% translate "No material models yet." %}</strong>{% translate "A model describes an article type; its items are the single pieces." %}</div>
+  {% endif %}
+  {% include "core/_pagination.html" %}
+</div>
+{% endblock %}

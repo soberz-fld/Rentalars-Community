@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{{ kind.title }}{% endblock %}
+{% block content %}
+{% comment %}
+  IMP-001 to IMP-003, NFA-041: one import page for material, products, customers and people. Step 1 uploads the
+  file; step 2 assigns the columns and starts a dry run; step 3 imports. Dry run and import run in the background.
+  IMP-011: below the result, every row of the file with its outcome (core/_import_rows.html).
+{% endcomment %}
+{% if kind.head_template %}{% include kind.head_template %}{% else %}
+<div class="page-head"><div><h1>{{ kind.title }}</h1></div>{% if kind.list_url %}<div class="actions"><a class="btn secondary" href="{% url kind.list_url %}">{% translate "Back to the list" %}</a></div>{% endif %}</div>
+{% endif %}
+
+{% if finished %}
+<div class="message success">{% translate "The import is complete." %}</div>
+{% include kind.report_template %}
+{% if rows %}{% include "core/_import_rows.html" %}{% endif %}
+{% if kind.list_url %}<p class="section"><a class="btn" href="{% url kind.list_url %}">{% translate "To the list" %}</a></p>{% endif %}
+
+{% elif upload_form %}
+<div class="panel">
+  <div class="panel-head"><h2>{% translate "1. Choose the file" %}</h2></div>
+  <div class="panel-body">
+    {% if kind.introduction %}<p>{{ kind.introduction }}</p>{% endif %}
+    {# IMP-017: what Rentalars has now, in the format of this import. #}
+    <p class="btn-row"><a class="btn secondary" href="{% url 'core:import_export' kind.key %}">{% icon "download" %}{% translate "Export in the import format" %}</a> <span class="muted small">{% translate "What Rentalars has now, in the columns of this import – to change it in a spreadsheet and import it again." %}</span></p>
+    <p class="muted">{% translate "Nothing is written before you have seen the result of the dry run. Records that already exist are recognised and completed, never duplicated: products by their article number, customers by number, VAT ID, e-mail address or name – where empty cells change nothing –, people by e-mail address or name." %}</p>
+    <form method="post" enctype="multipart/form-data" class="form">
+      {% csrf_token %}<input type="hidden" name="step" value="upload">{% include "core/_required_note.html" with form=upload_form %}
+      {% include "core/_field.html" with field=upload_form.file %}
+      <div><button class="btn" type="submit">{% icon "upload" %}{% translate "Upload file" %}</button></div>
+    </form>
+    <details class="section"><summary>{% translate "Which columns are recognised?" %}</summary>
+      <table class="table small"><thead><tr><th scope="col">{% translate "Field in Rentalars" %}</th><th scope="col">{% translate "Recognised headings" %}</th></tr></thead><tbody>
+      {% for field in kind.fields %}<tr><td>{{ field.shown_label }}{% if field.required %} <span class="required">*</span>{% endif %}</td><td class="muted">{{ field.recognised_headings|join:", " }}</td></tr>{% endfor %}
+      </tbody></table>
+      {% if kind.key == "material" %}{% include "customfields/_import_note.html" %}{% endif %}{# MAT-073 #}
+    </details>
+  </div>
+</div>
+
+{% else %}
+{# IMP-011: the list of rows below has a form of its own (filter, search); "Import now" belongs to this one. #}
+<form method="post" class="form wide" id="import-form">
+  {% csrf_token %}
+  <div class="panel">
+    <div class="panel-head"><h2>{% translate "2. Assign the columns" %}</h2><span class="muted">{{ original_name }}, {% blocktranslate count count=table.count %}{{ count }} row{% plural %}{{ count }} rows{% endblocktranslate %}</span></div>
+    <div class="table-scroll">
+    <table class="table">
+      <thead><tr><th scope="col">{% translate "Field in Rentalars" %}</th><th scope="col">{% translate "Column of the file" %}</th><th scope="col">{% translate "First values" %}</th></tr></thead>
+      <tbody>
+      {% for field, index in mapping_rows %}
+        <tr>
+          <td>{{ field.shown_label }}{% if field.required %} <span class="required">*</span>{% endif %}</td>
+          <td><select name="map_{{ field.key }}" aria-label="{{ field.shown_label }}">
+            <option value="">{% translate "– do not import –" %}</option>
+            {% for header in table.headers %}<option value="{{ forloop.counter0 }}"{% if index == forloop.counter0 %} selected{% endif %}>{{ header }}</option>{% endfor %}
+          </select></td>
+          <td class="muted small">{% if index is not None %}{{ sample|column_sample:index }}{% endif %}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    {% if option_rows %}
+    {# IMP-014: choices that hold for the whole file, e.g. net or gross prices. #}
+    <div class="panel-body import-options">
+      {% for option, value in option_rows %}
+      <div class="field">
+        <label for="opt-{{ option.key }}">{{ option.label }}</label>
+        <select id="opt-{{ option.key }}" name="opt_{{ option.key }}">
+          {% for choice, label in option.choice_list %}<option value="{{ choice }}"{% if choice == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select>
+        {% if option.help_text %}<p class="help">{{ option.help_text }}</p>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+    <div class="panel-body btn-row">
+      <button class="btn" type="submit" name="step" value="check"{% if job and not job.is_finished %} disabled{% endif %}>{% translate "Dry run: check without writing" %}</button>
+      <button class="btn secondary" type="submit" name="step" value="discard" formnovalidate>{% translate "Use a different file" %}</button>
+    </div>
+  </div>
+</form>
+
+{% if job and not job.is_finished %}
+{% include "core/_import_job.html" %}
+{% elif report %}
+{% include kind.report_template %}
+{% if rows %}{% include "core/_import_rows.html" %}{% endif %}
+{% if report.ok and report.dry_run %}
+<div class="panel"><div class="panel-body">
+  <p><strong>{% translate "3. Import" %}</strong> – {% translate "The dry run found no errors. The import will do exactly what is listed above." %}</p>
+  <button class="btn" type="submit" form="import-form" name="step" value="import">{% translate "Import now" %}</button>
+</div></div>
+{% endif %}
+{% endif %}
+{% endif %}
+{% endblock %}

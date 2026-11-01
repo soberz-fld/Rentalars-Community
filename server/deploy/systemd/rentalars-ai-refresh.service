@@ -1,0 +1,18 @@
+# Takes over the settings of the local AI that the installed version of Rentalars sets (EML-040):
+# threads per physical core, thinking off, memory limit – without downloading, building or installing
+# anything, and without changing the model (deploy/ai.sh, "refresh"). Restarts rentalars-ai only if something
+# changed. Started by rentalars-ai-refresh.timer about a minute after every start of the server and after
+# every update; "rentalars update" runs the same right after switching to a new version.
+#
+# Only where the local AI was installed here: without /etc/rentalars/ai-local.env nothing runs.
+
+[Unit]
+Description=Rentalars – Einstellungen der lokalen KI übernehmen
+ConditionPathExists=/etc/rentalars/ai-local.env
+After=network-online.target rentalars-ai.service
+
+[Service]
+Type=oneshot
+# As root, like the backup: it writes the options of the service and restarts it. Rentalars itself never gets root.
+ExecStart=/bin/bash /opt/rentalars/app/deploy/ai.sh refresh
+Nice=10

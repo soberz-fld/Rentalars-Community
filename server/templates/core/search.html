@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Search" %}{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>{% translate "Search" %}</h1></div></div>
+<form class="searchbar" method="get" role="search">
+  <input type="search" name="q" value="{{ q }}" data-autofocus aria-label="{% translate 'Search' %}">
+  <button class="btn" type="submit">{% icon "search" %}{% translate "Search" %}</button>
+</form>
+{% for group in groups %}
+<section class="panel">
+  <div class="panel-head"><h2>{{ group.label }}</h2><a href="{{ group.more_url }}">{% translate "Show in list" %}</a></div>
+  <table class="table">
+    <tbody>
+    {% for hit in group.hits %}<tr><td><a href="{{ hit.url }}">{{ hit.title }}</a></td><td class="muted">{{ hit.subtitle }}</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</section>
+{% empty %}
+  {% if q %}<div class="panel"><div class="empty"><strong>{% blocktranslate %}Nothing found for “{{ q }}”.{% endblocktranslate %}</strong>{% translate "Check the spelling, or search for a part of the name or number." %}</div></div>{% endif %}
+{% endfor %}
+{% endblock %}

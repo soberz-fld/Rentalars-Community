@@ -1,0 +1,16 @@
+{% load i18n %}
+{% comment %}
+The tabs of "My area" (UIX-026): what everybody does for themselves. The own pages need an account that is a person;
+the times need the right to read time tracking. The report of the own hours is a tab here for those who see only their own
+times – with the right to approve it is a tab of "Personnel".
+{% endcomment %}
+<nav class="tabs" aria-label="{% translate 'My area' %}">
+  {# UIX-043: the own deployments as a table – the first tab; "My area" opens with it. #}
+  {% if own_person %}<a href="{% url 'projects:my_deployments' %}"{% if tab == "deployments" %} aria-current="page"{% endif %}>{% translate "My deployments" %}</a>{% endif %}
+  {% if own_person %}<a href="{% url 'personnel:own_availability' %}"{% if tab == "availability" %} aria-current="page"{% endif %}>{% translate "Availability" %}</a>{% endif %}
+  {% if can.read.time_tracking %}<a href="{% url 'timetracking:my_times' %}"{% if tab == "times" %} aria-current="page"{% endif %}>{% translate "My times" %}</a>
+  {# ZEI-019 #}<a href="{% url 'timetracking:my_expenses' %}"{% if tab == "expenses" %} aria-current="page"{% endif %}>{% translate "My expenses" %}</a>
+  {% if not can.special.approve_times %}<a href="{% url 'timetracking:report' %}"{% if tab == "report" %} aria-current="page"{% endif %}>{% translate "Report" %}</a>{% endif %}{% endif %}
+  {# PRJ-108; AUT-033: working on the own cases needs no module right #}{% if own_person %}<a href="{% url 'projects:my_cases' %}"{% if tab == "cases" %} aria-current="page"{% endif %}>{% translate "Service cases" %}</a>{% endif %}
+  {% if own_person %}<a href="{% url 'personnel:own_profile' %}"{% if tab == "profile" %} aria-current="page"{% endif %}>{% translate "Personnel data" %}</a>{% endif %}
+</nav>

@@ -1,0 +1,10 @@
+{% load i18n rentalars %}
+{# PRJ-115: single projects with revenue and what remains. Expects: rows. #}
+<table class="table stack report-table">
+  <thead><tr><th scope="col">{% translate "Project" %}</th><th scope="col" class="num">{% translate "Calculated revenue net" %}</th><th scope="col" class="num">{% translate "Calculated profit" %}</th><th scope="col" class="num">{% translate "Calculated margin" %}</th></tr></thead>
+  <tbody>
+  {% for row in rows %}{% with f=row.figures %}
+    <tr><td><a href="{% url 'projects:overview' row.project.pk %}">{{ row.project.number }} {{ row.project.name }}</a>{% if row.project.customer_id %}<div class="muted small">{{ row.project.customer.name }}</div>{% endif %}</td><td class="num" data-label="{% translate 'Revenue net' %}">{{ f.revenue|money }}</td><td class="num{% if f.margin < 0 %} is-loss{% endif %}" data-label="{% translate 'Profit' %}">{{ f.margin|money }}</td><td class="num" data-label="{% translate 'Margin' %}">{% if f.margin_percent is not None %}{{ f.margin_percent|number }} %{% endif %}</td></tr>
+  {% endwith %}{% endfor %}
+  </tbody>
+</table>

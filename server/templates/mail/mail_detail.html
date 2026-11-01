@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{{ mail.subject|default:_("(no subject)") }}{% endblock %}
+{% block content %}
+{% include "projects/_head.html" %}
+{% comment %}
+  One mail (EML-019): headers, text, attachments. HTML is shown cleaned in a sandboxed frame; pictures
+  from other servers only on request (EML-027). EML-036: compact – the headers fold into one line, the
+  text follows at once, and the frame is only as tall as the text needs.
+  EML-055: whether the message has a lock, and the button to change it for who may.
+{% endcomment %}
+<section class="panel mail-view">
+  <div class="panel-head">
+    <h2>{{ mail.subject|default:_("(no subject)") }}</h2>
+    <div class="actions">
+      {% if can_lock %}{% include "mail/_mail_lock_button.html" with mail=mail %}{% endif %}
+      {% if can_write %}<a class="btn small" href="{% url 'mail:compose' project.pk %}?answer={{ mail.pk }}">{% icon "reply" %}{% translate "Answer" %}</a>
+      {% if can_answer_all %}<a class="btn secondary small" href="{% url 'mail:compose' project.pk %}?answer={{ mail.pk }}&amp;all=1">{% icon "reply" %}{% translate "Answer all" %}</a>{% endif %}{% endif %}
+      {% if can_edit and can.delete.projects and can.special.correspondence_write %}
+      <form method="post" action="{% url 'mail:delete' project.pk mail.pk %}" class="inline-form no-print">{% csrf_token %}<button class="btn danger small" type="submit" data-confirm="{% translate 'Remove this mail from Rentalars? It stays in the mailbox folder.' %}">{% icon "trash" %}{% translate "Remove" %}</button></form>
+      {% endif %}
+    </div>
+  </div>
+  <details class="mail-meta">
+    <summary>
+      <span class="mail-meta-line"><strong>{% if mail.direction == "out" %}{{ mail.sender_name|default:mail.sender_label }}{% else %}{{ mail.sender_name|default:mail.sender_address }}{% endif %}</strong>
+      <span class="muted">{% translate "to" %} {{ mail.to_addresses|default:"–"|truncatechars:70 }}</span></span>
+      <span class="mail-meta-date muted">{% if attachments %}<span class="mail-meta-files" title="{% translate 'Attachments' %}">{% icon "file" %}{{ attachments|length }}</span>{% endif %}{{ mail.date|date:"D d.m.Y H:i" }}</span>
+    </summary>
+    <dl class="facts">
+      <dt>{% translate "From" %}</dt><dd>{{ mail.sender_label }}</dd>
+      <dt>{% translate "To" %}</dt><dd>{{ mail.to_addresses|default:"–" }}</dd>
+      {% if mail.cc_addresses %}<dt>{% translate "CC" %}</dt><dd>{{ mail.cc_addresses }}</dd>{% endif %}
+      {% if mail.bcc_addresses %}<dt>{% translate "BCC" %}</dt><dd>{{ mail.bcc_addresses }}</dd>{% endif %}
+      <dt>{% translate "Date" %}</dt><dd>{{ mail.date|date:"D d.m.Y H:i" }}</dd>
+      <dt>{% translate "Subject" %}</dt><dd>{{ mail.subject|default:"–" }}</dd>
+      <dt>{% translate "Assigned" %}</dt><dd>{{ mail.get_assigned_by_display }}{% if mail.sent_by %} – {{ mail.sent_by }}{% endif %}</dd>
+      {# PRJ-106: correspondence with a supplier of subrentals. #}
+      {% if mail.supplier_id %}<dt>{% translate "Subrental" %}</dt><dd><a href="{% url 'projects:subrental' project.pk mail.supplier_id %}">{% blocktranslate with name=mail.supplier.name %}at {{ name }}{% endblocktranslate %}</a></dd>{% endif %}
+      {% if mail.attachments_note %}<dt>{% translate "Attachments" %}</dt><dd class="muted small">{{ mail.attachments_note|linebreaksbr }}</dd>{% endif %}
+    </dl>
+  </details>
+  {% include "mail/_lock_state.html" with mail=mail %}
+  {% if mail.is_automatic or mail.project_was_finished %}
+  <div class="panel-body mail-notes">
+    {% if mail.is_automatic %}<p class="note">{% blocktranslate with kind=mail.get_kind_display %}This is an {{ kind }}. Rentalars never answers such mails by itself.{% endblocktranslate %}</p>{% endif %}
+    {% if mail.project_was_finished %}<p class="note">{% translate "This mail arrived when the project was already closed or cancelled; the project manager was told." %}</p>{% endif %}
+  </div>
+  {% endif %}
+  {% if mail.html_body %}
+    {% if blocked_images and not allow_external %}<p class="note no-print">{% blocktranslate count count=blocked_images %}{{ count }} picture from another server was held back.{% plural %}{{ count }} pictures from other servers were held back.{% endblocktranslate %} <a href="?external=1">{% translate "Load them" %}</a></p>{% endif %}
+    <iframe class="mail-frame{% if frame_size %} is-{{ frame_size }}{% endif %}" sandbox="allow-popups allow-popups-to-escape-sandbox" referrerpolicy="no-referrer" title="{% translate 'Text of the mail' %}" src="{% url 'mail:body' project.pk mail.pk %}{% if allow_external %}?external=1{% endif %}"></iframe>
+  {% else %}
+    <div class="panel-body"><div class="mail-text">{{ mail.text_body|urlize|linebreaksbr }}</div></div>
+  {% endif %}
+</section>
+
+{% if attachments %}
+<section class="panel">
+  <div class="panel-head"><h2>{% translate "Attachments" %}</h2></div>
+  <table class="table stack">
+    <tbody>
+    {% for item in attachments %}
+      <tr>
+        <td><a href="{% url 'mail:attachment' project.pk mail.pk item.pk %}" target="_blank" rel="noopener">{% icon "file" %}{{ item.filename }}</a> <span class="muted small">{{ item.size|filesizeformat }}</span>
+          {% for project_file in item.project_files.all %}<div class="muted small">{% translate "in the project files" %}</div>{% endfor %}</td>
+        <td class="actions">{% if can_edit %}
+          <form method="post" action="{% url 'mail:attachment_to_files' project.pk mail.pk item.pk %}" class="inline-form compact-form">{% csrf_token %}
+            <select name="document_type" aria-label="{% translate 'Document type' %}"><option value="">{% translate "Document type …" %}</option>{% for choice in to_files_form.document_type.field.queryset %}<option value="{{ choice.pk }}">{{ choice }}</option>{% endfor %}</select>
+            <button class="btn secondary small" type="submit">{% translate "To the project files" %}</button></form>{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+
+{% if can_edit %}
+<details class="panel mail-move no-print">
+  <summary class="panel-body">{% translate "Belongs to another project?" %}</summary>
+  <div class="panel-body">
+    <form method="post" action="{% url 'mail:reassign' project.pk mail.pk %}" class="inline-form compact-form">{% csrf_token %}
+      <input type="text" name="project_number" placeholder="{% translate 'Project number' %}" aria-label="{% translate 'Project number' %}" required size="11">
+      <button class="btn secondary small" type="submit">{% translate "Move mail" %}</button>
+    </form>
+  </div>
+</details>
+{% if supplier_choices %}
+{# PRJ-106: the mail belongs to the subrentals of a supplier – shown on the page "Zumietung bei …". #}
+<details class="panel mail-move no-print">
+  <summary class="panel-body">{% translate "Belongs to a subrental?" %}</summary>
+  <div class="panel-body">
+    <form method="post" action="{% url 'projects:mail_supplier' project.pk mail.pk %}" class="inline-form compact-form">{% csrf_token %}
+      <select name="supplier" aria-label="{% translate 'Supplier' %}">
+        <option value="">{% translate "– to no subrental –" %}</option>
+        {% for choice in supplier_choices %}<option value="{{ choice.pk }}"{% if choice.pk == mail.supplier_id %} selected{% endif %}>{{ choice.name }}</option>{% endfor %}
+      </select>
+      <button class="btn secondary small" type="submit">{% translate "Assign" %}</button>
+    </form>
+  </div>
+</details>
+{% endif %}
+{% endif %}
+{% endblock %}

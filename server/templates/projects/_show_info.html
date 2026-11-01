@@ -1,0 +1,4 @@
+{% load i18n %}{% comment %}
+  PRJ-089: what a show file notes – console or software, version, and whether it is the current show. Expects: item
+  (a ProjectFile, loaded with its document type).
+{% endcomment %}{% if item.document_type.is_showfile %}<div class="muted small show-info">{{ item.show_system|default:_("console not named") }}{% if item.show_version %} · {% blocktranslate with version=item.show_version %}version {{ version }}{% endblocktranslate %}{% endif %}{% if item.is_current_show %} <span class="badge green">{% translate "current show" %}</span>{% endif %}</div>{% endif %}

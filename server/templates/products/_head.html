@@ -1,0 +1,17 @@
+{% load i18n rentalars %}
+{# Head and tabs of a product's pages (PRD-026, VFG-019). Expects: product, tab, low_stock. #}
+<div class="page-head">
+  <div>
+    <div class="breadcrumb"><a href="{% url 'products:list' %}">{% translate "Products" %}</a> / {{ product.category.path }}</div>
+    <h1><span class="artno">{{ product.article_number }}</span> {{ product.name }}</h1>
+    <p class="lead">{{ product.get_kind_display|capfirst }}{% if product.owner_id %}{# PRD-043 #} · {% blocktranslate with owner=product.owner.name asvar owned_by %}Owned by {{ owner }}{% endblocktranslate %}{% if can.read.customers %}<a href="{% url 'customers:detail' product.owner_id %}">{{ owned_by }}</a>{% else %}{{ owned_by }}{% endif %} <span class="badge accent">{% translate "customer material" %}</span>{% endif %}{% if not product.is_active %} <span class="badge">{% translate "deactivated" %}</span>{% endif %}{% if low_stock %} <span class="badge red">{% translate "below the minimum stock" %}</span>{% endif %}</p>
+  </div>
+  {# PRD-048: the form of a new product, filled from this one – saved only with "Save product". #}
+  <div class="actions">{% if can.write.products %}<a class="btn secondary" href="{% url 'products:create' %}?duplicate={{ product.pk }}">{% icon "duplicate" %}{% translate "Duplicate" %}</a><a class="btn" href="{% url 'products:edit' product.pk %}">{% icon "edit" %}{% translate "Edit product" %}</a>{% endif %}</div>
+</div>
+{% if product.tracks_stock and can.special.availability %}{# AUT-032: the timeline shows the availability #}
+<nav class="tabs" aria-label="{% translate 'Product' %}">
+  <a href="{% url 'products:detail' product.pk %}"{% if tab == "product" %} aria-current="page"{% endif %}>{% translate "Product" %}</a>
+  <a href="{% url 'products:timeline' product.pk %}"{% if tab == "timeline" %} aria-current="page"{% endif %}>{% translate "Timeline" %}</a>
+</nav>
+{% endif %}

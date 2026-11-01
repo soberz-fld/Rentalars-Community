@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Profitability" %}{% endblock %}
+{% block content %}
+{% comment %}
+  PRJ-115: the profitability of the projects of a period – revenue, costs and what remains ("Gewinn aus dem
+  Projekt", PRJ-025) per month, customer and project manager, and the projects with the most and the least left over.
+  Whole projects with their parts, confirmed or later, in the month their material comes back. The costs and what
+  remains only for who may see them (AUT-019).
+{% endcomment %}
+{% include "projects/_report_tabs.html" %}
+<div class="panel">
+  <form method="get" class="filters">
+    <div class="field"><label for="f-year">{% translate "Year" %}</label>
+      <select id="f-year" name="year" data-autosubmit>{% for value in years %}<option value="{{ value }}"{% if year == value|stringformat:"d" %} selected{% endif %}>{{ value }}</option>{% endfor %}{% if not year %}<option value="" selected>{% translate "Period below" %}</option>{% endif %}</select></div>
+    <div class="field"><label for="f-since">{% translate "or from" %}</label><input type="date" id="f-since" name="since" value="{% if not year %}{{ report.since|date:'Y-m-d' }}{% endif %}"></div>
+    <div class="field"><label for="f-until">{% translate "until" %}</label><input type="date" id="f-until" name="until" value="{% if not year %}{{ report.until|date:'Y-m-d' }}{% endif %}"></div>
+    <div class="field"><label class="check"><input type="checkbox" name="closed" value="1"{% if closed_only %} checked{% endif %} data-autosubmit> {% translate "closed projects only" %}</label></div>
+    <button class="btn secondary" type="submit">{% translate "Show" %}</button>
+    <a class="btn secondary" href="?{% if year %}year={{ year }}{% else %}since={{ report.since|date:'Y-m-d' }}&amp;until={{ report.until|date:'Y-m-d' }}{% endif %}{% if closed_only %}&amp;closed=1{% endif %}&amp;format=csv">{% icon "download" %}{% translate "CSV of the projects" %}</a>
+  </form>
+  <p class="panel-body muted small">{% blocktranslate with since=report.since|date:"d.m.Y" until=report.until|date:"d.m.Y" %}Whole projects with their subprojects whose material comes back from {{ since }} to {{ until }}, confirmed or later – figures of the planning, as in the price overview.{% endblocktranslate %}<br>{% translate "“Revenue” and “profit” here are calculated values: they come from the price planning of the projects, not from issued invoices, payments received or booked expenses. The books are in Accounting." %}{% if not shown.margin %} {% translate "Costs and profit show only with the rights to see purchase prices and personnel costs." %}{% endif %}</p>
+</div>
+
+{% with t=report.total %}
+<div class="report-tiles">
+  <div class="report-tile"><span class="label">{% translate "Projects" %}</span><span class="value num">{{ t.projects }}</span></div>
+  <div class="report-tile"><span class="label">{% translate "Calculated revenue net" %}</span><span class="value num">{{ t.revenue|money }}</span><span class="muted small">{% translate "Material" %} {{ t.material_revenue|money }} · {% translate "Personnel" %} {{ t.personnel_revenue|money }}{% if t.logistics_revenue %} · {% translate "Logistics" %} {{ t.logistics_revenue|money }}{% endif %}</span></div>
+  {% if shown.margin %}
+  <div class="report-tile"><span class="label">{% translate "Costs" %}</span><span class="value num">{{ t.costs|money }}</span><span class="muted small">{% translate "Subrentals" %} {{ t.subrental_cost|money }} · {% translate "Crew" %} {{ t.personnel_cost|money }} · {% translate "Expenses" %} {{ t.expenses|money }}{% if t.logistics_cost %} · {% translate "Vehicles" %} {{ t.logistics_cost|money }}{% endif %}</span></div>
+  <div class="report-tile{% if t.margin < 0 %} is-loss{% endif %}"><span class="label">{% translate "Calculated profit" %}</span><span class="value num">{{ t.margin|money }}</span><span class="muted small">{% if t.margin_percent is not None %}{% blocktranslate with percent=t.margin_percent|number %}{{ percent }} % of the revenue{% endblocktranslate %}{% endif %}</span></div>
+  {% endif %}
+</div>
+{% endwith %}
+
+<section class="panel" aria-labelledby="report-months">
+  <div class="panel-head"><h2 id="report-months">{% translate "Per month" %}</h2></div>
+  <div class="table-scroll">
+  <table class="table report-table">
+    <thead><tr><th scope="col">{% translate "Month" %}</th><th scope="col" class="num">{% translate "Projects" %}</th><th scope="col" class="num">{% translate "Calculated revenue net" %}</th>{% if shown.margin %}<th scope="col" class="num">{% translate "Costs" %}</th><th scope="col" class="num">{% translate "Calculated profit" %}</th><th scope="col" class="num">{% translate "Calculated margin" %}</th>{% endif %}<th scope="col" class="report-bar-head"><span class="visually-hidden">{% translate "Revenue and profit as bars" %}</span></th></tr></thead>
+    <tbody>
+    {% for group in report.months %}{% with f=group.figures %}
+      <tr>
+        <td>{{ group.label }}</td>
+        <td class="num">{{ f.projects }}</td>
+        <td class="num">{{ f.revenue|money }}</td>
+        {% if shown.margin %}<td class="num">{{ f.costs|money }}</td><td class="num{% if f.margin < 0 %} is-loss{% endif %}">{{ f.margin|money }}</td><td class="num">{% if f.margin_percent is not None %}{{ f.margin_percent|number }} %{% endif %}</td>{% endif %}
+        <td class="report-bar" aria-hidden="true"><span class="bar revenue" style="width: {% widthratio f.revenue report.largest_month_revenue 100 %}%"></span>{% if shown.margin and f.margin > 0 %}<span class="bar margin" style="width: {% widthratio f.margin report.largest_month_revenue 100 %}%"></span>{% endif %}</td>
+      </tr>
+    {% endwith %}{% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <p class="panel-body muted small report-legend"><span class="bar revenue"></span> {% translate "calculated revenue net" %}{% if shown.margin %} <span class="bar margin"></span> {% translate "calculated profit" %}{% endif %}</p>
+</section>
+
+<div class="columns">
+  <section class="panel" aria-labelledby="report-customers">
+    <div class="panel-head"><h2 id="report-customers">{% translate "Per customer" %}</h2></div>
+    {% include "projects/_report_groups.html" with groups=report.customers|slice:":15" %}
+  </section>
+  <section class="panel" aria-labelledby="report-managers">
+    <div class="panel-head"><h2 id="report-managers">{% translate "Per project manager" %}</h2></div>
+    {% include "projects/_report_groups.html" with groups=report.managers %}
+  </section>
+</div>
+
+{% if shown.margin and report.rows %}
+<div class="columns">
+  <section class="panel" aria-labelledby="report-best">
+    <div class="panel-head"><h2 id="report-best">{% translate "Most left over" %}</h2></div>
+    {% include "projects/_report_rows.html" with rows=report.best %}
+  </section>
+  <section class="panel" aria-labelledby="report-worst">
+    <div class="panel-head"><h2 id="report-worst">{% translate "Least left over" %}</h2></div>
+    {% include "projects/_report_rows.html" with rows=report.worst %}
+  </section>
+</div>
+{% endif %}
+{% endblock %}

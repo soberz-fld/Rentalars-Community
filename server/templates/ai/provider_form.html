@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% if provider %}{% translate "Edit interface" %}{% else %}{% translate "New interface" %}{% endif %}{% endblock %}
+{% block content %}
+{# ADM-017: an OpenAI-compatible interface – a server in the company network or a cloud service. #}
+<div class="page-head"><div><div class="breadcrumb"><a href="{% url 'core:administration' %}">{% translate "Settings" %}</a> / <a href="{% url 'ai:settings' %}">{% translate "AI" %}</a></div>
+<h1>{% if provider %}{% translate "Edit interface" %}{% else %}{% translate "New interface" %}{% endif %}</h1>
+<p class="lead">{% translate "A server that speaks the OpenAI interface: Ollama, LM Studio or vLLM in the company network, or a cloud service. It is used only for the uses you choose for it." %}</p></div></div>
+{% if provider and provider.leaves_company %}<p class="note red">{% translate "This address is on the internet: whatever is sent to it – mails of the projects – leaves the company. Use a cloud service only if your contract with it allows the processing of these data." %}</p>{% endif %}
+<form method="post" class="form wide" novalidate autocomplete="off">
+  {% csrf_token %}
+  {% include "core/_form_errors.html" %}
+  <div class="panel"><div class="panel-body form">
+    {% for field in form %}{% include "core/_field.html" %}{% endfor %}
+    {% if provider.has_api_key %}<p class="muted small">{% translate "A key is stored. It is never shown again." %}</p>{% endif %}
+  </div></div>
+  <div class="btn-row"><button class="btn" type="submit">{% translate "Save interface" %}</button><a class="btn secondary" href="{% url 'ai:settings' %}#providers">{% translate "Cancel" %}</a></div>
+</form>
+{% if provider and can_delete %}
+<form method="post" action="{% url 'ai:provider_delete' provider.pk %}" class="btn-row">{% csrf_token %}<button class="btn secondary" type="submit" data-confirm="{% translate 'Delete this interface? Uses that chose it are switched off.' %}">{% icon "trash" %}{% translate "Delete" %}</button></form>
+{% endif %}
+{% endblock %}

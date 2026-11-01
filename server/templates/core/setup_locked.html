@@ -1,0 +1,9 @@
+{% extends "base_public.html" %}
+{% load i18n %}
+{% block title %}{% translate "Set up Rentalars" %}{% endblock %}
+{% block content %}
+<h1>{% translate "Set up Rentalars" %}</h1>
+<p>{% translate "This installation is not set up yet. For safety, the setup can only be opened through the one-time address that the installation printed." %}</p>
+<p class="muted">{% translate "Lost the address? Run this on the server to get a new one:" %}</p>
+<p><code>sudo rentalars prepare_setup</code></p>
+{% endblock %}

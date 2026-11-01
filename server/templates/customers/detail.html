@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% load i18n rentalars subprojects maps %}
+{% block title %}{{ customer.name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><div class="breadcrumb"><a href="{% url 'customers:list' %}">{% translate "Customers" %}</a></div><h1>{{ customer.name }}</h1>
+  <p class="lead">{% translate "Customer number" %} {{ customer.number }}, {{ customer.get_kind_display }}{% if not customer.is_active %} <span class="badge">{% translate "deactivated" %}</span>{% endif %}{% if customer.is_anonymised %} <span class="badge">{% translate "anonymised" %}</span>{% endif %}</p></div>
+  <div class="actions">
+    {% if can.write.projects and customer.is_active %}<a class="btn secondary" href="{% url 'projects:create' %}?customer={{ customer.pk }}">{% icon "plus" %}{% translate "New project" %}</a>{% endif %}
+    {% if can.write.customers and not customer.is_anonymised %}<a class="btn" href="{% url 'customers:edit' customer.pk %}">{% icon "edit" %}{% translate "Edit customer" %}</a>{% endif %}
+  </div>
+</div>
+<div class="columns">
+  <section class="panel">
+    <div class="panel-head"><h2>{% translate "Billing address" %}</h2></div>
+    <div class="panel-body">
+      <p>{% for line in customer.address_lines %}{{ line }}{% if not forloop.last %}<br>{% endif %}{% endfor %}</p>
+      {# UIX-033: from where the viewer is; UIX-034: one map with the main and the further addresses. #}
+      {% with line=customer|address_line %}{% if line %}<p class="no-print">{% route_link line %}</p>{% map_box "customer" customer.pk %}{% endif %}{% endwith %}
+      <dl class="facts">
+        {% if customer.email %}<dt>{% translate "E-mail" %}</dt><dd><a href="mailto:{{ customer.email }}">{{ customer.email }}</a></dd>{% endif %}
+        {% if customer.phone %}<dt>{% translate "Phone" %}</dt><dd><a href="tel:{{ customer.phone }}">{{ customer.phone }}</a></dd>{% endif %}
+        {% if customer.vat_id %}<dt>{% translate "VAT ID" %}</dt><dd>{{ customer.vat_id }}</dd>{% endif %}
+        {% if customer.tax_number %}<dt>{% translate "Tax number" %}</dt><dd>{{ customer.tax_number }}</dd>{% endif %}
+        {% if customer.payment_terms_days is not None %}<dt>{% translate "Payment terms" %}</dt><dd>{% blocktranslate count days=customer.payment_terms_days %}{{ days }} day{% plural %}{{ days }} days{% endblocktranslate %}</dd>{% endif %}
+        {% if can_see_prices and customer.default_discount_percent %}<dt>{% translate "Default discount" %}</dt><dd>{{ customer.default_discount_percent|number }} %</dd>{% endif %}
+        {% if customer.note %}<dt>{% translate "Note" %}</dt><dd>{{ customer.note|linebreaksbr }}</dd>{% endif %}
+      </dl>
+    </div>
+  </section>
+  <section class="panel">
+    <div class="panel-head"><h2>{% translate "Further addresses" %}</h2>{% if can.write.customers and not customer.is_anonymised %}<a class="btn secondary small" href="{% url 'customers:address_create' customer.pk %}">{% icon "plus" %}{% translate "New address" %}</a>{% endif %}</div>
+    {% if addresses %}
+    <table class="table stack">
+      <tbody>
+      {% for address in addresses %}
+        <tr>
+          <td>{% if can.write.customers %}<a href="{% url 'customers:address_edit' customer.pk address.pk %}">{{ address.get_kind_display|capfirst }}</a>{% else %}{{ address.get_kind_display|capfirst }}{% endif %}{% if address.is_default %} <span class="badge accent">{% translate "default" %}</span>{% endif %}{% if address.label %}<div class="muted small">{{ address.label }}</div>{% endif %}</td>
+          <td>{% for line in address.address_lines %}{{ line }}{% if not forloop.last %}<br>{% endif %}{% endfor %}
+            {# UIX-033: a delivery address is driven to from the warehouse. #}
+            <div class="no-print">{% route_link address|address_line %}</div></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}<div class="empty">{% translate "Billing and delivery addresses besides the main address." %}</div>{% endif %}
+  </section>
+  <section class="panel">
+    <div class="panel-head"><h2>{% translate "Contacts" %}</h2>{% if can.write.customers and not customer.is_anonymised %}<a class="btn secondary small" href="{% url 'customers:contact_create' customer.pk %}">{% icon "plus" %}{% translate "New contact" %}</a>{% endif %}</div>
+    {# V8: a list under one another, not a table of three columns in a narrow box. #}
+    {% if contacts %}
+    <ul class="contact-list">
+      {% for contact in contacts %}
+      <li>
+        <div class="contact-name">{% if can.write.customers %}<a href="{% url 'customers:contact_edit' customer.pk contact.pk %}">{% if contact.salutation %}{{ contact.salutation }} {% endif %}{{ contact.name }}</a>{% else %}{% if contact.salutation %}{{ contact.salutation }} {% endif %}{{ contact.name }}{% endif %}{% if contact.is_primary %} <span class="badge accent">{% translate "primary" %}</span>{% endif %}</div>
+        {% if contact.position %}<div class="muted small">{{ contact.position }}</div>{% endif %}
+        {% if contact.email or contact.phone %}<div class="contact-ways">{% if contact.email %}<a href="mailto:{{ contact.email }}">{{ contact.email }}</a>{% endif %}{% if contact.phone %} <a href="tel:{{ contact.phone }}">{{ contact.phone }}</a>{% endif %}</div>{% endif %}
+        {% if contact.greeting_line %}<div class="muted small">{% translate "Greeting in e-mails" %}: {{ contact.greeting_line }}</div>{% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}<div class="empty">{% translate "No contact persons yet." %}</div>{% endif %}
+  </section>
+</div>
+
+{% if projects is not None %}
+<section class="panel">
+  <div class="panel-head"><h2>{% translate "Projects" %}</h2></div>
+  {% if projects %}
+  <table class="table stack">
+    <thead><tr><th>{% translate "Project" %}</th><th>{% translate "Period" %}</th><th>{% translate "Status" %}</th></tr></thead>
+    <tbody>
+    {% for project in projects %}
+      <tr>
+        <td>{% if project.parent_id %}<span class="part-of" aria-hidden="true">↳</span> {% endif %}<a href="{% url 'projects:overview' project.pk %}">{{ project.number }} {{ project.name }}</a>{% if project.parent_id %}<div class="muted small">{{ project|part_of }}</div>{% endif %}</td>
+        <td data-label="{% translate 'Period' %}">{{ project.start|date:"d.m.Y" }} – {{ project.end|date:"d.m.Y" }}</td>
+        <td data-label="{% translate 'Status' %}"><span class="badge {{ project.status|status_colour }}">{{ project.get_status_display }}</span></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<div class="empty">{% translate "This customer has no projects yet." %}</div>{% endif %}
+</section>
+{% endif %}
+
+{% if outgoing %}
+{# Free outgoing documents: what the customer got – for projects and without one – and the drafts. #}
+<section class="panel" id="customer-documents">
+  <div class="panel-head"><h2>{% translate "Outgoing documents" %}</h2>{% if outgoing.may_make %}<a class="btn secondary small" href="{% url 'documents:free_new' %}?customer={{ customer.pk }}" hx-get="{% url 'documents:free_new' %}?customer={{ customer.pk }}" hx-target="#dialog" aria-haspopup="dialog">{% icon "plus" %}{% translate "New outgoing document" %}</a>{% endif %}</div>
+  {% if outgoing.drafts %}<p class="panel-body small">{% translate "Drafts:" %} {% for draft in outgoing.drafts %}<a href="{% url 'documents:free_edit' draft.pk %}">{{ draft.get_kind_display|capfirst }}{% if draft.reference %} {{ draft.reference }}{% endif %}</a>{% if not forloop.last %}, {% endif %}{% endfor %}</p>{% endif %}
+  {% if outgoing.documents %}
+  <table class="table stack">
+    <thead><tr><th>{% translate "Document" %}</th><th>{% translate "Date" %}</th><th>{% translate "Project" %}</th><th class="num">{% translate "Gross" %}</th></tr></thead>
+    <tbody>
+    {% for document in outgoing.documents %}
+      <tr>
+        <td><a href="{% url 'documents:file' document.pk %}" target="_blank" rel="noopener">{{ document.title }} {{ document.number }}</a>{% if document.is_cancelled %} <span class="badge">{% translate "cancelled" %}</span>{% endif %}</td>
+        <td data-label="{% translate 'Date' %}">{{ document.issued_on|date:"d.m.Y" }}</td>
+        <td data-label="{% translate 'Project' %}">{% if document.project_id %}<a href="{% url 'documents:list' document.project %}">{{ document.project.number }}</a>{% else %}<a href="{% url 'documents:free_document' document.pk %}">{% translate "without project" %}</a>{% if document.reference %}<div class="muted small">{{ document.reference }}</div>{% endif %}{% endif %}</td>
+        <td class="num" data-label="{% translate 'Gross' %}">{% if document.gross_total is not None %}{{ document.gross_total|money }}{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% if outgoing.count > outgoing.documents|length %}<p class="panel-body small"><a href="{% url 'documents:outgoing' %}?customer={{ customer.pk }}">{% blocktranslate with count=outgoing.count %}All {{ count }} documents of this customer{% endblocktranslate %}</a></p>{% endif %}
+  {% else %}<div class="empty">{% translate "No documents yet." %}</div>{% endif %}
+</section>
+{% endif %}
+
+{% if material is not None %}
+{# PRD-043: the customer's own material, stored here and taken along to the customer's projects. #}
+<section class="panel" id="customer-material">
+  <div class="panel-head"><h2>{% translate "Customer's material in the warehouse" %}</h2>{% if can.write.products and not customer.is_anonymised %}<a class="btn secondary small" href="{% url 'products:create' %}?owner={{ customer.pk }}">{% icon "plus" %}{% translate "Add material" %}</a>{% endif %}</div>
+  {% if material %}
+  <table class="table stack">
+    <thead><tr><th>{% translate "Product" %}</th><th class="num">{% translate "Stock" %}</th><th>{% translate "Storage location" %}</th></tr></thead>
+    <tbody>
+    {% for entry in material %}
+      <tr>
+        <td><a class="artno" href="{% url 'products:detail' entry.product.pk %}">{{ entry.product.article_number }}</a> {{ entry.product.name }}{% if not entry.product.is_active %} <span class="badge">{% translate "deactivated" %}</span>{% endif %}<div class="muted small">{{ entry.product.category.name }}</div></td>
+        <td class="num" data-label="{% translate 'Stock' %}">{{ entry.stock.total }} {{ entry.product.unit.abbreviation }}{% if entry.stock.plannable != entry.stock.total %}<div class="muted small">{% blocktranslate with count=entry.stock.plannable %}{{ count }} plannable{% endblocktranslate %}</div>{% endif %}</td>
+        <td data-label="{% translate 'Storage location' %}">{% if entry.locations %}{{ entry.locations|join:", " }}{% else %}<span class="muted">–</span>{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<div class="empty">{% translate "This customer keeps no material here. Gear a customer stores with you – the mixing desk of a band, say – is added as a product with the customer as owner." %}</div>{% endif %}
+</section>
+{% endif %}
+
+<section class="panel">
+  <div class="panel-head"><h2>{% translate "History" %}</h2></div>
+  {% include "core/_history.html" %}
+</section>
+
+{% if can.delete.customers %}
+<div class="section btn-row">
+  {% if not projects and not material %}<form method="post" action="{% url 'customers:delete' customer.pk %}">{% csrf_token %}<button class="btn danger" type="submit" data-confirm="{% translate 'Delete this customer for good?' %}">{% icon "trash" %}{% translate "Delete customer" %}</button></form>{% endif %}
+  {% if not customer.is_anonymised %}<a class="btn secondary" href="{% url 'customers:export' customer.pk %}">{% translate "Export all stored data" %}</a>{% endif %}
+  {% if not customer.is_anonymised %}<form method="post" action="{% url 'customers:anonymise' customer.pk %}">{% csrf_token %}<button class="btn danger" type="submit" data-confirm="{% translate 'Erase all personal data of this customer? Name, address and contacts are removed; the projects stay. This cannot be undone.' %}">{% translate "Anonymise customer" %}</button></form>{% endif %}
+</div>
+{% endif %}
+{% endblock %}

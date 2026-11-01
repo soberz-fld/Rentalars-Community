@@ -1,0 +1,12 @@
+{% load i18n rentalars %}
+{# Surcharges that refer to several groups or the whole project (PRD-031). #}
+{% if planning.surcharges %}
+<section id="planning-surcharges"{% if oob %} hx-swap-oob="true"{% endif %} class="group">
+  <div class="group-head"><h3>{% translate "Surcharges" %}</h3><span class="muted small">{% translate "Surcharges that refer to several groups or the whole project" %}</span></div>
+  {% translate "Subtotal" as subtotal_label %}{% translate "Choose all surcharges" as select_label %}
+  {% include "projects/_lines.html" with lines=planning.surcharges group_id="" not_sortable=True subtotal_amount=planning.prices.surcharges_total select_label=select_label %}
+</section>
+{% else %}
+{# An empty stand-in keeps the place, so that the section can appear without loading the page. #}
+<div id="planning-surcharges"{% if oob %} hx-swap-oob="true"{% endif %} hidden></div>
+{% endif %}

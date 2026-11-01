@@ -1,0 +1,64 @@
+{% load i18n rentalars %}
+{% comment %}
+  Hints that speak about all lines of the project. To know how many pieces are missing, the availability
+  of every line must be calculated – the expensive part of the planning. After a change of one line the
+  answer therefore comes without these hints (NFA-013), and this block fetches its content anew when it
+  hears "planningChanged", which every such answer announces in its HX-Trigger header.
+
+  If a second change is announced while the hints for the first are still being fetched, htmx queues one
+  more fetch for when that one is done – but only for an element that is still in the page then. The
+  block therefore stays and only its content is exchanged: hx-select takes the content out of the
+  answer, which is this same template. A block that replaced itself would lose the queued fetch, and the
+  hints would show the state between the two changes.
+
+  The forms among the hints answer with the whole planning. They must not inherit hx-select, target and
+  swap of this block – a form that did replaced the planning with the hints alone (PRJ-072) – hence
+  hx-disinherit.
+{% endcomment %}
+<div id="planning-notes" hx-get="{% url 'projects:planning_notes' project.pk %}" hx-trigger="planningChanged from:body" hx-target="this" hx-select="#planning-notes > *" hx-swap="innerHTML" hx-disinherit="hx-select hx-target hx-swap">
+  {% if planning.short_lines and can.special.availability %}{# AUT-032: availability as a special right #}
+  <p class="note red"><strong>{% blocktranslate count count=planning.shortage_total %}{{ count }} piece is missing.{% plural %}{{ count }} pieces are missing.{% endblocktranslate %}</strong>
+  {% translate "The lines marked in red are saved, but not covered by the stock in their period. Reduce them, move them, or subrent the missing pieces." %}</p>
+  {% endif %}
+  {% if planning.excess_cover_lines and can.special.availability %}
+  <p class="note">{% translate "A subrental is no longer needed in full: the stock now covers more of the line it was booked for." %}
+  {% for planned in planning.excess_cover_lines %}<strong>{{ planned.line.title }}</strong> ({{ planned.excess_cover }}){% if not forloop.last %}, {% endif %}{% endfor %}</p>
+  {% endif %}
+  {% if planning.product_changes %}
+  {# PRJ-072: products that changed since the lines took them over – prices, names, units, tax rates, billing modes; only before the project is confirmed. #}
+  <div class="note price-hint" id="product-changes">
+    <form class="btn-row" hx-post="{% url 'projects:changes_update' project.pk %}" hx-target="#planning" hx-swap="outerHTML" hx-confirm="{% translate 'Take over the new values of the products in this project? Names and prices of the lines change.' %}">
+      <span>{% blocktranslate count count=planning.product_changes|length %}{{ count }} line differs from its product: the product has been changed since it was planned.{% plural %}{{ count }} lines differ from their products: the products have been changed since they were planned.{% endblocktranslate %}</span>
+      {% if can_edit and planning.changes_not_by_hand %}<button class="btn secondary small" type="submit" name="scope" value="automatic">{% translate "Take over the changes" %}</button>{% endif %}
+    </form>
+    <details class="price-changes" data-keep="price-changes" open>
+      <summary>{% translate "Old and new values" %}</summary>
+      <table class="table stack">
+        <thead><tr><th>{% translate "Line" %}</th><th>{% translate "Changes" %}</th><th class="no-print"></th></tr></thead>
+        <tbody>
+        {% for change in planning.product_changes %}
+          <tr data-product-change="{{ change.key }}">
+            <td>{% if change.article_number %}<span class="artno">{{ change.article_number }}</span> {% endif %}<span class="title">{{ change.title }}</span>{% if change.is_crew %} <span class="muted small">{% translate "Personnel" %}</span>{% endif %}{% if change.set_by_hand %} <span class="badge">{% translate "set by hand" %}</span>{% endif %}</td>
+            <td data-label="{% translate 'Changes' %}"><ul class="plain">
+              {% for part in change.fields %}<li data-change-field="{{ part.field }}"><span class="muted">{{ part.label }}:</span> {{ part.old }} → <strong>{{ part.new }}</strong></li>{% endfor %}
+              {% if change.price %}<li data-change-field="price"><span class="muted">{% translate "Price" %}:</span> {{ change.price.unit_price|money }} → <strong>{{ change.price.new_price|money }}</strong>{% if change.price.set_by_hand and change.price.list_price is not None %} <span class="sub">({% blocktranslate with price=change.price.list_price|money %}product then: {{ price }}{% endblocktranslate %})</span>{% endif %}</li>{% endif %}
+            </ul></td>
+            <td class="actions no-print">{% if can_edit %}
+              <form class="inline-form" hx-post="{% url 'projects:changes_update' project.pk %}" hx-target="#planning" hx-swap="outerHTML"><input type="hidden" name="take_over" value="{{ change.key }}"><button class="btn secondary small" type="submit">{% translate "Take over" %}</button></form>
+              {% if change.set_by_hand %}<form class="inline-form" hx-post="{% url 'projects:changes_update' project.pk %}" hx-target="#planning" hx-swap="outerHTML"><input type="hidden" name="keep" value="{{ change.key }}"><button class="link-btn" type="submit">{% translate "Keep own values" %}</button></form>{% endif %}
+            {% endif %}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      {% if planning.changes_not_by_hand != planning.product_changes|length %}<p class="muted small">{% translate "Lines with values set by hand stay as they are until you take over the new values or keep your own, line by line." %}</p>{% endif %}
+    </details>
+  </div>
+  {% endif %}
+  {% if can_see_prices and planning.prices.outdated_scale_lines %}
+  <form class="note" hx-post="{% url 'projects:refresh_scales' project.pk %}" hx-target="#planning" hx-swap="outerHTML">
+    {% blocktranslate count count=planning.prices.outdated_scale_lines %}{{ count }} line still calculates with an older state of its rental scale.{% plural %}{{ count }} lines still calculate with an older state of their rental scale.{% endblocktranslate %}
+    {% if can_edit %}<button class="btn secondary small" type="submit">{% translate "Switch to the current scale" %}</button>{% endif %}
+  </form>
+  {% endif %}
+</div>

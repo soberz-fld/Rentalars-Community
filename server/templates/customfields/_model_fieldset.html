@@ -1,0 +1,4 @@
+{% load i18n customfields %}{% comment %}
+  MAT-072: the fieldset of a material model in the facts of its page – the fields every item has (* required).
+  Expects: model.
+{% endcomment %}{% model_fieldset model as info %}{% if info %}<dt>{% translate "Custom fields" %}</dt><dd>{% if can.write.administration %}<a href="{% url 'customfields:fieldset_edit' info.fieldset.pk %}">{{ info.fieldset.name }}</a>{% elif can.read.administration %}<a href="{% url 'customfields:fieldset_list' %}">{{ info.fieldset.name }}</a>{% else %}{{ info.fieldset.name }}{% endif %}{% if info.entries %}: {% for entry in info.entries %}{{ entry.field.name }}{% if entry.is_required %}<span title="{% translate 'required field' %}">*</span>{% endif %}{% if not forloop.last %}, {% endif %}{% endfor %}{% endif %}</dd>{% endif %}

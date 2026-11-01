@@ -1,0 +1,44 @@
+{% load i18n rentalars %}{% comment %}
+  MAT-061 (purchase entry): one position of "Kauf einpflegen". Expects: row (a form of the formset "pos"), number (its
+  place, "" for the empty template row). A row from the invoice shows what the invoice said and the models that may
+  be meant, and has to be ticked as checked. A name that is no model yet opens the fields of a new model.
+{% endcomment %}{% with new=row.is_new_model source=row.from_invoice %}
+<fieldset class="purchase-row{% if row.errors %} has-error{% endif %}" data-formset-row>
+  <legend>{% if number %}{% blocktranslate %}Position {{ number }}{% endblocktranslate %}{% else %}{% translate "New position" %}{% endif %}</legend>
+  {{ row.source }}{{ row.candidates }}{{ row.hint }}
+  {% if row.non_field_errors %}<div class="message error">{{ row.non_field_errors }}</div>{% endif %}
+  {% if source %}<p class="purchase-source"><span class="badge accent">{% translate "from the invoice" %}</span> {{ source }}</p>{% endif %}
+  {% for hint in row.hints %}<p class="note small purchase-hint">{{ hint }}</p>{% endfor %}{# MAT-076: a proposal of the AI that was not filled in #}
+  <div class="purchase-grid">
+    <div class="purchase-model">
+      {% url 'material:purchase_model_suggest' as model_url %}{% translate "Search or type a new name" as model_placeholder %}{% include "material/_name_typeahead.html" with field=row.model_name url=model_url placeholder=model_placeholder %}
+      {% with names=row.candidate_names %}{% if names %}<p class="purchase-candidates small">{% translate "Perhaps:" %} {% for name in names %}<button type="button" class="link-btn" data-purchase-model="{{ name }}" aria-controls="{{ row.model_name.auto_id }}">{{ name }}</button>{% if not forloop.last %}, {% endif %}{% endfor %}</p>{% endif %}{% endwith %}
+      {% if new %}<p class="small"><span class="badge yellow">{% translate "new model" %}</span> {% translate "created with its category when you save" %}</p>{% endif %}
+    </div>
+    <div class="purchase-count">{% include "core/_field.html" with field=row.count %}</div>
+    {% if row.unit_price %}<div class="purchase-price">{% include "core/_field.html" with field=row.unit_price %}</div>{% endif %}
+    <div class="purchase-location">{% include "core/_field.html" with field=row.storage_location %}</div>
+    <div class="purchase-article">{% include "core/_field.html" with field=row.article_number %}</div>
+  </div>
+  <details class="purchase-new-model"{% if new or row.category.errors or row.product_text.errors %} open{% endif %}>
+    <summary>{% translate "New model: category, manufacturer, product" %}</summary>
+    <div class="form-grid">
+      {% include "core/_field.html" with field=row.category %}
+      {% url 'material:manufacturer_suggest' as manufacturer_url %}{% translate "Search or type a new name" as manufacturer_placeholder %}{% include "material/_name_typeahead.html" with field=row.manufacturer_name url=manufacturer_url placeholder=manufacturer_placeholder %}
+      {% url 'material:product_suggest' as product_url %}{% translate "Article number or name" as product_placeholder %}{# Review (PRD-043): no customer material for a purchase #}{% include "material/_name_typeahead.html" with field=row.product_text url=product_url|add:"?for=purchase" placeholder=product_placeholder %}
+    </div>
+  </details>
+  {# MAT-050: one serial number per item; the page script shows a field per item, as in "New items". #}
+  <div class="field serial-numbers{% if row.serial_numbers.errors %} has-error{% endif %}" data-serial-numbers data-count-field="{{ row.count.auto_id }}" data-count="{{ row.serial_count }}" data-item-label="{% translate 'Item' %}" data-fields-help="{% translate 'In the order of the IDs. Empty: that item has none.' %}">
+    <label for="{{ row.serial_numbers.auto_id }}">{{ row.serial_numbers.label }}{% include "core/_required_mark.html" with field=row.serial_numbers %}</label>
+    {{ row.serial_numbers }}
+    {% if row.serial_numbers.help_text %}<div class="help" id="{{ row.serial_numbers.auto_id }}_helptext">{{ row.serial_numbers.help_text }}</div>{% endif %}
+    {{ row.serial_numbers.errors }}
+  </div>
+  <div class="purchase-row-tools">
+    {% if row.price_for_set %}{% include "core/_field.html" with field=row.price_for_set %}{% endif %}
+    {% if source %}{% include "core/_field.html" with field=row.confirmed %}{% endif %}
+    {% if row.DELETE %}<div data-purchase-remove>{% include "core/_field.html" with field=row.DELETE %}</div>{% endif %}
+  </div>
+</fieldset>
+{% endwith %}

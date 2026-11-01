@@ -1,0 +1,33 @@
+{% load i18n rentalars %}
+{# PRJ-060: plan pieces of another part of the same whole project once more – they come straight from there. #}
+<div class="takeover-dialog">
+  <div class="dialog-head"><h2>{% translate "Take over from another subproject" %}</h2><button type="button" class="icon-btn" data-close-dialog aria-label="{% translate 'Close' %}">{% icon "close" %}</button></div>
+  <div class="dialog-body">
+    <p class="muted small">{% translate "The pieces go straight from that part to this one instead of back to the warehouse. They appear on both packing lists and are charged once, on the line they come from." %}</p>
+    {% if sources %}
+    <table class="table stack takeover-sources">
+      <thead><tr><th>{% translate "Comes from" %}</th><th>{% translate "Line" %}</th><th class="num">{% translate "Left" %}</th><th></th></tr></thead>
+      <tbody>
+      {% for line in sources %}
+        <tr>
+          <td>{{ line.project.number }}<div class="muted small">{{ line.project.name }}</div></td>
+          <td data-label="{% translate 'Line' %}"><span class="artno">{{ line.product.article_number }}</span> {{ line.title }}<div class="muted small">{% translate "back there" %} {{ line.end|date:"D d.m. H:i" }}</div></td>
+          <td class="num" data-label="{% translate 'Left' %}">{{ line.left_to_take_over|number }}</td>
+          <td>
+            <form class="inline-fields" hx-post="{% url 'projects:takeover' project.pk %}" hx-target="#planning" hx-swap="outerHTML">
+              <input type="hidden" name="source" value="{{ line.pk }}">
+              <input type="number" name="quantity" min="1" max="{{ line.left_to_take_over|floatformat:0 }}" value="{{ line.left_to_take_over|floatformat:0 }}" class="qty" aria-label="{% translate 'Quantity' %}">
+              {% if groups %}<select name="group" aria-label="{% translate 'Group' %}"><option value="">{% translate "– without group –" %}</option>{% for group in groups %}<option value="{{ group.pk }}">{{ group.name }}</option>{% endfor %}</select>{% endif %}
+              <button class="btn small" type="submit">{% translate "Take over" %}</button>
+            </form>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty">{% translate "There is nothing to take over: no other part of this whole project has material that starts earlier and is not taken over already." %}</div>
+    {% endif %}
+  </div>
+  <div class="dialog-foot"><button type="button" class="btn secondary" data-close-dialog>{% translate "Close" %}</button></div>
+</div>

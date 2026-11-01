@@ -1,0 +1,5 @@
+{% load i18n rentalars %}
+{# The bar under the outgoing documents – the chosen documents as one ZIP file (PDF, and XRechnung where there is one). #}
+<span class="bulk-buttons">
+  <button class="btn small" type="submit" formaction="{% url 'documents:outgoing_download' %}" name="action" value="download" formnovalidate>{% icon "download" %}{% translate "Download chosen documents (ZIP)" %}</button>
+</span>

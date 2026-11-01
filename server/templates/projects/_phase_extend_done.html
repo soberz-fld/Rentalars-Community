@@ -1,0 +1,16 @@
+{% load i18n %}
+{% comment %}
+  PRJ-100: the answer to "Extend" in the dialog over the crew planning – what happened, with a warning when the
+  longer period leaves the project short of material, or why the period could not be extended.
+  Expects: errors (texts), notes (pairs of message level and text).
+{% endcomment %}
+<div class="dialog-head"><h2 id="phase-dialog-title">{% if errors %}{% translate "The rental period stays as it was" %}{% else %}{% translate "Rental period extended" %}{% endif %}</h2></div>
+<div class="dialog-body">
+  <div role="status">
+  <ul class="messages">
+    {% for text in errors %}<li class="message error">{{ text }}</li>{% endfor %}
+    {% for level, text in notes %}<li class="message {{ level }}">{{ text }}</li>{% endfor %}
+  </ul>
+  </div>
+</div>
+<div class="dialog-foot"><button type="button" class="btn" data-close-dialog autofocus>{% translate "Close" %}</button></div>

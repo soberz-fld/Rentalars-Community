@@ -1,0 +1,111 @@
+# Runs all automatic checks on every change (NFA-020).
+#
+# Two jobs: the full check on SQLite, which is quick, and the tests again on
+# MariaDB, the database of a real installation (NFA-001). The MariaDB run also
+# executes the test for simultaneous bookings, which needs real row locks.
+#
+# Both jobs run twice, once with what Ubuntu Server 24.04 LTS brings and once
+# with what 26.04 LTS brings (NFA-063):
+#
+#   Ubuntu 24.04   Python 3.12   MariaDB 10.11
+#   Ubuntu 26.04   Python 3.14   MariaDB 11.8
+#
+# The scripts of the deploy folder cannot run here; how they were tried on
+# both systems is recorded in server/docs/betrieb/installation.md.
+#
+# The repository holds several components; this workflow checks the server
+# (folder server/). Other components get their own workflow.
+name: checks
+
+on:
+  push:
+    paths: ["server/**", ".github/**"]
+  pull_request:
+    paths: ["server/**", ".github/**"]
+
+defaults:
+  run:
+    working-directory: server
+
+jobs:
+  check:
+    name: Style, licences, tests (SQLite, Python ${{ matrix.python }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - python: "3.12"
+          - python: "3.14"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+          cache-dependency-path: server/requirements-dev.txt
+      - name: System libraries for PDF creation and the MariaDB connector
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz0b libharfbuzz-subset0 libmariadb-dev shellcheck ffmpeg
+      - run: pip install -r requirements-dev.txt
+      - run: scripts/check.sh
+
+  mariadb:
+    name: Tests on MariaDB (as on Ubuntu ${{ matrix.ubuntu }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - ubuntu: "24.04"
+            python: "3.12"
+            mariadb: "mariadb:10.11"
+          - ubuntu: "26.04"
+            python: "3.14"
+            mariadb: "mariadb:11.8"
+    services:
+      mariadb:
+        image: ${{ matrix.mariadb }}
+        env:
+          MARIADB_DATABASE: rentalars
+          MARIADB_USER: rentalars
+          MARIADB_PASSWORD: rentalars
+          MARIADB_ROOT_PASSWORD: root
+        ports: ["3306:3306"]
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+          cache-dependency-path: server/requirements-dev.txt
+      - name: System libraries
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz0b libharfbuzz-subset0 libmariadb-dev mariadb-client ffmpeg
+      - run: pip install -r requirements-dev.txt
+      - name: Let the test user create the test database
+        run: mariadb -h 127.0.0.1 -uroot -proot -e "GRANT ALL ON \`test_rentalars\`.* TO 'rentalars'@'%';"
+      - name: Configuration that points to the MariaDB service
+        run: |
+          cat > ci.conf <<CONF
+          [rentalars]
+          environment = test
+          secret_key = ci-only
+          data_dir = ${{ runner.temp }}/rentalars-data
+          [database]
+          engine = mariadb
+          name = rentalars
+          user = rentalars
+          password = rentalars
+          host = 127.0.0.1
+          port = 3306
+          CONF
+          sed -i 's/^ *//' ci.conf
+      - run: python manage.py test tests
+        env:
+          RENTALARS_CONFIG: ci.conf

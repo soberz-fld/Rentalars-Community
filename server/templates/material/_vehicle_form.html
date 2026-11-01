@@ -1,0 +1,24 @@
+{% load i18n rentalars %}
+{% comment %}
+  LOG-002, LOG-003: the vehicle data of an item in a dialog over the item page – or, without the page script,
+  on a page of its own (material/vehicle_form.html). A trailer has no seats and no towing capacity.
+{% endcomment %}
+<form method="post" action="{% url 'material:vehicle_edit' item.pk %}" hx-post="{% url 'material:vehicle_edit' item.pk %}" hx-target="#dialog" novalidate autocomplete="off">
+  {% csrf_token %}
+  <div class="dialog-head"><h2>{% translate "Vehicle data" %} – {{ item.display_id }}</h2><button type="button" class="icon-btn" data-close-dialog aria-label="{% translate 'Close' %}">{% icon "close" %}</button></div>
+  <div class="dialog-body form">
+    {% include "core/_form_errors.html" %}
+    <div class="form-grid">
+      {% include "core/_field.html" with field=form.licence_plate %}
+      {% include "core/_field.html" with field=form.licence_class %}
+      {% if form.seats_min %}{% include "core/_field.html" with field=form.seats_min %}{% include "core/_field.html" with field=form.seats_max %}{% endif %}
+      {% if form.towing_capacity_kg %}{% include "core/_field.html" with field=form.towing_capacity_kg %}{% endif %}
+      {% include "core/_field.html" with field=form.gross_weight_kg %}
+    </div>
+    {% if form.is_car %}<p class="help">{% translate "Seats: for removable or variably fitted seats the fewest and the most; for a fixed number both the same." %}</p>{% endif %}
+  </div>
+  <div class="dialog-foot">
+    <button type="button" class="btn secondary" data-close-dialog data-href="{% url 'material:item_detail' item.pk %}">{% translate "Cancel" %}</button>
+    <button type="submit" class="btn">{% translate "Save vehicle data" %}</button>
+  </div>
+</form>

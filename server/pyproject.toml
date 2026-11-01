@@ -1,0 +1,94 @@
+# Rentalars is an application, not a library: it is installed by copying the
+# source tree and installing requirements.txt (see docs/betrieb/installation.md).
+# This file only configures the tools that check the code.
+
+[project]
+name = "rentalars"
+version = "1.0.0"
+description = "Projekt- und Materialverwaltung für Vermieter von Veranstaltungstechnik"
+license = "GPL-3.0-or-later"
+requires-python = ">=3.12"
+
+# --- Code style (NFA-055 ff.) -------------------------------------------------
+
+[tool.ruff]
+target-version = "py312"
+line-length = 120
+extend-exclude = ["*/migrations/*", "var", "static"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W",   # style
+    "F",        # mistakes such as unused imports and undefined names
+    "I",        # order of imports
+    "B",        # likely bugs
+    "UP",       # outdated syntax
+    "N",        # naming
+    "D",        # docstrings: every module, class and function explains itself (NFA-056)
+    "S",        # security
+    "DJ",       # Django
+    "C4", "SIM", "RUF",
+]
+ignore = [
+    "E501",     # long lines are handled by reading, not by a hard limit
+    "D105",     # magic methods such as __str__ need no docstring
+    "D106",     # nor does "class Meta"
+    "D107",     # __init__ is described in the class docstring
+    "D203", "D213",  # one of two contradicting docstring layouts each
+    "D401",     # "Returns …" is as good as "Return …"
+    "RUF001", "RUF002", "RUF003",  # typographic characters (–, ×, „“) are wanted in texts
+    "RUF012",   # Django declares mutable class attributes everywhere
+    "S101",     # assert is fine to narrow types
+    "SIM102", "SIM108",  # nested ifs and if/else blocks are often easier to read
+    "DJ001",    # text fields that may be NULL are used deliberately in a few places
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests are named after what they prove; their names are their description.
+"tests/**" = ["D", "S", "N802", "B011"]
+"rentalars/settings.py" = ["S105"]
+# A mixin for models: the Django order "fields, Meta, save, custom methods" does not fit it.
+"rentalars/core/audit.py" = ["DJ012"]
+"rentalars/core/demo.py" = ["S311"]
+# "!" marks accounts without a usable password; the random numbers only spread test data.
+"rentalars/core/loadtest.py" = ["S311", "S106"]
+"scripts/**" = ["S603", "S607"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.isort]
+known-first-party = ["rentalars", "tests"]
+
+# --- Types (NFA-055) -----------------------------------------------------------
+
+[tool.mypy]
+python_version = "3.12"
+plugins = ["mypy_django_plugin.main", "mypy_drf_plugin.main"]
+# Every function carries type hints, and the bodies are checked against them.
+# The strictest settings are left off: they mostly complain about the loosely
+# typed parts of the frameworks (request data, generic serializers).
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+warn_redundant_casts = true
+warn_unreachable = true
+no_implicit_optional = true
+exclude = ["migrations/", "^var/", "^tests/"]
+
+[[tool.mypy.overrides]]
+module = ["weasyprint.*", "openpyxl.*", "django_filters.*", "MySQLdb.*", "drf_spectacular.*", "pypdf.*", "PIL.*", "ldap3.*"]
+ignore_missing_imports = true
+
+[tool.django-stubs]
+django_settings_module = "rentalars.settings"
+
+# --- Coverage ------------------------------------------------------------------
+
+[tool.coverage.run]
+source = ["rentalars"]
+omit = ["*/migrations/*"]
+
+[tool.coverage.report]
+skip_covered = true
+show_missing = true

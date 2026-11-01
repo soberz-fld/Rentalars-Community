@@ -1,0 +1,11 @@
+# Runs the clean-up jobs once a day (NFA-036).
+
+[Unit]
+Description=Rentalars – tägliche Aufräumarbeiten
+
+[Timer]
+OnCalendar=*-*-* 04:15:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

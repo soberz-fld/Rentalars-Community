@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}{% translate "My account" %}{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>{% translate "My account" %}</h1><p class="lead">{{ request.user.username }}, {{ request.user.email }}</p></div>
+  <div class="actions">{% if own_person %}<a class="btn secondary" href="{% url 'personnel:own_profile' %}">{% translate "My personnel data" %}</a>{% endif %}<a class="btn secondary" href="{% url 'core:jobs' %}">{% translate "Tasks in the background" %}</a></div>
+</div>
+<div class="columns">
+  <section class="panel">
+    <div class="panel-head"><h2>{% translate "Change password" %}</h2></div>
+    <div class="panel-body">
+      {# AUT-029: the password of a directory account is changed in the directory. #}
+      {% if password_external %}<p>{% translate "You log in with your account of the company directory (LDAP). Your password is changed there, not in Rentalars." %}</p>{% else %}
+      <form method="post" class="form" novalidate>
+        {% csrf_token %}<input type="hidden" name="form" value="password">
+        {% include "core/_form_errors.html" with form=password_form %}
+        {% for field in password_form %}{% include "core/_field.html" %}{% endfor %}
+        <div><button class="btn" type="submit">{% translate "Change password" %}</button></div>
+      </form>{% endif %}
+    </div>
+  </section>
+  <section class="panel">
+    <div class="panel-head"><h2>{% translate "Security" %}</h2></div>
+    <table class="table"><tbody>
+      <tr><td><a href="{% url 'accounts:two_factor_setup' %}">{% translate "Two-factor login" %}</a></td><td class="muted">{% if request.user.has_two_factor %}<span class="badge green">{% translate "on" %}</span>{% else %}{% translate "off" %}{% endif %}</td></tr>
+      <tr><td><a href="{% url 'accounts:sessions' %}">{% translate "Where you are logged in" %}</a></td><td class="muted">{% translate "See and end sessions" %}</td></tr>
+      <tr><td><a href="{% url 'notifications:preferences' %}">{% translate "Notifications" %}</a></td><td class="muted">{% translate "What you are told, and how" %}</td></tr>
+    </tbody></table>
+  </section>
+  {# UIX-029: the language of the interface, per user. #}
+  <section class="panel" id="language">
+    <div class="panel-head"><h2>{% translate "Language" %}</h2></div>
+    <div class="panel-body">
+      <form method="post" class="form" novalidate>
+        {% csrf_token %}<input type="hidden" name="form" value="language">
+        {% include "core/_form_errors.html" with form=language_form %}
+        {% for field in language_form %}{% include "core/_field.html" %}{% endfor %}
+        <div><button class="btn secondary" type="submit">{% translate "Save language" %}</button></div>
+      </form>
+    </div>
+  </section>
+  <section class="panel" id="tokens">
+    <div class="panel-head"><h2>{% translate "API tokens" %}</h2></div>
+    <div class="panel-body">
+      <p class="muted">{% translate "A token lets another program use Rentalars in your name. It never has more rights than you have." %}</p>
+      {% if new_key %}
+      <div class="note"><strong>{% translate "Your new token – copy it now. It is not shown again." %}</strong><br><code class="copy" data-copy="{{ new_key }}">{{ new_key }}</code></div>
+      {% endif %}
+    </div>
+    {% if tokens %}
+    <table class="table stack token-table">
+      <thead><tr><th>{% translate "Name" %}</th><th>{% translate "Key starts with" %}</th><th>{% translate "Last used" %}</th><th></th></tr></thead>
+      <tbody>
+      {% for token in tokens %}
+        <tr{% if token.revoked_at %} class="is-muted"{% endif %}>
+          <td>{{ token.name }}{% if token.read_only %} <span class="badge">{% translate "read-only" %}</span>{% endif %}</td>
+          <td data-label="{% translate 'Key starts with' %}"><code>{{ token.key_prefix }}…</code></td>
+          <td data-label="{% translate 'Last used' %}">{% if token.revoked_at %}{% translate "revoked" %}{% else %}{{ token.last_used_at|date:"d.m.Y H:i"|default:"–" }}{% endif %}</td>
+          <td class="actions">{% if not token.revoked_at %}<form method="post" action="{% url 'accounts:token_revoke' token.pk %}" class="inline-form">{% csrf_token %}<button class="link-btn danger" data-confirm="{% translate 'Revoke this token? Programs that use it lose access at once.' %}">{% translate "Revoke" %}</button></form>{% endif %}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+    <div class="panel-body">
+      <form method="post" class="form" novalidate>
+        {% csrf_token %}<input type="hidden" name="form" value="token">
+        {% include "core/_form_errors.html" with form=token_form %}
+        {% for field in token_form %}{% include "core/_field.html" %}{% endfor %}
+        <div><button class="btn secondary" type="submit">{% translate "Create token" %}</button></div>
+      </form>
+    </div>
+  </section>
+</div>
+{% endblock %}

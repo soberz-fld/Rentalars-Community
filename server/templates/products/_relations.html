@@ -1,0 +1,118 @@
+{% load i18n rentalars %}
+{% comment %}
+  PRD-023, VFG-015 (accessory and replacement suggestions): the accessories and replacements of a product.
+  On the product page they can be changed; on the page of a material model they are only shown. The planning of a
+  project reads them to suggest accessories not planned yet and replacements for a short line.
+{% endcomment %}
+{% if show %}
+<section class="panel" id="relations">
+  <div class="panel-head"><h2>{% translate "Accessories and replacements" %}</h2><span class="muted small">{% translate "The planning suggests them. A suggestion never blocks anything and can be dismissed per project." %}</span>{% if not editable and may_write_products %} <a class="small" href="{% url 'products:detail' product.pk %}#relations">{% translate "Edit on the page of the product" %}</a>{% endif %}</div>
+  <div class="panel-body">
+  <h3 class="subhead">{% translate "Accessories" %}</h3>
+  {% if accessories %}
+  <table class="table stack">
+    <thead><tr><th>{% translate "Product" %}</th><th class="num">{% translate "Pieces per piece" %}</th><th>{% translate "Note" %}</th><th>{% translate "Required" %}</th>{% if can_write %}<th></th>{% endif %}</tr></thead>
+    <tbody>
+    {% for relation in accessories %}
+      <tr>
+        <td><a class="artno" href="{% url 'products:detail' relation.related_product_id %}">{{ relation.related_product.article_number }}</a> {{ relation.related_product.name }}</td>
+        {% if can_write %}
+        <td class="num" data-label="{% translate 'Pieces per piece' %}" colspan="3">
+          <form method="post" action="{% url 'products:relation_update' product.pk relation.pk %}" class="inline-fields">{% csrf_token %}
+            <input class="qty" type="text" inputmode="decimal" name="quantity_per_piece" value="{{ relation.quantity_per_piece|floatformat:"-2" }}" aria-label="{% translate 'Pieces per piece' %}: {{ relation.related_product.article_number }}" autocomplete="off">
+            <input type="text" name="note" value="{{ relation.note }}" maxlength="250" aria-label="{% translate 'Note' %}: {{ relation.related_product.article_number }}" autocomplete="off">
+            <label class="check"><input type="checkbox" name="is_required" value="1"{% if relation.is_required %} checked{% endif %}> {% translate "Required" %}<span class="visually-hidden">: {{ relation.related_product.article_number }}</span></label>
+            <button class="link-btn" type="submit">{% translate "Save" %}</button>
+          </form>
+        </td>
+        <td class="actions">
+          <form method="post" action="{% url 'products:relation_move' product.pk relation.pk 'up' %}" class="inline-form">{% csrf_token %}<button class="icon-btn" type="submit"{% if forloop.first %} disabled{% endif %} aria-label="{% translate 'Move up' %}: {{ relation.related_product.article_number }}">↑</button></form>
+          <form method="post" action="{% url 'products:relation_move' product.pk relation.pk 'down' %}" class="inline-form">{% csrf_token %}<button class="icon-btn" type="submit"{% if forloop.last %} disabled{% endif %} aria-label="{% translate 'Move down' %}: {{ relation.related_product.article_number }}">↓</button></form>
+          <form method="post" action="{% url 'products:relation_delete' product.pk relation.pk %}" class="inline-form">{% csrf_token %}<button class="link-btn danger" type="submit" data-confirm="{% blocktranslate with name=relation.related_product.name %}Remove “{{ name }}” from this list?{% endblocktranslate %}">{% translate "Remove" %}<span class="visually-hidden">: {{ relation.related_product.article_number }}</span></button></form>
+        </td>
+        {% else %}
+        <td class="num" data-label="{% translate 'Pieces per piece' %}">{{ relation.quantity_per_piece|floatformat:"-2" }}</td>
+        <td data-label="{% translate 'Note' %}">{{ relation.note|default:"–" }}</td>
+        <td data-label="{% translate 'Required' %}">{% if relation.is_required %}{% translate "required" %}{% else %}{% translate "recommended" %}{% endif %}</td>
+        {% endif %}
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<p class="muted">{% translate "No accessories named." %}</p>{% endif %}
+
+  {% if not is_kit %}
+  <h3 class="subhead">{% translate "Replacements" %}</h3>
+  {% if replacements %}
+  <table class="table stack">
+    <thead><tr><th>{% translate "Product" %}</th><th class="num">{% translate "Pieces per piece" %}</th><th>{% translate "Note" %}</th>{% if can_write %}<th></th>{% endif %}</tr></thead>
+    <tbody>
+    {% for relation in replacements %}
+      <tr>
+        <td><a class="artno" href="{% url 'products:detail' relation.related_product_id %}">{{ relation.related_product.article_number }}</a> {{ relation.related_product.name }}</td>
+        {% if can_write %}
+        <td class="num" data-label="{% translate 'Pieces per piece' %}" colspan="2">
+          <form method="post" action="{% url 'products:relation_update' product.pk relation.pk %}" class="inline-fields">{% csrf_token %}
+            <input class="qty" type="text" inputmode="decimal" name="quantity_per_piece" value="{{ relation.quantity_per_piece|floatformat:"-2" }}" aria-label="{% translate 'Pieces per piece' %}: {{ relation.related_product.article_number }}" autocomplete="off">
+            <input type="text" name="note" value="{{ relation.note }}" maxlength="250" aria-label="{% translate 'Note' %}: {{ relation.related_product.article_number }}" autocomplete="off">
+            <button class="link-btn" type="submit">{% translate "Save" %}</button>
+          </form>
+        </td>
+        <td class="actions">
+          <form method="post" action="{% url 'products:relation_move' product.pk relation.pk 'up' %}" class="inline-form">{% csrf_token %}<button class="icon-btn" type="submit"{% if forloop.first %} disabled{% endif %} aria-label="{% translate 'Move up' %}: {{ relation.related_product.article_number }}">↑</button></form>
+          <form method="post" action="{% url 'products:relation_move' product.pk relation.pk 'down' %}" class="inline-form">{% csrf_token %}<button class="icon-btn" type="submit"{% if forloop.last %} disabled{% endif %} aria-label="{% translate 'Move down' %}: {{ relation.related_product.article_number }}">↓</button></form>
+          <form method="post" action="{% url 'products:relation_delete' product.pk relation.pk %}" class="inline-form">{% csrf_token %}<button class="link-btn danger" type="submit" data-confirm="{% blocktranslate with name=relation.related_product.name %}Remove “{{ name }}” from this list?{% endblocktranslate %}">{% translate "Remove" %}<span class="visually-hidden">: {{ relation.related_product.article_number }}</span></button></form>
+        </td>
+        {% else %}
+        <td class="num" data-label="{% translate 'Pieces per piece' %}">{{ relation.quantity_per_piece|floatformat:"-2" }}</td>
+        <td data-label="{% translate 'Note' %}">{{ relation.note|default:"–" }}</td>
+        {% endif %}
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<p class="muted">{% translate "No replacements named." %}</p>{% endif %}
+  {% endif %}
+
+  {% if can_write %}
+  <form method="post" action="{% url 'products:relation_add' product.pk %}" class="content-add" autocomplete="off">
+    {% csrf_token %}
+    <div class="inline-fields">
+      <div class="field grow">
+        <label for="relation-product">{% translate "Add product" %}</label>
+        <div class="typeahead" data-typeahead data-url="{% url 'products:suggest' %}?exclude_kind=surcharge,subrental,service,vehicle{% if product.owner_id %}&amp;owner={{ product.owner_id }}{% endif %}">
+          <input type="search" data-typeahead-input id="relation-product" placeholder="{% translate 'Search product by number or name' %}" autocomplete="off">
+          <input type="hidden" name="related_product" data-typeahead-value>
+        </div>
+      </div>
+      <div class="field">
+        <label for="relation-kind">{% translate "Kind" %}</label>
+        <select name="kind" id="relation-kind">
+          <option value="accessory">{% translate "accessory" %}</option>
+          {% if not is_kit %}<option value="replacement">{% translate "replacement" %}</option>{% endif %}
+        </select>
+      </div>
+      <div class="field">
+        <label for="relation-qty">{% translate "Pieces per piece" %}</label>
+        <input class="qty" type="text" inputmode="decimal" name="quantity_per_piece" id="relation-qty" value="1" autocomplete="off">
+      </div>
+      <div class="field grow">
+        <label for="relation-note">{% translate "Note" %}</label>
+        <input type="text" name="note" id="relation-note" maxlength="250" autocomplete="off">
+      </div>
+    </div>
+    <div class="inline-fields">
+      <label class="check"><input type="checkbox" name="is_required" value="1"> {% translate "Required (accessories only)" %}</label>
+      <label class="check"><input type="checkbox" name="both_ways" value="1"> {% translate "Replacement also the other way round" %}</label>
+      <button class="btn secondary" type="submit">{% icon "plus" %}{% translate "Add" %}</button>
+    </div>
+  </form>
+  {% endif %}
+
+  {% if used_as %}
+  <p class="muted small">{% translate "This product is named as accessory or replacement at:" %}
+    {% for relation in used_as %}<a class="artno" href="{% url 'products:detail' relation.product_id %}">{{ relation.product.article_number }}</a> ({{ relation.get_kind_display }}){% if not forloop.last %}, {% endif %}{% endfor %}</p>
+  {% endif %}
+  </div>
+</section>
+{% endif %}

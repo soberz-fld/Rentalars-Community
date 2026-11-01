@@ -1,0 +1,19 @@
+{% load i18n %}
+{% comment %}
+  Job function notes (PER-045, PER-008, PRD-044): where the price the customer pays is changed – on the service product
+  of the function, under Material management → Products – and that the values on the function are internal costs.
+  Expects: product (the service product of the function, or none), list (true on the list: link to the service products).
+  The link is shown for whoever may read products only.
+{% endcomment %}
+<div class="note accent" id="customer-price-note">
+  <p>
+  {% if product %}
+    {% if can.read.products %}{% url 'products:detail' product.pk as product_url %}{% blocktranslate with name=product.article_number|add:" "|add:product.name url=product_url %}The prices charged to customers are changed under Material management → Products (the service product of this function: <a href="{{ url }}">{{ name }}</a>).{% endblocktranslate %}{% else %}{% blocktranslate with name=product.article_number|add:" "|add:product.name %}The prices charged to customers are changed under Material management → Products (the service product of this function: {{ name }}).{% endblocktranslate %}{% endif %}
+  {% elif list and can.read.products %}
+    {% url 'products:list' as products_url %}{% blocktranslate with url=products_url|add:"?kind=service" %}The prices charged to customers are changed under Material management → <a href="{{ url }}">Products</a> – each job function has its service product there.{% endblocktranslate %}
+  {% else %}
+    {% translate "The prices charged to customers are changed under Material management → Products – each job function has its service product there." %}
+  {% endif %}
+  </p>
+  <p class="small muted">{% translate "The guide values here are internal costs: the hourly wage of the planned crew – not the price the customer pays." %}</p>
+</div>

@@ -1,0 +1,21 @@
+{% load i18n rentalars %}
+{% comment %}
+  PRJ-054, PRJ-084: subrent the pieces a line is short of. The subrental is a part of the line and costs the
+  customer nothing extra (PRJ-055): asked are supplier, quantity, purchase price and status – no rental price.
+  Expects: form (SubrentalForm), line, product, action.
+{% endcomment %}
+<form hx-post="{{ action }}" hx-target="#dialog" novalidate autocomplete="off">
+  <div class="dialog-head"><h2>{% translate "Subrent" %}: {% if product %}<span class="artno">{{ product.article_number }}</span> {{ product.name }}{% endif %}</h2><button type="button" class="icon-btn" data-close-dialog aria-label="{% translate 'Close' %}">{% icon "close" %}</button></div>
+  <div class="dialog-body form">
+    {% include "core/_form_errors.html" %}
+    <input type="hidden" name="dialog" value="1">
+    {% if product %}<input type="hidden" name="product" value="{{ product.pk }}">{% endif %}
+    <p class="muted small">{% blocktranslate with quantity=line.quantity_display title=line.title %}For the line “{{ quantity }} × {{ title }}”. The subrental is shown below it; the customer pays the price of the line, so the subrental has no rental price of its own.{% endblocktranslate %}</p>
+    <div class="form-row pair">{% include "core/_field.html" with field=form.quantity %}{% include "core/_field.html" with field=form.status %}</div>
+    <div class="form-row{% if form.purchase_price %} pair{% endif %}">{% include "core/_field.html" with field=form.supplier %}{% if form.purchase_price %}{% include "core/_field.html" with field=form.purchase_price %}{% endif %}</div>
+  </div>
+  <div class="dialog-foot">
+    <button type="button" class="btn secondary" data-close-dialog>{% translate "Cancel" %}</button>
+    <button type="submit" class="btn">{% translate "Add subrental" %}</button>
+  </div>
+</form>

@@ -1,0 +1,45 @@
+{% load i18n rentalars %}
+{% comment %}
+  Incoming invoices: the ancillary costs of the invoice spread over its goods by the chosen key, with the acquisition (DOK-023, DOK-024)
+  cost of each goods position and per piece. Expects: invoice, costing (rentalars.incoming.costing.Costing), booked.
+  Also the answer to the htmx request when the key is changed (nothing is saved by that).
+{% endcomment %}
+<div id="costing">
+  {% for problem in costing.problems %}<div class="message error" role="alert">{{ problem }}</div>{% endfor %}
+  {% if costing.ancillary %}
+  <p>{% blocktranslate with total=costing.ancillary_total|money count counter=costing.ancillary|length %}{{ counter }} position of ancillary cost, {{ total }} in all, is spread over the goods.{% plural %}{{ counter }} positions of ancillary cost, {{ total }} in all, are spread over the goods.{% endblocktranslate %}</p>
+  {% else %}
+  <p class="muted">{% translate "No position is marked as ancillary cost: the goods cost what the invoice says." %}</p>
+  {% endif %}
+  {% if costing.rows %}
+  <table class="table stack incoming-cost">
+    <thead><tr>
+      <th scope="col">{% translate "Position" %}</th>
+      <th scope="col" class="num">{% translate "Quantity" %}</th>
+      <th scope="col" class="num">{% translate "Net amount" %}</th>
+      <th scope="col" class="num">{% translate "Share of the ancillary costs" %}</th>
+      <th scope="col" class="num">{% translate "Acquisition cost" %}</th>
+      <th scope="col" class="num">{% translate "Per piece" %}</th>
+      <th scope="col">{% translate "Kind of asset" %}</th>
+      <th scope="col" class="num">{% translate "Useful life (months)" %}</th>
+    </tr></thead>
+    <tbody>
+    {% for row in costing.rows %}
+      <tr>
+        <td>{{ row.position.place }}. {{ row.position.description }}{% for problem in row.problems %}<div class="note small">{{ problem }}</div>{% endfor %}</td>
+        <td class="num" data-label="{% translate 'Quantity' %}">{{ row.quantity|floatformat:"-3" }}</td>
+        <td class="num" data-label="{% translate 'Net amount' %}">{% if row.line is not None %}{{ row.line|money }}{% else %}–{% endif %}</td>
+        <td class="num" data-label="{% translate 'Share of the ancillary costs' %}">{{ row.share|money }}</td>
+        <td class="num" data-label="{% translate 'Acquisition cost' %}">{% if row.total is not None %}{{ row.total|money }}{% else %}–{% endif %}</td>
+        <td class="num" data-label="{% translate 'Per piece' %}">{% if row.per_piece is not None %}{{ row.per_piece|money }}{% else %}–{% endif %}</td>
+        <td data-label="{% translate 'Kind of asset' %}">{{ row.kind_label|default:"–" }}</td>
+        <td class="num" data-label="{% translate 'Useful life (months)' %}">{{ row.useful_life|default_if_none:"–" }}</td>
+      </tr>
+    {% endfor %}
+      <tr class="sum"><th scope="row">{% translate "Together" %}</th><td></td><td class="num" data-label="{% translate 'Net amount' %}">{{ costing.goods_total|money }}</td><td class="num" data-label="{% translate 'Share of the ancillary costs' %}">{{ costing.spread_total|money }}</td><td class="num" data-label="{% translate 'Acquisition cost' %}">{{ costing.total|money }}</td><td></td><td></td><td></td></tr>
+    </tbody>
+  </table>
+  <p class="muted small">{% translate "All amounts in euros, net. The share of a position is spread over its pieces in whole cents. Pieces booked in earlier keep the cost they got then." %}</p>
+  {% if costing.invoice.is_foreign_currency and costing.invoice.exchange_rate %}<p class="muted small">{% blocktranslate with currency=costing.invoice.currency rate=costing.invoice.exchange_rate %}The invoice is in {{ currency }}; converted with the rate {{ rate }}.{% endblocktranslate %}</p>{% endif %}
+  {% endif %}
+</div>

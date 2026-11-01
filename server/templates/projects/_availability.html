@@ -1,0 +1,23 @@
+{% load i18n rentalars %}
+{# Answer of the live check in the line dialog: availability (PRJ-012) and rental days (PRJ-062). #}
+{% if not checks_stock %}
+{% elif verdict is None %}
+<span class="muted small">{% translate "Enter quantity and period to see the availability." %}</span>
+{% elif verdict.status == "unchecked" %}
+<span class="avail unchecked">{% translate "This product is not checked for availability." %}</span>
+{% else %}
+<span class="avail {{ verdict.status }}">{% if verdict.status == "short" %}{% blocktranslate count count=verdict.shortage_total %}{{ count }} piece is missing in this period{% plural %}{{ count }} pieces are missing in this period{% endblocktranslate %}{% elif verdict.status == "tight" %}{% translate "Tight: collides with an option of another project" %}{% else %}{% translate "Free in this period" %}{% endif %}</span>
+{% include "core/_stockbar.html" with stock=detail.stock firm=detail.firm optional=detail.optional own=detail.own_project free=detail.free %}
+{% if verdict.status == "short" %}<p class="muted small">{% translate "You can save the line all the same and cover the shortage by a subrental afterwards." %}</p>{% endif %}
+{% endif %}
+{% if days %}
+{# Replaces the help text below the field "rental days" in the dialog, so that it always tells what the typed period means. #}
+<div class="help" id="id_rental_days_helptext" hx-swap-oob="true">
+  {% if days.typed %}{% blocktranslate with automatic=days.automatic|days source=days.source_label %}Typed in by hand. Empty, it would be {{ automatic }} ({{ source }}).{% endblocktranslate %}
+  {% else %}{% blocktranslate with automatic=days.automatic|days source=days.source_label %}Empty: {{ automatic }} – {{ source }}.{% endblocktranslate %}{% endif %}
+</div>
+{% endif %}
+{% if has_discount_field %}
+{# The live hint below the field "discount": the maximum of the line, while the discount is typed. #}
+<div class="help discount-hint" id="discount-hint" role="status" hx-swap-oob="true">{{ discount_hint }}</div>
+{% endif %}

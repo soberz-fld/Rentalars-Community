@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% load i18n rentalars subprojects %}
+{% block title %}{% translate "Timeline" %}{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>{% translate "Planning" %}</h1></div></div>
+{% include "schedule/_tabs.html" %}
+{% comment %}
+  PRJ-028: one row per project; the bar is the reservation period, the thin bars below are its phases.
+  PRJ-044: the parts of a whole project follow right after it, indented, and name it in their title.
+  VFG-022, VFG-024: in weeks of day columns, or one to ten days of hour columns that scroll sideways and load the
+  next span at their ends. Every bar is cut to its exact start and end within its columns (Bar.style).
+  VFG-026: in hour columns, the rental period and the phases of a project the user may change can be dragged – or
+  moved with the arrow keys – to other times; a click still opens the project (schedule/_move_hint.html, app.js).
+{% endcomment %}
+<p class="visually-hidden" aria-live="polite" data-tl-announce></p>
+<div data-tl-swap>
+{% include "schedule/_zoom.html" %}
+<div class="panel timeline sticky-text{% if scale.is_hourly %} is-hourly{% endif %}"{% include "schedule/_scale_panel_attrs.html" %} tabindex="0" role="region" aria-label="{% translate 'Timeline of the projects' %}">
+  {% if rows %}
+  <div class="tl-grid" style="{{ scale.grid_style }}">
+    <div class="tl-label head"></div>
+    {% if scale.is_hourly %}{% include "schedule/_hours_head.html" %}{% else %}{% include "schedule/_days_head.html" %}{% endif %}
+    {% for project, bars in rows %}
+      <div class="tl-label{% if project.parent_id %} is-part{% endif %}"{% if project.parent_id %} title="{{ project|part_of }}"{% endif %}>{% if project.parent_id %}<span class="part-of" aria-hidden="true">↳</span> {% endif %}<a href="{% url 'projects:overview' project %}">{{ project.number }}</a> <span class="muted small">{{ project.name|truncatechars:28 }}</span>{% if project.parent_id %}<span class="visually-hidden">, {{ project|part_of }}</span>{% endif %}</div>
+      <div class="tl-row" style="{{ scale.row_style }}">
+        {% for bar in bars %}<a class="tl-bar {{ bar.css }}" style="{{ bar.style }}" href="{% url 'projects:overview' project %}" title="{{ bar.label }}{% if bar.title %} – {{ bar.title }}{% endif %}"{% if bar.move %}{{ bar.move.attrs }}{% endif %}><span class="tl-text">{{ bar.label }}</span>{% if bar.move %}{{ bar.move.grips }}{% endif %}</a>{% endfor %}
+      </div>
+    {% endfor %}
+  </div>
+  {% elif zoom %}<div class="empty">{% translate "No projects on these days." %}</div>
+  {% else %}<div class="empty">{% translate "No projects in these weeks." %}</div>{% endif %}
+</div>
+{% if can_move %}{% include "schedule/_move_hint.html" %}{% endif %}
+</div>
+{% endblock %}

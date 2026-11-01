@@ -1,0 +1,62 @@
+{% extends "base_public.html" %}
+{% load i18n %}
+{% block title %}{% translate "Set up Rentalars" %}{% endblock %}
+{% block card_class %} wide{% endblock %}
+{% block content %}
+<h1>{% translate "Set up Rentalars" %}</h1>
+<p class="lead">{% translate "A few details, then you can start. Everything can be changed later in the settings." %}</p>
+<form method="post" class="form wide" novalidate>
+  {% csrf_token %}
+  {% include "core/_form_errors.html" %}
+  <fieldset>
+    <legend>{% translate "Your company" %}</legend>
+    <div class="form-grid">
+      {% include "core/_field.html" with field=form.company_name %}
+      {% include "core/_field.html" with field=form.street %}
+      {% include "core/_field.html" with field=form.postal_code %}
+      {% include "core/_field.html" with field=form.city %}
+      {# UIX-029: the language of the start data, of the documents and of the first administrator. #}
+      {% include "core/_field.html" with field=form.language %}
+    </div>
+  </fieldset>
+  <fieldset>
+    <legend>{% translate "First administrator" %}</legend>
+    <div class="form-grid">
+      {% include "core/_field.html" with field=form.username %}
+      {% include "core/_field.html" with field=form.email %}
+      {% include "core/_field.html" with field=form.first_name %}
+      {% include "core/_field.html" with field=form.last_name %}
+      {% include "core/_field.html" with field=form.password %}
+      {% include "core/_field.html" with field=form.password_repeat %}
+    </div>
+  </fieldset>
+  <fieldset>
+    <legend>{% translate "Number ranges" %}</legend>
+    <div class="form-grid">
+      {% include "core/_field.html" with field=form.project_prefix %}
+      {% include "core/_field.html" with field=form.project_next %}
+      {% include "core/_field.html" with field=form.customer_next %}
+      {% include "core/_field.html" with field=form.material_next %}
+    </div>
+  </fieldset>
+  {# ADM-018: the job functions start with a price and internal costs instead of 0 €. #}
+  <fieldset>
+    <legend>{% translate "Personnel" %}</legend>
+    <p class="muted small">{% translate "Rentalars starts with the job functions technician, lighting, sound and media technician, stagehand, warehouse, project planning and other. They all get this price and these costs per hour." %}</p>
+    <div class="form-grid">
+      {% include "core/_field.html" with field=form.personnel_price %}
+      {% include "core/_field.html" with field=form.personnel_cost %}
+    </div>
+    <p class="note small">{% translate "You can change both later under Personnel → Job functions – for each job function on its own, with day rates and a higher rate beyond a number of hours." %}</p>
+  </fieldset>
+  <fieldset>
+    <legend>{% translate "Tax and sample data" %}</legend>
+    <div class="form-grid">
+      {% include "core/_field.html" with field=form.default_tax_rate %}
+      {% include "core/_field.html" with field=form.with_demo_data %}
+    </div>
+    <p class="muted small">{% translate "“Tax-free” is always available as a second tax rate." %}</p>
+  </fieldset>
+  <button type="submit" class="btn">{% translate "Finish setup" %}</button>
+</form>
+{% endblock %}

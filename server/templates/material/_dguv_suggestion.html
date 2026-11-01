@@ -1,0 +1,6 @@
+{% load i18n %}{# MAT-078: the result the values suggest, with the reasons; the content of #dguv-suggestion. #}
+{% if not evaluation.complete %}{% translate "Choose the protection class: the limits depend on it." %}
+{% elif not evaluation.has_entries %}{% translate "Enter the results of the checks: the suggested result appears here." %}
+{% else %}<strong>{% translate "Suggested result:" %}</strong> <span class="badge {% if evaluation.suggested_result == 'passed' %}green{% else %}red{% endif %}">{{ evaluation.suggested_result_label }}</span>
+{% if evaluation.reasons %}<ul class="small">{% for reason in evaluation.reasons %}<li>{{ reason }}</li>{% endfor %}</ul>
+<span class="small">{% translate "If you choose “passed” nonetheless, give the reason in the note." %}</span>{% endif %}{% endif %}

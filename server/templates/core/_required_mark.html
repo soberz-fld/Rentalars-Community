@@ -1,0 +1,5 @@
+{% load rentalars %}{% comment %}
+  UIX-035: the asterisk of a required field, behind its label. Hidden from screen readers: the field itself says it
+  is required (required or aria-required). A field required only under a condition (data-require-if) shows it while
+  the condition holds – the page script switches it with the form (data-show-if). Expects: field.
+{% endcomment %}{% with need=field|required_condition %}{% if need == "always" %} <span class="required" aria-hidden="true">*</span>{% elif need %} <span class="required{% if not field|condition_holds:need %} hidden{% endif %}" aria-hidden="true" data-show-if="{{ need }}">*</span>{% endif %}{% endwith %}

@@ -1,0 +1,4 @@
+{% comment %}
+  Legacy import: what the checks found for one field – errors block taking the invoice over, warnings only want (PRJ-130)
+  to be read. Expects: list (the issues of the field), id (the id the field points to with aria-describedby).
+{% endcomment %}{% load i18n %}{% if list %}<ul class="legacy-issues small" id="{{ id }}">{% for issue in list %}<li>{% if issue.level == "error" %}<span class="badge red">{% translate "Error" %}</span>{% else %}<span class="badge yellow">{% translate "Check" %}</span>{% endif %} {{ issue.message }}</li>{% endfor %}</ul>{% endif %}

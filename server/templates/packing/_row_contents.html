@@ -1,0 +1,7 @@
+{% load i18n %}
+{# MAT-037: what is inside the container of a row, indented; MAT-042: what of it stays behind. #}
+{% if row.contents %}
+<ul class="pack-contents">
+  {% for content in row.contents %}<li style="padding-left: {{ content.depth }}em"{% if content.state == "extracted" %} class="is-extracted"{% endif %}>{% if content.state == "built_in" %}<span class="muted">{% translate "contains" %}</span> {{ content.quantity }}{% if content.unit %} {{ content.unit }}{% endif %} × {{ content.name }} <span class="tape">{{ content.display_id }}</span>{% else %}<span class="tape">{{ content.display_id }}</span> {{ content.name }}{% endif %}{% if content.state == "extracted" %} – <strong>{% translate "stays behind" %}</strong>{% endif %}</li>{% endfor %}
+</ul>
+{% endif %}

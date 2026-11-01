@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Tasks in the background" %}{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>{% translate "Tasks in the background" %}</h1></div></div>
+<section class="panel">
+  {% if jobs %}
+  {# UIX-040: a table of core/tables.py (core/job_tables.py). #}
+  {% include "core/_table_tools.html" %}
+  {% include "core/_table.html" with stack=True %}
+  {% include "core/_pagination.html" %}
+  {% else %}<div class="empty">{% translate "No tasks in the last days." %}</div>{% endif %}
+</section>
+{% endblock %}

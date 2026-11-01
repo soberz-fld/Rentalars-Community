@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Mail log" %}{% endblock %}
+{% block content %}
+{% comment %}
+  EML-039: every mail in and out – project mails and system mails such as invitations and notifications –
+  with what became of it and the mailbox it went through (EML-041). Only the envelope is kept,
+  never the text.
+{% endcomment %}
+<div class="page-head"><div><div class="breadcrumb"><a href="{% url 'core:administration' %}">{% translate "Settings" %}</a></div><h1>{% translate "Mail log" %}</h1>
+<p class="lead">{% blocktranslate count days=retention_days %}Every mail that came into a mailbox of the correspondence or went out of Rentalars, with its result and its mailbox. Kept for {{ days }} day.{% plural %}Every mail that came into a mailbox of the correspondence or went out of Rentalars, with its result and its mailbox. Kept for {{ days }} days.{% endblocktranslate %}</p></div></div>
+{% if not has_mail_server %}<p class="note accent">{{ not_sent_text }}</p>{% endif %}{# EML-048 #}
+<div class="panel">
+  <form method="get" class="filters">
+    <div class="field grow"><label for="f-q">{% translate "Search" %}</label><input type="search" id="f-q" name="q" value="{{ filters.q }}" placeholder="{% translate 'Address, subject, project number' %}"></div>
+    {% filterpanel "mail-log" %}
+    <div class="field"><label for="f-direction">{% translate "Direction" %}</label>
+      <select id="f-direction" name="direction" data-autosubmit><option value="">{% translate "All" %}</option>{% for value, label in directions %}<option value="{{ value }}"{% if filters.direction == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+    <div class="field"><label for="f-kind">{% translate "Kind" %}</label>
+      <select id="f-kind" name="kind" data-autosubmit><option value="">{% translate "All" %}</option>{% for value, label in kinds %}<option value="{{ value }}"{% if filters.kind == value %} selected{% endif %}>{{ label|capfirst }}</option>{% endfor %}</select></div>
+    <div class="field"><label for="f-result">{% translate "Result" %}</label>
+      <select id="f-result" name="result" data-autosubmit><option value="">{% translate "All" %}</option>{% for value, label in results %}<option value="{{ value }}"{% if filters.result == value %} selected{% endif %}>{{ label|capfirst }}</option>{% endfor %}</select></div>
+    <div class="field"><label for="f-since">{% translate "From" %}</label><input type="date" id="f-since" name="since" value="{{ filters.since }}"></div>
+    <div class="field"><label for="f-until">{% translate "Until" %}</label><input type="date" id="f-until" name="until" value="{{ filters.until }}"></div>
+    <button class="btn secondary" type="submit">{% translate "Filter" %}</button>
+    {% endfilterpanel %}
+  </form>
+  {% include "core/_table_tools.html" %}
+  {% if rows %}{% include "core/_table.html" with stack=True %}{% else %}<div class="empty">{% translate "No entries." %}</div>{% endif %}
+  {% include "core/_pagination.html" %}
+</div>
+{% endblock %}

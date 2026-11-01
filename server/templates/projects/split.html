@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}{% if is_whole %}{% translate "Turn groups into subprojects" %}{% else %}{% translate "Divide into subprojects" %}{% endif %} {{ project.number }}{% endblock %}
+{% block content %}
+{% comment %}
+  PRJ-050: a project becomes the whole project, chosen top-level groups each become a subproject with their lines
+  and the periods of the project; what is not chosen stays. On a whole project further groups become parts. Crew
+  lines are in no group: each one stays or goes with a group, as chosen here.
+{% endcomment %}
+<div class="page-head"><div>
+  <div class="breadcrumb"><a href="{% url 'projects:detail' project.pk %}">{{ project.number }} {{ project.name }}</a></div>
+  <h1>{% if is_whole %}{% translate "Turn groups into subprojects" %}{% else %}{% translate "Divide into subprojects" %}{% endif %}</h1>
+  <p class="lead">{% if is_whole %}{% translate "Each group you choose becomes a further subproject of this whole project, with its lines and the periods of the whole project. The existing subprojects stay as they are." %}{% else %}{% translate "This project becomes the whole project. Each group you choose becomes a subproject with its lines and the periods of the project; what you do not choose stays at the whole project – central power, production office and the like." %}{% endif %}</p>
+</div></div>
+{% if plan.refusal %}
+<div class="panel"><div class="panel-body"><p class="note">{{ plan.refusal }}</p>
+  <div class="btn-row"><a class="btn secondary" href="{% url 'projects:detail' project.pk %}">{% translate "Back to the planning" %}</a></div></div></div>
+{% else %}
+<form method="post" class="form wide split-form" novalidate>
+  {% csrf_token %}
+  {% include "core/_form_errors.html" %}
+  <div class="panel"><div class="panel-body">
+    <fieldset class="split-groups"{% if form.groups.errors %} aria-describedby="groups-errors"{% endif %}>
+      <legend>{% translate "Groups that become subprojects" %}</legend>
+      <ul class="checklist plain">
+      {% for option in plan.groups %}
+        <li>
+          {% if option.possible %}
+          <label class="check"><input type="checkbox" name="groups" value="{{ option.group.pk }}"{% if option.group.pk|stringformat:"s" in form.groups.value %} checked{% endif %}>
+            <span><strong>{{ option.group.name }}</strong>
+            <span class="muted small">– {% blocktranslate count count=option.lines %}{{ count }} line{% plural %}{{ count }} lines{% endblocktranslate %}{% if option.subgroups %}, {% blocktranslate count count=option.subgroups %}{{ count }} subgroup{% plural %}{{ count }} subgroups{% endblocktranslate %}{% endif %}</span>
+            <span class="muted small split-how">{% if option.keeps_group %}{% blocktranslate with reasons=option.kept_because|join:", " %}stays a group in the subproject ({{ reasons }}), so that the prices stay the same{% endblocktranslate %}{% else %}{% translate "its lines and subgroups stand directly in the subproject" %}{% endif %}</span></span>
+          </label>
+          {% else %}
+          <div class="check is-disabled"><span><strong>{{ option.group.name }}</strong> <span class="badge">{% translate "not possible" %}</span>
+            <span class="muted small split-how">{{ option.reasons|join:" " }}</span></span></div>
+          {% endif %}
+        </li>
+      {% endfor %}
+      </ul>
+      {% if form.groups.errors %}<div id="groups-errors">{{ form.groups.errors }}</div>{% endif %}
+    </fieldset>
+  </div></div>
+  {% if plan.crew_lines %}
+  <div class="panel">
+    <div class="panel-head"><h2>{% translate "Crew" %}</h2><span class="muted small">{% translate "Crew lines are in no group. Each stays at the whole project or goes with a subproject – with its time entries; its phase is copied into the subproject." %}</span></div>
+    <table class="table stack">
+      <thead><tr><th>{% translate "Crew line" %}</th><th>{% translate "Period" %}</th><th>{% translate "Goes to" %}</th></tr></thead>
+      <tbody>
+      {% for line, field in form.crew_rows %}
+        <tr>
+          <td>{{ line.job_function }}{% if line.person %} – {{ line.person }}{% else %} <span class="badge yellow">{% translate "open" context "crew" %}</span>{% endif %}{% if line.phase %}<div class="muted small">{{ line.phase.label }}</div>{% endif %}</td>
+          <td data-label="{% translate 'Period' %}">{{ line.start|date:"D d.m. H:i" }} – {{ line.end|date:"D d.m. H:i" }}</td>
+          <td data-label="{% translate 'Goes to' %}"><label class="visually-hidden" for="{{ field.auto_id }}">{% blocktranslate with line=line.job_function %}Where “{{ line }}” goes{% endblocktranslate %}</label>{{ field }}{{ field.errors }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+  {% if plan.warnings %}
+  <div class="panel"><div class="panel-body">{% for warning in plan.warnings %}<p class="note">{{ warning }}</p>{% endfor %}</div></div>
+  {% endif %}
+  <p class="muted small">{% translate "Documents, mails, files, phases and open items stay at the whole project. Each subproject can then get its own period, venue, packing list and status." %}</p>
+  <div class="btn-row">{% if plan.possible %}<button class="btn" type="submit">{% if is_whole %}{% translate "Turn into subprojects" %}{% else %}{% translate "Divide into subprojects" %}{% endif %}</button>{% endif %}<a class="btn secondary" href="{% url 'projects:detail' project.pk %}">{% translate "Cancel" %}</a></div>
+</form>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Notification settings" %}{% endblock %}
+{% block content %}
+<div class="page-head"><div><div class="breadcrumb"><a href="{% url 'accounts:account' %}">{% translate "My account" %}</a></div><h1>{% translate "Notifications" %}</h1>
+<p class="lead">{% translate "What you are told about, and how. Notifications only reach you about things your rights let you see." %}</p></div></div>
+{% if not has_email %}<p class="note">{% translate "Your account has no e-mail address; notifications only appear in the application." %}</p>{% endif %}
+<form method="post" class="panel">
+  {% csrf_token %}
+  {# UIX-039: grouped by category; "In der App" – the companion app shows the kind on the phone. #}
+  <table class="table stack notification-preferences">
+    <thead><tr><th scope="col">{% translate "About" %}</th><th scope="col">{% translate "In Rentalars" %}</th><th scope="col">{% translate "By e-mail" %}</th><th scope="col">{% translate "In the app" %}</th></tr></thead>
+    {% for group in groups %}
+    <tbody>
+      <tr class="table-group"><th colspan="4" scope="rowgroup" id="category-{{ group.category }}">{{ group.label }}</th></tr>
+    {% for item in group.items %}
+      <tr>
+        <td>{{ item.label }}</td>
+        <td data-label="{% translate 'In Rentalars' %}"><input type="checkbox" name="{{ item.kind }}-app" value="1"{% if item.in_app %} checked{% endif %} aria-label="{{ item.label }}: {% translate 'In Rentalars' %}"></td>
+        <td data-label="{% translate 'By e-mail' %}"><input type="checkbox" name="{{ item.kind }}-email" value="1"{% if item.by_email %} checked{% endif %} aria-label="{{ item.label }}: {% translate 'By e-mail' %}"></td>
+        <td data-label="{% translate 'In the app' %}"><input type="checkbox" name="{{ item.kind }}-companion" value="1"{% if item.companion %} checked{% endif %} aria-label="{{ item.label }}: {% translate 'In the app' %}"></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+    {% endfor %}
+  </table>
+  <p class="panel-body muted small">{% translate "“In the app”: the Rentalars Companion app for Android shows the notification on your phone." %}</p>
+  {# VFG-036: when and how far ahead shortages are reported is one setting of the company. #}
+  <p class="panel-body muted small" id="shortage-schedule-note">{% translate "When and how far ahead shortages are reported is set for the whole company:" %} {% if can.read.administration %}<a href="{% url 'notifications:company_settings' %}">{% translate "Settings → Notifications" %}</a>{% else %}{% translate "Settings → Notifications" %}{% endif %}.</p>
+  <div class="panel-body"><button class="btn" type="submit">{% translate "Save" %}</button></div>
+</form>
+{% endblock %}

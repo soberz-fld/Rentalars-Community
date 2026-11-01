@@ -1,0 +1,27 @@
+{% load i18n rentalars period_marks %}
+{% comment %}
+  VFG-026: the confirmation of an appointment dragged in a timeline – in the dialog over the page, or (page=True)
+  on a page of its own without the page script. What is moved, its former times, the new times in two fields that
+  can still be changed – a change asks the server again for the consequences below (#move-consequences) – and the
+  consequences with their boxes (schedule/_move_consequences.html). PRJ-099: the calendars of the fields show the
+  rental period and the event period hatched.
+  VFG-031: also a deployment (crew line, line) dragged in the personnel plan – on "Zeitplanung" as well (PRJ-121)
+  (from_course: the phase or the open places of the job function may follow, schedule/_move_consequences.html).
+  Expects: project, what, phase, line, name, old_text, form, preview, action, next; page, from_course (optional).
+{% endcomment %}
+<form method="post" action="{{ action }}"{% if not page %} hx-post="{{ action }}" hx-target="#dialog"{% endif %} novalidate autocomplete="off" class="move-form" aria-labelledby="move-title" data-calendar-marks="{% project_period_marks project %}">
+  {% csrf_token %}
+  <input type="hidden" name="what" value="{{ what }}">{% if phase %}<input type="hidden" name="phase" value="{{ phase.pk }}">{% endif %}{% if line %}<input type="hidden" name="line" value="{{ line.pk }}">{% endif %}
+  <input type="hidden" name="sent" value="1"><input type="hidden" name="next" value="{{ next }}">{% if page %}<input type="hidden" name="page" value="1">{% endif %}{% if from_course %}<input type="hidden" name="from" value="course">{% endif %}
+  <div class="dialog-head"><h2 id="move-title">{% blocktranslate with name=name %}Move {{ name }}{% endblocktranslate %}</h2>{% if not page %}<button type="button" class="icon-btn" data-close-dialog aria-label="{% translate 'Close' %}">{% icon "close" %}</button>{% endif %}</div>
+  <div class="dialog-body form">
+    <p class="muted small move-project">{{ project.number }} {{ project.name }}</p>
+    {% include "core/_form_errors.html" %}
+    <p class="move-before"><span class="muted">{% translate "Before" context "times" %}:</span> {{ old_text }}</p>
+    <div class="form-row pair move-times" hx-get="{{ action }}" hx-trigger="change" hx-target="#move-consequences" hx-swap="outerHTML" hx-include="closest form">
+      {% include "core/_field.html" with field=form.start %}{% include "core/_field.html" with field=form.end %}
+    </div>
+    {% include "schedule/_move_consequences.html" %}
+  </div>
+  {% include "schedule/_move_foot.html" %}
+</form>

@@ -1,0 +1,37 @@
+{% load i18n %}{% comment %}
+  PER-040: one rule of the surcharges in the list of Einstellungen → Zuschläge. Expects: rule (a form of the
+  formset "rules"), number (its place, "" for the empty template row). The fields of the other kinds are hidden by
+  data-show-if; the server empties them anyway (TimeSurchargeRule.clean).
+{% endcomment %}{% with kind=rule.kind.value|default:"time" p=rule.prefix %}
+<fieldset class="surcharge-rule{% if rule.errors %} has-error{% endif %}" data-formset-row>
+  <legend class="visually-hidden">{% if number %}{% blocktranslate %}Rule {{ number }}{% endblocktranslate %}{% else %}{% translate "New rule" %}{% endif %}</legend>
+  {{ rule.id }}
+  {% if rule.non_field_errors %}<div class="rule-errors">{{ rule.non_field_errors }}</div>{% endif %}
+  <div class="rule-grid">
+    <div class="rule-name">{% include "core/_field.html" with field=rule.name %}</div>
+    <div class="rule-kind">{% include "core/_field.html" with field=rule.kind %}</div>
+    <div class="rule-when">
+      <div class="field{% if rule.time_from.errors %} has-error{% endif %}">
+        <label for="{{ rule.time_from.id_for_label }}"><span data-show-if="{{ p }}-kind=time"{% if kind != "time" %} class="hidden"{% endif %}>{% translate "from" context "time surcharge" %}</span><span data-show-if="{{ p }}-kind=weekday|holiday|date"{% if kind == "time" %} class="hidden"{% endif %}>{% translate "from (optional)" context "time surcharge" %}</span></label>
+        {{ rule.time_from }}
+        {{ rule.time_from.errors }}
+      </div>
+      <div data-show-if="{{ p }}-kind=time"{% if kind != "time" %} class="hidden"{% endif %}>{% include "core/_field.html" with field=rule.time_until %}</div>
+      <div data-show-if="{{ p }}-kind=date"{% if kind != "date" %} class="hidden"{% endif %}>{% include "core/_field.html" with field=rule.day %}</div>
+      <div data-show-if="{{ p }}-kind=date"{% if kind != "date" %} class="hidden"{% endif %}>{% include "core/_field.html" with field=rule.month %}</div>
+      <fieldset class="field weekday-choice{% if rule.weekdays.errors %} has-error{% endif %}{% if kind != "weekday" %} hidden{% endif %}" data-show-if="{{ p }}-kind=weekday">
+        <legend>{{ rule.weekdays.label|capfirst }}{% include "core/_required_mark.html" with field=rule.weekdays %}</legend>
+        {{ rule.weekdays }}
+        {{ rule.weekdays.errors }}
+      </fieldset>
+      <div class="{% if kind != "time" %}hidden{% endif %}" data-show-if="{{ p }}-kind=time">{% include "core/_field.html" with field=rule.begun_before_midnight %}</div>
+    </div>
+    <div class="rule-price">{% include "core/_field.html" with field=rule.price_percent %}</div>
+    <div class="rule-cost">{% include "core/_field.html" with field=rule.cost_percent %}</div>
+    <div class="rule-tools">
+      {% include "core/_field.html" with field=rule.position %}
+      {% if rule.DELETE %}{% include "core/_field.html" with field=rule.DELETE %}{% endif %}
+    </div>
+  </div>
+</fieldset>
+{% endwith %}

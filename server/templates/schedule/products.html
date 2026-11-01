@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Material utilisation" %}{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>{% translate "Planning" %}</h1></div></div>
+{% include "schedule/_tabs.html" %}
+{% comment %}
+  VFG-012: per product and day the firm reservations against the plannable stock; options in addition.
+  VFG-025: the search suggests products while typing (the combobox of static/js/app.js); choosing one sends its ID
+  as "product" and shows just that product, Enter without choosing searches for the text. The category belongs to a
+  form of its own (the select points to it with form=), so choosing a category leaves a chosen product behind.
+  VFG-029: the span works as on the timeline and the personnel plan (schedule/_zoom.html): one to ten days in hour
+  columns – neighbouring columns with the same figures are one cell – or weeks of days. The search forms stay
+  outside the part that is loaded anew while scrolling sideways (data-tl-swap), so the combobox keeps working;
+  their hidden span fields live inside it and point to the forms with form=, so they move on with the span.
+{% endcomment %}
+<form method="get" id="f-by-category"></form>
+<form method="get" class="filters" id="f-search">
+  <div class="field"><label for="f-category">{% translate "Category" %}</label><select id="f-category" name="category" form="f-by-category" data-autosubmit><option value="">–</option>{% for category in categories %}<option value="{{ category.pk }}"{% if chosen == category.pk|stringformat:"d" %} selected{% endif %}>{{ category.path }}</option>{% endfor %}</select></div>
+  <div class="field grow"><label for="f-q">{% translate "or name, article number" %}</label>
+    <div class="typeahead" data-typeahead data-url="{{ suggest_url }}">
+      <input type="search" id="f-q" name="q" value="{{ q }}" data-typeahead-input autocomplete="off">
+      <input type="hidden" name="product" value="{{ product_id }}" data-typeahead-value data-autosubmit>
+    </div>
+  </div>
+  <button class="btn secondary" type="submit">{% translate "Show" %}</button>
+</form>
+<p class="visually-hidden" aria-live="polite" data-tl-announce></p>
+<div data-tl-swap>
+<input type="hidden" name="from" value="{{ first|date:'Y-m-d' }}" form="f-by-category"><input type="hidden" name="weeks" value="{{ weeks }}" form="f-by-category">{% if zoom %}<input type="hidden" name="days" value="{{ zoom }}" form="f-by-category">{% endif %}
+<input type="hidden" name="from" value="{{ first|date:'Y-m-d' }}" form="f-search"><input type="hidden" name="weeks" value="{{ weeks }}" form="f-search">{% if zoom %}<input type="hidden" name="days" value="{{ zoom }}" form="f-search">{% endif %}
+{% include "schedule/_zoom.html" %}
+<div class="panel timeline utilization sticky-text{% if scale.is_hourly %} is-hourly{% endif %}"{% include "schedule/_scale_panel_attrs.html" %} tabindex="0" role="region" aria-label="{% translate 'Material utilisation' %}">
+  {% if rows %}
+  <div class="tl-grid" style="{{ scale.grid_style }}">
+    <div class="tl-label head"></div>
+    {% if scale.is_hourly %}{% include "schedule/_hours_head.html" %}{% else %}{% include "schedule/_days_head.html" %}{% endif %}
+    {% for row in rows %}
+      {% if row.is_kit %}
+      {% comment %}
+        VFG-037 (kits in the utilization): a kit's row counts complete kits – free, minus what options take, as the
+        timeline of a product counts pieces (VFG-019). The box in its label unfolds the rows of its components without
+        any script (static/css/app.css, .kit-fold); data-keep-state keeps it unfolded when the hour columns move on.
+      {% endcomment %}
+      <div class="tl-label is-kit"><input type="checkbox" class="kit-fold visually-hidden" id="kit-parts-{{ row.product.pk }}" data-keep-state="kit-{{ row.product.pk }}"{% if kits_unfolded %} checked{% endif %}><label class="kit-fold-label" for="kit-parts-{{ row.product.pk }}" title="{% translate 'Show or hide the components' %}"><span class="kit-chevron" aria-hidden="true"></span><span class="visually-hidden">{% blocktranslate with name=row.product.name %}Components of “{{ name }}”{% endblocktranslate %}</span></label><span class="artno">{{ row.product.article_number }}</span> {{ row.product.name|truncatechars:26 }}<div class="muted small">{% blocktranslate count count=row.stock %}{{ count }} complete kit in stock{% plural %}{{ count }} complete kits in stock{% endblocktranslate %}</div></div>
+      <div class="tl-row" style="{{ scale.row_style }}">
+        {% if scale.is_hourly %}
+        {% for run in row.loads %}<div class="tl-load free-{{ run.load.free_level }}" style="{{ run.style }}" title="{{ run.period }}: {% blocktranslate with free=run.load.free stock=run.load.stock optional=run.load.optional %}{{ free }} of {{ stock }} free, {{ optional }} more as options{% endblocktranslate %}"><span class="tl-text">{{ run.load.free }}{% if run.load.optional %}<sup>−{{ run.load.optional }}</sup>{% endif %}</span></div>{% endfor %}
+        {% else %}
+        {% for load in row.loads %}<div class="tl-load free-{{ load.free_level }}" title="{{ load.day|date:'D d.m.' }}: {% blocktranslate with free=load.free stock=load.stock optional=load.optional %}{{ free }} of {{ stock }} free, {{ optional }} more as options{% endblocktranslate %}">{{ load.free }}{% if load.optional %}<sup>−{{ load.optional }}</sup>{% endif %}</div>{% endfor %}
+        {% endif %}
+      </div>
+      <div class="tl-kit-parts">
+        {% for part in row.parts %}{% include "schedule/_utilization_row.html" with row=part %}{% endfor %}
+      </div>
+      {% else %}
+      {% include "schedule/_utilization_row.html" %}
+      {% endif %}
+    {% endfor %}
+  </div>
+  {% elif limited %}<div class="empty">{% translate "No products with stock match." %}</div>
+  {% else %}<div class="empty">{% translate "Choose a category or search for a product." %}</div>{% endif %}
+</div>
+{% if rows %}<p class="muted small tl-legend utilization-legend"><span class="tl-legend-entry"><span class="tl-load used legend"></span> {% translate "reserved" %}</span> <span class="tl-legend-entry"><span class="tl-load tight legend"></span> {% translate "80 % and more, or options beyond the stock" %}</span> <span class="tl-legend-entry"><span class="tl-load short legend"></span> {% translate "more than the stock" %}</span>{% if has_kits %} <span class="tl-legend-entry">{% translate "Kits: how many complete kits are free – their components unfold below them." %}</span>{% endif %}</p>{% endif %}
+</div>
+{% endblock %}

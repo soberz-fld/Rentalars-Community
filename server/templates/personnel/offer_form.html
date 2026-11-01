@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% comment %}
+  A price offer, or a counter-offer, for a deployment request (PER-038): what the deployment is, the stored rate
+  and the range the company accepts (only where the person may know them), the exchange so far, and the form.
+{% endcomment %}
+{% block title %}{% if countering %}{% translate "Counter-offer" %}{% else %}{% translate "Make a price offer" %}{% endif %}{% endblock %}
+{% block content %}
+<div class="page-head"><div>
+  <div class="breadcrumb"><a href="{% if as_company %}{% url 'projects:detail' project.pk %}{% else %}{% url 'projects:deployment' project.pk %}{% endif %}">{{ project.number }} {{ project.name }}</a></div>
+  <h1>{% if countering %}{% translate "Counter-offer" %}{% elif as_company %}{% translate "Enter a price offer" %}{% else %}{% translate "Make a price offer" %}{% endif %}</h1>
+  <p class="lead">{% if as_company and not countering %}{% blocktranslate with person=line.person.name %}An offer {{ person }} made, for example by phone.{% endblocktranslate %}{% elif countering %}{% blocktranslate with amount=countering.amount|money unit=countering.get_unit_display %}You answer the offer of {{ amount }} {{ unit }}.{% endblocktranslate %}{% else %}{% translate "Instead of accepting the stored rate you name your own price. The company accepts it, rejects it or answers with a counter-offer." %}{% endif %}</p>
+</div></div>
+<div class="columns">
+  <section class="panel" aria-labelledby="offer-deployment">
+    <div class="panel-head"><h2 id="offer-deployment">{% translate "Deployment" %}</h2></div>
+    <div class="panel-body">
+      <dl class="facts">
+        <dt>{% translate "Job function" %}</dt><dd>{{ line.job_function.name }}</dd>
+        <dt>{% translate "Period" %}</dt><dd>{{ line.start|date:"D d.m.Y H:i" }} – {{ line.end|date:"D d.m.Y H:i" }}</dd>
+        <dt>{% translate "Planned hours" %}</dt><dd>{{ line.planned_hours|number }} {% translate "h" %}</dd>
+        {% if show_reference %}
+        <dt>{% translate "Stored rate" %}</dt><dd data-stored-rate>{% if reference %}{{ reference|money }} <span class="muted small">{% for value, label in form.fields.unit.choices %}{% if value == unit %}{{ label }}{% endif %}{% endfor %}</span>{% else %}{% translate "none" %}{% endif %}</dd>
+        {% if low or high %}<dt>{% translate "Accepted range" %}</dt><dd>{% if low %}{{ low|money }}{% else %}–{% endif %} … {% if high %}{{ high|money }}{% else %}–{% endif %}</dd>{% endif %}
+        {% endif %}
+        <dt>{% translate "Rounds" %}</dt><dd>{% blocktranslate count count=log|length with maximum=settings.max_rounds %}{{ count }} of {{ maximum }} used{% plural %}{{ count }} of {{ maximum }} used{% endblocktranslate %}</dd>
+      </dl>
+    </div>
+  </section>
+  <section class="panel" aria-labelledby="offer-form-title">
+    <div class="panel-head"><h2 id="offer-form-title">{% if countering %}{% translate "Your counter-offer" %}{% else %}{% translate "Your offer" %}{% endif %}</h2></div>
+    <div class="panel-body">
+      <form method="post" class="form" novalidate>
+        {% csrf_token %}
+        {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+        {% include "core/_form_errors.html" %}
+        <div class="form-grid">{% for field in form %}{% include "core/_field.html" %}{% endfor %}</div>
+        <div class="btn-row"><button class="btn" type="submit">{% if countering %}{% translate "Send counter-offer" %}{% else %}{% translate "Send offer" %}{% endif %}</button><a class="btn secondary" href="{% if next %}{{ next }}{% elif as_company %}{% url 'projects:detail' project.pk %}{% else %}{% url 'projects:deployment' project.pk %}{% endif %}">{% translate "Cancel" %}</a></div>
+      </form>
+    </div>
+  </section>
+</div>
+{% if log %}
+<section class="panel" aria-labelledby="offer-log-title">
+  <div class="panel-head"><h2 id="offer-log-title">{% translate "Exchange so far" %}</h2></div>
+  {% include "personnel/_offer_log.html" with rows=log %}
+</section>
+{% endif %}
+{% endblock %}

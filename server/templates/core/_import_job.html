@@ -1,0 +1,9 @@
+{% load i18n %}
+{# NFA-041: a dry run or an import running in the background. While it runs, it asks again every two seconds; when it is done, the page is shown anew with the report. #}
+<div id="import-job" class="panel" hx-get="{{ request.path }}" hx-trigger="every 2s" hx-target="this" hx-swap="outerHTML" aria-live="polite">
+  <div class="panel-head"><h2>{% if job.params.dry_run %}{% translate "Dry run is running" %}{% else %}{% translate "Import is running" %}{% endif %}</h2></div>
+  <div class="panel-body">
+    <div class="progress" role="progressbar" aria-valuenow="{{ job.progress }}" aria-valuemin="0" aria-valuemax="100" aria-label="{% translate 'Progress' %}"><span style="width: {{ job.progress }}%"></span></div>
+    <p class="muted">{{ job.progress }} % · {% translate "You can go on working meanwhile; you will be told when it is done." %}</p>
+  </div>
+</div>

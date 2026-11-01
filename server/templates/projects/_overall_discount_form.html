@@ -1,0 +1,21 @@
+{% load i18n rentalars %}
+{% comment %}
+  The dialog of the overall discount (PRJ-123). Discount target: besides percent and amount a target
+  amount, net or gross – the percentage is calculated and stored. The block below the fields tells, while typing,
+  what the values lead to (the same view with ?preview=1).
+{% endcomment %}
+<form hx-post="{{ action }}" hx-target="#dialog" novalidate>
+  <div class="dialog-head"><h2>{{ title }}</h2><button type="button" class="icon-btn" data-close-dialog aria-label="{% translate 'Close' %}">{% icon "close" %}</button></div>
+  <div class="dialog-body form">
+    {% include "core/_form_errors.html" %}
+    <p class="muted small" data-discount-base>{% blocktranslate with net=net_before|money gross=gross_before|money %}The project comes to {{ net }} net, {{ gross }} gross before the overall discount.{% endblocktranslate %}</p>
+    <div class="form-grid">{% for field in form %}{% include "core/_field.html" %}{% endfor %}</div>
+    <p class="muted small">{% translate "With a target amount the percentage is calculated once and stored. It is not calculated again when the project changes later – then the stored percentage stays, and you can enter a new target amount." %}</p>
+    <div id="overall-discount-preview" class="discount-preview" role="status" aria-live="polite" aria-label="{% translate 'What the values lead to' %}"
+         hx-get="{{ action }}" hx-vals='{"preview": "1"}' hx-trigger="input from:closest form delay:500ms" hx-include="closest form" hx-target="this" hx-swap="innerHTML"></div>
+  </div>
+  <div class="dialog-foot">
+    <button type="button" class="btn secondary" data-close-dialog>{% translate "Cancel" %}</button>
+    <button type="submit" class="btn">{% translate "Save" %}</button>
+  </div>
+</form>

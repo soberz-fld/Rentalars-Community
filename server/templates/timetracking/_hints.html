@@ -1,0 +1,4 @@
+{% load i18n rentalars %}{% comment %}
+  ZEI-018: the hints at a time entry – long working day, short break, short rest. Never blocking; the text says what
+  is conspicuous, the colour only repeats it. Expects "hints" (a list of TimeHint).
+{% endcomment %}{% if hints %}<ul class="time-hints">{% for hint in hints %}<li class="time-hint">{% icon "alert" %}<span><span class="visually-hidden">{% translate "Hint:" %} </span>{{ hint.message }}</span></li>{% endfor %}</ul>{% endif %}

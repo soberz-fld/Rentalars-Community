@@ -1,0 +1,15 @@
+{% load i18n rentalars %}
+{# DOK-016: the monthly statements the service case is in – for who may see prices. #}
+{# DOK-015: the number of the monthly invoice only for who may open it (item.number_shown). #}
+{% if shown %}
+<div class="note accent statement-hint-box no-print">
+  {% for item in items %}
+  <p>{% icon "invoice" %}
+    {% if item.statement.status == "invoiced" and item.statement.invoice_id %}{% if item.number_shown %}{% blocktranslate with number=item.statement.invoice.number month=item.month %}Billed with the monthly invoice {{ number }} ({{ month }}){% endblocktranslate %}{% else %}{% blocktranslate with month=item.month %}Billed with a monthly invoice ({{ month }}){% endblocktranslate %}{% endif %}
+    {% elif item.statement.status == "marked" %}{% blocktranslate with month=item.month %}Marked as invoiced with the monthly statement {{ month }}{% endblocktranslate %}
+    {% else %}{% blocktranslate with month=item.month %}In the monthly statement {{ month }} (draft){% endblocktranslate %}{% endif %}
+    {% if may_open %} · <a href="{% url 'documents:statement' item.statement.pk %}">{% translate "Open the statement" %}</a>{% endif %}
+  </p>
+  {% endfor %}
+</div>
+{% endif %}

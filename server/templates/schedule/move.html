@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}{% blocktranslate with name=name %}Move {{ name }}{% endblocktranslate %}{% endblock %}
+{% block content %}
+{# VFG-026: the confirmation of a move on a page of its own – where the page script does not open it as a dialog. #}
+<div class="page-head"><div><div class="breadcrumb"><a href="{% url 'projects:course' project.pk %}">{{ project.number }} {{ project.name }}</a></div><h1>{% translate "Move an appointment" %}</h1></div></div>
+<section class="panel move-page">
+  {% include "schedule/_move_dialog.html" with page=True %}
+</section>
+{% endblock %}

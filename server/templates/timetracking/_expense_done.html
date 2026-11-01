@@ -1,0 +1,15 @@
+{% load i18n rentalars %}
+{# ZEI-019: answer after saving an expense – a short confirmation in the same dialog, like the quick time entry. #}
+<div id="expense-entry">
+  <div class="dialog-head"><h2>{% translate "Expense recorded" %}</h2><button type="button" class="icon-btn" data-close-dialog data-href="{% url 'timetracking:my_expenses' %}" aria-label="{% translate 'Close' %}">{% icon "close" %}</button></div>
+  <div class="dialog-body">
+    <p class="message success"><strong>{{ expense.amount|money }}</strong> {{ expense.get_kind_display }}{% if expense.is_by_kilometre %} ({{ expense.distance_label }} × {{ expense.km_rate|money }}){% endif %}, {{ expense.project }}<br>
+      {{ expense.date|date:"D d.m.Y" }}{% if expense.note %} – {{ expense.note }}{% endif %}{% if expense.receipt %}<br>{% translate "with receipt" %}{% endif %}</p>
+    <p class="muted">{% if expense.status == "submitted" %}{% translate "Handed in for approval." %}{% else %}{% translate "Not handed in yet – you find it under “My expenses”." %}{% endif %}</p>
+  </div>
+  <div class="dialog-foot">
+    <a class="btn secondary" href="{% url 'timetracking:my_expenses' %}">{% translate "My expenses" %}</a>
+    <a class="btn secondary" href="{% url 'timetracking:expense_new' %}?project={{ expense.project_id }}{% if may_manage %}&amp;person={{ expense.person_id }}{% endif %}" hx-get="{% url 'timetracking:expense_new' %}?project={{ expense.project_id }}{% if may_manage %}&amp;person={{ expense.person_id }}{% endif %}" hx-target="#expense-entry" hx-swap="outerHTML">{% translate "Another expense" %}</a>
+    <button type="button" class="btn" data-close-dialog data-href="{% url 'timetracking:my_expenses' %}">{% translate "Done" %}</button>
+  </div>
+</div>

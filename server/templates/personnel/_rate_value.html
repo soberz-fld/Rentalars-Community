@@ -1,0 +1,4 @@
+{% load i18n rentalars %}{% comment %}
+An hourly or day rate of a person (PER-029): the own one, else the guide value of the job function, marked as such.
+Expects: value, guide.
+{% endcomment %}{% if value is not None %}{{ value|money }}{% elif guide is not None %}<span class="muted" title="{% translate 'No own rate: the guide value of the job function counts.' %}">{{ guide|money }} <span class="small">({% translate "guide value" %})</span></span>{% else %}<span class="muted">–</span>{% endif %}

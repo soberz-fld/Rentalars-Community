@@ -1,0 +1,32 @@
+{% load i18n %}{% autoescape off %}{% comment %}
+  PER-032: the deployment request as a mail with the two answers as mailto links – the text part. PER-034: asked
+  again for new times, it names the times before.
+{% endcomment %}{% blocktranslate %}Hello {{ name }},{% endblocktranslate %}
+
+{% if previous_period %}{% translate "the times of your deployment have changed. Do you take it at the new times?" %}{% else %}{% translate "you are asked whether you take this deployment:" %}{% endif %}
+
+{% if company_name %}{% translate "Company" %}: {{ company_name }}
+{% endif %}{% translate "Project" %}: {{ project_label }}
+{% translate "As" %}: {{ function }}
+{% if previous_period %}{% translate "New times" %}: {{ period }}
+{% translate "Before" %}: {{ previous_period }}
+{% else %}{% translate "When" %}: {{ period }}
+{% endif %}{% if venue %}{% translate "Where" %}: {{ venue }}
+{% endif %}{% if meeting_point %}{% translate "Meeting point" %}: {{ meeting_point }}
+{% endif %}{% if note %}{% translate "Note" %}: {{ note }}
+{% endif %}{% if asked_by %}{% translate "Asked by" %}: {{ asked_by }}
+{% endif %}
+{% translate "Accept" %}:
+<{{ accept_url }}>
+
+{% translate "Decline" %}:
+<{{ decline_url }}>
+
+{% blocktranslate %}“Accept” and “Decline” each open a prepared mail to {{ address }}. Simply send it and leave the subject as it is. Behind “Note:” you can add something for the planning.{% endblocktranslate %}
+{% if link %}
+{% translate "Or answer in Rentalars:" %} {{ link }}
+{% endif %}{% if offer_link %}
+{% translate "Want to name your own price? You can make an offer in Rentalars:" %} {{ offer_link }}
+{% endif %}{% if can_switch_off %}
+{% translate "You can switch these messages off under “My account” → “Notifications”." %}
+{% endif %}{% endautoescape %}

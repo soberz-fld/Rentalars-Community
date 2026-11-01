@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{{ kind_label }} – {% translate "Draft" %}{% endblock %}
+{% block content %}
+{% comment %}
+  Free outgoing documents: the draft of a document without a project. The lines (free, from a product, text) with
+  their amounts, the head and the texts, "Draft as PDF" (nothing is used up), "Issue" (number, PDF, XRechnung – the
+  same way as for the documents of a project), "Delete draft". Expects draft, calculation, problems, may_change, forms.
+{% endcomment %}
+<div class="page-head"><div>
+  <div class="breadcrumb"><a href="{% url 'documents:outgoing' %}">{% translate "Outgoing documents" %}</a></div>
+  <h1>{{ kind_label }} <span class="badge">{% translate "Draft" %}</span></h1>
+  <p class="lead">{{ draft.customer.name }}{% if draft.reference %} · {{ draft.reference }}{% endif %}</p>
+</div></div>
+{% if problems %}<div class="message warning" role="status" data-draft-problems>{% for problem in problems %}<div>{{ problem }}</div>{% endfor %}</div>{% endif %}
+{% if hints %}<div class="message warning" role="status" data-draft-hints>{% for hint in hints %}<div>{{ hint }}</div>{% endfor %}</div>{% endif %}
+<div class="columns">
+<section class="panel" id="lines">
+  <div class="panel-head"><h2>{% translate "Lines" %}</h2></div>
+  {% if calculation.lines %}
+  <table class="table stack">
+    <thead><tr><th scope="col">{% translate "No." %}</th><th scope="col">{% translate "Description" %}</th><th scope="col" class="num">{% translate "Quantity" %}</th><th scope="col" class="num">{% translate "Unit price" %}</th><th scope="col" class="num">{% translate "Discount" %}</th><th scope="col" class="num">{% translate "Net" %}</th><th scope="col">{% translate "Tax" %}</th>{% if may_change %}<th scope="col"></th>{% endif %}</tr></thead>
+    <tbody>
+    {% for priced in calculation.lines %}{% with line=priced.line %}
+      <tr data-line="{{ line.pk }}"{% if line.is_text %} class="is-muted"{% endif %}>
+        <td data-label="{% translate 'No.' %}">{{ priced.number }}</td>
+        <td><strong>{{ line.title }}</strong>{% if line.note %}<div class="muted small">{{ line.note|linebreaksbr }}</div>{% endif %}{% if line.product_id %}<div class="muted small">{{ line.product.name }}{% if line.product.description %} · {% translate "has a description" %}{% endif %}</div>{% endif %}</td>
+        {% if line.is_text %}<td colspan="5" class="muted small">{% translate "Text only" %}</td>
+        {% else %}
+        <td class="num" data-label="{% translate 'Quantity' %}">{{ line.quantity|money_plain }}{% if line.unit %} {{ line.unit.name }}{% endif %}</td>
+        <td class="num" data-label="{% translate 'Unit price' %}">{{ line.unit_price|money }}</td>
+        <td class="num" data-label="{% translate 'Discount' %}">{% if line.discount_percent %}{{ line.discount_percent|money_plain }} %{% else %}–{% endif %}</td>
+        <td class="num" data-label="{% translate 'Net' %}">{{ priced.amount|money }}</td>
+        <td data-label="{% translate 'Tax' %}">{{ line.tax_rate.name }}</td>
+        {% endif %}
+        {% if may_change %}<td class="actions">
+          <form class="inline-form" method="post" action="{% url 'documents:free_line_move' draft.pk line.pk %}">{% csrf_token %}<input type="hidden" name="direction" value="up"><button class="icon-btn" type="submit" aria-label="{% translate 'Move up' %}" title="{% translate 'Move up' %}"{% if forloop.first %} disabled{% endif %}>↑</button></form>
+          <form class="inline-form" method="post" action="{% url 'documents:free_line_move' draft.pk line.pk %}">{% csrf_token %}<input type="hidden" name="direction" value="down"><button class="icon-btn" type="submit" aria-label="{% translate 'Move down' %}" title="{% translate 'Move down' %}"{% if forloop.last %} disabled{% endif %}>↓</button></form>
+          <a class="icon-btn" href="{% url 'documents:free_line_edit' draft.pk line.pk %}" aria-label="{% translate 'Change line' %}" title="{% translate 'Change line' %}">{% icon "edit" %}</a>
+          <form class="inline-form" method="post" action="{% url 'documents:free_line_delete' draft.pk line.pk %}">{% csrf_token %}<button class="icon-btn" type="submit" aria-label="{% translate 'Remove line' %}" title="{% translate 'Remove line' %}" data-confirm="{% translate 'Remove this line?' %}">{% icon "trash" %}</button></form>
+        </td>{% endif %}
+      </tr>
+    {% endwith %}{% endfor %}
+    </tbody>
+    {% if calculation.priced_lines %}
+    <tfoot>
+      <tr class="sum"><th scope="row" colspan="5">{% translate "Net total" %}</th><td class="num" data-label="{% translate 'Net total' %}">{{ calculation.net_total|money }}</td><td></td>{% if may_change %}<td></td>{% endif %}</tr>
+      {% for share in calculation.taxes %}<tr><th scope="row" colspan="5">{{ share.name }} ({{ share.percent|money_plain }} %) {% translate "on" %} {{ share.net|money }}</th><td class="num" data-label="{{ share.name }}">{{ share.tax|money }}</td><td></td>{% if may_change %}<td></td>{% endif %}</tr>{% endfor %}
+      <tr class="sum"><th scope="row" colspan="5">{% translate "Gross total" %}</th><td class="num" data-label="{% translate 'Gross total' %}"><strong>{{ calculation.gross_total|money }}</strong></td><td></td>{% if may_change %}<td></td>{% endif %}</tr>
+    </tfoot>
+    {% endif %}
+  </table>
+  {% else %}<div class="empty"><strong>{% translate "No lines yet." %}</strong>{% translate "Add a product, a free line or a text below." %}</div>{% endif %}
+  {% if may_change %}
+  <div class="panel-body free-line-forms">
+    {# A product: the price, the unit and the tax rate come from the product; the text of the line is its name. #}
+    <form class="line-add add-row" method="post" action="{% url 'documents:free_line_add' draft.pk %}" autocomplete="off">
+      {% csrf_token %}<input type="hidden" name="mode" value="product">
+      <div class="typeahead" data-typeahead data-url="{% url 'products:suggest' %}?exclude_kind=surcharge,vehicle">
+        <input type="search" data-typeahead-input placeholder="{% translate 'Add: article number or product' %}" aria-label="{% translate 'Product' %}" autocomplete="off">
+        <input type="hidden" name="product" data-typeahead-value>
+      </div>
+      <input class="qty" type="text" inputmode="decimal" name="quantity" value="1" aria-label="{% translate 'Quantity' %}" autocomplete="off">
+      <button class="btn secondary" type="submit">{% icon "plus" %}{% translate "Add product" %}</button>
+    </form>
+    <details{% if open_form == "free" %} open{% endif %}>
+      <summary>{% translate "Add a free line" %}</summary>
+      <form method="post" action="{% url 'documents:free_line_add' draft.pk %}" class="form" novalidate>
+        {% csrf_token %}<input type="hidden" name="mode" value="free">
+        {% include "core/_form_errors.html" with form=free_form %}
+        <div class="form-grid">{% for field in free_form %}{% include "core/_field.html" %}{% endfor %}</div>
+        <div class="btn-row"><button class="btn secondary" type="submit">{% icon "plus" %}{% translate "Add line" %}</button></div>
+      </form>
+    </details>
+    <details>
+      <summary>{% translate "Add a text" %}</summary>
+      <form method="post" action="{% url 'documents:free_line_add' draft.pk %}" class="form" novalidate>
+        {% csrf_token %}<input type="hidden" name="mode" value="text">
+        <div class="form-grid">{% for field in text_form %}{% include "core/_field.html" %}{% endfor %}</div>
+        <div class="btn-row"><button class="btn secondary" type="submit">{% icon "plus" %}{% translate "Add text" %}</button></div>
+      </form>
+    </details>
+  </div>
+  {% endif %}
+</section>
+<section class="panel" id="draft-head">
+  <div class="panel-head"><h2>{% translate "Head and texts" %}</h2></div>
+  {% if may_change %}
+  <form method="post" class="panel-body form" novalidate>
+    {% csrf_token %}{% include "core/_form_errors.html" with form=form %}
+    <div class="form-grid">{% for field in form %}{% include "core/_field.html" %}{% endfor %}</div>
+    {% if descriptions and not draft.print_product_descriptions %}<p class="help">{% blocktranslate count count=descriptions %}One product has a description; it is not printed.{% plural %}{{ count }} products have a description; they are not printed.{% endblocktranslate %}</p>{% endif %}
+    <div class="btn-row"><button class="btn secondary" type="submit">{% translate "Save head and texts" %}</button></div>
+  </form>
+  {% endif %}
+</section>
+</div>
+{% if may_change %}
+<form method="post" class="btn-row free-actions" action="{% url 'documents:free_issue' draft.pk %}">
+  {% csrf_token %}
+  <button class="btn secondary" type="submit" formaction="{% url 'documents:free_preview' draft.pk %}" formtarget="_blank">{% icon "print" %}{% translate "Draft as PDF" %}</button>
+  <button class="btn" type="submit" data-confirm="{% translate 'Issue this document now? It gets its number and is stored for good.' %}"{% if problems %} disabled{% endif %}>{% icon "check" %}{% translate "Issue document" %}</button>
+  <button class="btn secondary danger" type="submit" formaction="{% url 'documents:free_delete' draft.pk %}" data-confirm="{% translate 'Delete this draft? Its lines are lost; no number has been used.' %}">{% icon "trash" %}{% translate "Delete draft" %}</button>
+</form>
+{% endif %}
+{% endblock %}

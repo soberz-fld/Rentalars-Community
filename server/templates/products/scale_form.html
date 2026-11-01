@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}{% if scale %}{{ scale.name }}{% else %}{% translate "New rental scale" %}{% endif %}{% endblock %}
+{% block content %}
+<div class="page-head"><div><div class="breadcrumb"><a href="{% url 'products:scale_list' %}">{% translate "Rental scales" %}</a></div><h1>{% if scale %}{{ scale.name }}{% else %}{% translate "New rental scale" %}{% endif %}</h1>
+<p class="lead">{% translate "Changes apply to new project lines. Existing lines keep their table until the project is switched over." %}</p></div></div>
+<form method="post" class="form wide" novalidate>
+  {% csrf_token %}
+  {% include "core/_form_errors.html" %}
+  <div class="panel"><div class="panel-body form-grid">
+    {% include "core/_field.html" with field=form.name %}
+    {% include "core/_field.html" with field=form.extra_day_increment %}
+    {% include "core/_field.html" with field=form.is_default %}
+    {% include "core/_field.html" with field=form.is_active %}
+  </div></div>
+  <div class="panel">
+    <div class="panel-head"><h2>{% translate "Table" %}</h2><span class="muted small">{% translate "Days that are not listed use the factor of the next smaller row. Empty rows are ignored." %}</span></div>
+    <table class="table">
+      <thead><tr><th>{% translate "Rental days" %}</th><th>{% translate "Factor" %}</th></tr></thead>
+      <tbody>
+      {% for days, factor in form.row_fields %}
+        <tr><td>{{ days }}{{ days.errors }}</td><td>{{ factor }}{{ factor.errors }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="btn-row"><button class="btn" type="submit">{% translate "Save rental scale" %}</button><a class="btn secondary" href="{% url 'products:scale_list' %}">{% translate "Cancel" %}</a></div>
+</form>
+{% endblock %}

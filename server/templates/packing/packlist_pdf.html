@@ -1,0 +1,97 @@
+{% load i18n rentalars %}<!doctype html>
+{% get_current_language as LANGUAGE_CODE %}<html lang="{% if LANGUAGE_CODE == 'en' %}en-GB{% else %}{{ LANGUAGE_CODE }}{% endif %}">
+<head>
+<meta charset="utf-8">
+<title>{% translate "Packing list" %} {{ project.number }}</title>
+<style>
+  /* The packlist on paper (PCK-003). Rendered to PDF by WeasyPrint. No prices (PCK-007). */
+  @font-face { font-family: "Barlow"; font-weight: 400; src: url("{{ fonts.regular }}"); }
+  @font-face { font-family: "Barlow"; font-weight: 600; src: url("{{ fonts.semibold }}"); }
+  @font-face { font-family: "Barlow Condensed"; font-weight: 600; src: url("{{ fonts.condensed }}"); }
+  @page {
+    size: A4; margin: 16mm 14mm 18mm;
+    @bottom-left { content: "{{ project.number }} {{ project.name|css_string }}"; font: 8pt "Barlow"; color: #555; }
+    @bottom-right { content: "{% translate 'Page' %} " counter(page) " / " counter(pages); font: 8pt "Barlow"; color: #555; }
+  }
+  body { font-family: "Barlow", sans-serif; font-size: 10pt; color: #111; line-height: 1.35; }
+  h1 { font-family: "Barlow Condensed", sans-serif; font-size: 24pt; margin: 0; line-height: 1; }
+  .head { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1.5pt solid #111; padding-bottom: 4mm; margin-bottom: 4mm; }
+  .head .company { text-align: right; font-size: 9pt; color: #444; }
+  .facts { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5mm 8mm; margin-bottom: 5mm; }
+  .facts div span { color: #555; display: inline-block; min-width: 26mm; }
+  h2 { font-family: "Barlow Condensed", sans-serif; font-size: 13pt; margin: 5mm 0 1mm; border-bottom: 0.5pt solid #999; padding-bottom: 0.5mm; break-after: avoid; }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; font-size: 8pt; font-weight: 600; color: #555; padding: 1mm 1.5mm; border-bottom: 0.5pt solid #999; }
+  td { padding: 1.6mm 1.5mm; border-bottom: 0.3pt solid #ccc; vertical-align: top; }
+  tr { break-inside: avoid; }
+  .box { width: 5mm; }
+  .box span { display: inline-block; width: 4mm; height: 4mm; border: 0.8pt solid #111; }
+  .qty { text-align: right; font-weight: 600; white-space: nowrap; width: 14mm; }
+  .unit { width: 12mm; color: #555; }
+  .no { width: 22mm; white-space: nowrap; }
+  .note { color: #444; font-size: 9pt; }
+  .tag { border: 0.5pt solid #111; padding: 0 1mm; font-size: 8pt; white-space: nowrap; }
+  .kit td { font-weight: 600; background: #f0f0f0; border-bottom: 0.3pt solid #999; }
+  .component td:nth-child(3) { padding-left: 5mm; }
+  .hint { color: #444; font-size: 8.5pt; }
+  .contents { font-size: 8.5pt; color: #333; margin: 0.5mm 0 0; padding: 0; list-style: none; }
+  .changed td { border-left: 1.5pt solid #111; }
+  .takeover td { color: #444; }
+  .weight { font-size: 9pt; color: #444; margin-bottom: 3mm; }
+  .sign { margin-top: 10mm; display: grid; grid-template-columns: 1fr 1fr; gap: 12mm; break-inside: avoid; }
+  .sign div { border-top: 0.5pt solid #111; padding-top: 1mm; font-size: 8pt; color: #555; }
+</style>
+</head>
+<body>
+  <div class="head">
+    <div><h1>{% translate "Packing list" %}</h1><div>{{ project.number }} – {{ project.name }}{% if overview.packlist.title %} · <strong>{{ overview.packlist.title }}</strong>{% endif %}</div></div>
+    <div class="company"><strong>{{ company.name }}</strong><br>{% translate "Printed" %} {{ printed_at|date:"d.m.Y H:i" }}</div>
+  </div>
+  <div class="facts">
+    {% if show_customer %}<div><span>{% translate "Customer" %}</span> {{ project.customer_name }}</div>{% endif %}
+    <div><span>{% translate "Project manager" %}</span> {{ project.manager|default:"–" }}</div>
+    <div><span>{% translate "Venue" %}</span> {{ project.venue_label|default:"–" }}</div>
+    <div><span>{% translate "Contact" %}</span> {% if project.contact %}{{ project.contact.name }}{% if project.contact.phone %}, {{ project.contact.phone }}{% endif %}{% else %}–{% endif %}</div>
+    <div><span>{% translate "Out from" %}</span> {{ project.start|date:"D d.m.Y H:i" }}</div>
+    <div><span>{% translate "Back by" %}</span> {{ project.end|date:"D d.m.Y H:i" }}</div>
+    {% if overview.packlist.loading_at %}<div><span>{% translate "Loading" %}</span> {{ overview.packlist.loading_at|date:"D d.m.Y H:i" }}</div>{% endif %}
+    {% if overview.packlist.note %}<div><span>{% translate "Note" %}</span> {{ overview.packlist.note }}</div>{% endif %}
+    {% if overview.packlist.vehicle_line %}<div><span>{% translate "Vehicle" %}</span> {{ overview.packlist.vehicle_line.label }}</div>{% endif %}
+  </div>
+  {# PCK-006: weight and volume, as far as the models know them. #}
+  {% if overview.weight_kg %}<p class="weight">{% blocktranslate with weight=overview.weight_kg|number volume=overview.volume_litres|number %}about {{ weight }} kg, {{ volume }} l{% endblocktranslate %}{% if overview.rows_without_weight %} – {% blocktranslate count count=overview.rows_without_weight %}{{ count }} row without weight{% plural %}{{ count }} rows without weight{% endblocktranslate %}{% endif %}</p>{% endif %}
+  {% for text in overview.extracted %}<p class="hint">{{ text }}</p>{% endfor %}
+
+  {% for section in overview.sections %}
+  <h2>{% if section.title %}{{ section.title }}{% else %}{% translate "Without group" %}{% endif %}</h2>
+  <table>
+    <thead><tr><th class="box"></th><th class="qty">{% translate "Quantity" %}</th><th class="unit">{% translate "Unit" %}</th><th class="no">{% translate "Article no." %}</th><th>{% translate "Name" %}</th><th>{% translate "Note" %}</th></tr></thead>
+    <tbody>
+    {% for row in section.rows %}
+      {% ifchanged row.line.pk %}{% if row.kit_title %}<tr class="kit"><td></td><td colspan="5">{{ row.kit_title }} ({{ row.line.product.article_number }})</td></tr>{% endif %}{% endifchanged %}
+      <tr class="{% if row.kit_title %}component{% endif %}{% if row.change %} changed{% endif %}{% if row.takeover_from %} takeover{% endif %}">
+        {# PRJ-060: pieces from another subproject are not packed in the warehouse – no box to tick. #}
+        <td class="box">{% if not row.takeover_from %}<span></span>{% endif %}</td>
+        <td class="qty">{{ row.required|number }}</td>
+        <td class="unit">{{ row.product.unit.abbreviation }}</td>
+        <td class="no">{{ row.product.article_number }}</td>
+        <td>{{ row.title }}{% if row.is_subrental %} <span class="tag">{% translate "subrental" %}{% if row.line.supplier %}: {{ row.line.supplier }}{% endif %}</span>{% endif %}{% if row.is_customer_material %}{# PRJ-096 #} <span class="tag">{% translate "customer material – taken along" %}</span>{% endif %}{% if row.is_sale %} <span class="tag">{% translate "sale" %}</span>{% endif %}{% if row.change == "new" %} <span class="tag">{% translate "new" %}</span>{% elif row.change == "changed" %} <span class="tag">{% blocktranslate with was=row.was_required|number %}was {{ was }}{% endblocktranslate %}</span>{% endif %}{% if row.line.is_addendum %} <span class="tag">{% translate "addendum" %}</span>{% endif %}{# PCK-025: printed again after a partial issue #}{% if row.is_issued_in_full %} <span class="tag">{% translate "issued" %}</span>{% elif row.issued and not row.takeover_from %} <span class="tag">{% blocktranslate with issued=row.issued|number required=row.required|number %}{{ issued }} of {{ required }} issued{% endblocktranslate %}</span>{% endif %}
+          {% if row.takeover_from %}<div class="hint"><span class="tag">{% blocktranslate with number=row.takeover_from.project.number name=row.takeover_from.project.name %}Taken over from {{ number }} {{ name }}{% endblocktranslate %}</span> {% translate "not from the warehouse" %}</div>{% endif %}
+          {% for passing in row.passes_on %}<div class="hint"><span class="tag">{% blocktranslate with quantity=passing.planned|number number=passing.project.number name=passing.project.name %}{{ quantity }} go on to {{ number }} {{ name }}{% endblocktranslate %}</span></div>{% endfor %}
+          {% if row.consists_of_pieces and not row.is_subrental and not row.is_bulk %}<div class="hint"><span class="tag">{% blocktranslate with count=row.pieces_per_unit total=row.pieces_required %}{{ count }} items each, {{ total }} in all{% endblocktranslate %}</span></div>{% endif %}
+          {% if row.chosen %}<div class="hint">{% for chosen in row.chosen %}{{ chosen.display_id }}{% if not forloop.last %}, {% endif %}{% endfor %}</div>{% endif %}
+          {% if row.open_wished %}<div class="hint">{% translate "Wished" %}: {% for wished in row.open_wished %}<strong>{{ wished.display_id }}</strong> {{ wished.name }}{% if wished.spot %}, {{ wished.spot }}{% endif %}{% if not forloop.last %}; {% endif %}{% endfor %}</div>{% endif %}
+          {% if not row.takeover_from %}{% for hint in row.hints %}<div class="hint">{{ hint }}</div>{% endfor %}{% endif %}
+          {% if row.contents %}<ul class="contents">{% for content in row.contents %}<li style="padding-left: {{ content.depth }}em">{% if content.state == "built_in" %}{% translate "contains" %} {{ content.quantity }}{% if content.unit %} {{ content.unit }}{% endif %} × {{ content.name }} ({{ content.display_id }}){% else %}☐ {{ content.display_id }} {{ content.name }}{% endif %}{% if content.state == "extracted" %} – {% translate "stays behind" %}{% endif %}</li>{% endfor %}</ul>{% endif %}</td>
+        <td class="note">{% if not row.kit_title %}{% if row.wish %}<strong>{% translate "Wish" %}: {{ row.wish }}</strong>{% if row.line.note %}<br>{% endif %}{% endif %}{{ row.line.note }}{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% empty %}
+  <p>{% translate "This project has no material to pack." %}</p>
+  {% endfor %}
+
+  <div class="sign"><div>{% translate "Packed by, date" %}</div><div>{% translate "Checked on return by, date" %}</div></div>
+</body>
+</html>

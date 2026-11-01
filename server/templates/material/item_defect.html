@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{{ item.display_id }} – {% translate "Report defect" %}{% endblock %}
+{% block content %}
+{% include "material/_item_head.html" %}
+{% comment %}MAT-023: a short form that works on a phone: what is broken, and a photo straight from the camera.{% endcomment %}
+<section class="panel narrow">
+  <div class="panel-head"><h2>{% translate "Report defect" %}</h2></div>
+  <form method="post" enctype="multipart/form-data" class="panel-body">
+    {% csrf_token %}
+    {% include "core/_form_errors.html" %}
+    <input type="hidden" name="next" value="{{ request.GET.next }}">
+    <input type="hidden" name="context" value="{{ request.GET.context }}">
+    {% include "core/_field.html" with field=form.description %}
+    {% include "core/_field.html" with field=form.photo %}
+    <p class="help">{% if item.status == "defective" %}{% translate "The item is already defective; the report is added to it." %}{% else %}{% translate "The item is set to “defective” with this description, and the warehouse is told." %}{% endif %}</p>
+    <div class="btn-row"><button class="btn" type="submit">{% icon "alert" %}{% translate "Report defect" %}</button><a class="btn secondary" href="{% url 'material:item_detail' item.pk %}">{% translate "Cancel" %}</a></div>
+  </form>
+</section>
+{% endblock %}

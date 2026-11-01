@@ -1,0 +1,14 @@
+{% load i18n %}
+{# The tabs of the section "Planning" (PRJ-028, VFG-012 to VFG-014); VFG-028: in the order calendar, timeline, material utilization, personnel plan, shortages; VFG-034: follow-ups last. #}
+<nav class="tabs" aria-label="{% translate 'Planning' %}">
+  {% if can.read.projects %}
+  <a href="{% url 'schedule:calendar' %}"{% if tab == "calendar" %} aria-current="page"{% endif %}>{% translate "Calendar" %}</a>
+  <a href="{% url 'schedule:timeline' %}"{% if tab == "timeline" %} aria-current="page"{% endif %}>{% translate "Timeline" %}</a>
+  {# AUT-032: utilization and shortages with the special right to see the availability of material. #}
+  {% if all_projects_visible and can.read.products and can.special.availability %}<a href="{% url 'schedule:products' %}"{% if tab == "products" %} aria-current="page"{% endif %}>{% translate "Material utilisation" %}</a>{% endif %}
+  {% endif %}
+  {% if can.read.personnel %}<a href="{% url 'schedule:personnel' %}"{% if tab == "personnel" %} aria-current="page"{% endif %}>{% translate "Personnel plan" %}</a>{% endif %}
+  {% if can.read.projects and all_projects_visible and can.special.availability %}<a href="{% url 'availability:shortages' %}"{% if tab == "shortages" %} aria-current="page"{% endif %}>{% translate "Shortages" %}</a>{% endif %}
+  {# VFG-034: every follow-up as a table – the last tab. #}
+  {% if can.read.projects %}<a href="{% url 'schedule:follow_ups' %}"{% if tab == "follow_ups" %} aria-current="page"{% endif %}>{% translate "Follow-ups" %}</a>{% endif %}
+</nav>

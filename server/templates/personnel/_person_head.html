@@ -1,0 +1,16 @@
+{% load i18n rentalars %}
+{# Head and tabs of a person's pages (PER-013, PER-020). Expects: person, tab. #}
+<div class="page-head">
+  <div>
+    <div class="breadcrumb"><a href="{% url 'personnel:person_list' %}">{% translate "Personnel" %}</a></div>
+    <h1>{{ person.name }}</h1>
+    <p class="lead"><span class="badge">{{ person.get_kind_display }}</span>{% if not person.is_active %} <span class="badge yellow">{% translate "deactivated" %}</span>{% endif %}{% if person.anonymised_at %} <span class="badge">{% translate "anonymised" %}</span>{% endif %}
+      {% for qualification in person.qualifications.all %}{% if qualification.state != "valid" %} <a class="badge {% if qualification.state == 'expired' %}red{% else %}yellow{% endif %}" href="{% url 'personnel:person_detail' person.pk %}#qualifications">{% if qualification.state == "expired" %}{% blocktranslate with name=qualification.qualification_type.name %}{{ name }} expired{% endblocktranslate %}{% else %}{% blocktranslate with name=qualification.qualification_type.name date=qualification.valid_until|date:"d.m.Y" %}{{ name }} until {{ date }}{% endblocktranslate %}{% endif %}</a>{% endif %}{% endfor %}</p>
+  </div>
+  <div class="actions">{% if can.write.personnel and not person.anonymised_at %}<a class="btn" href="{% url 'personnel:person_edit' person.pk %}">{% icon "edit" %}{% translate "Edit person" %}</a>{% endif %}</div>
+</div>
+<nav class="tabs" aria-label="{% translate 'Person' %}">
+  <a href="{% url 'personnel:person_detail' person.pk %}"{% if tab == "person" %} aria-current="page"{% endif %}>{% translate "Person" %}</a>
+  <a href="{% url 'personnel:person_timeline' person.pk %}"{% if tab == "timeline" %} aria-current="page"{% endif %}>{% translate "Timeline" %}</a>
+  <a href="{% url 'personnel:person_availability' person.pk %}"{% if tab == "availability" %} aria-current="page"{% endif %}>{% translate "Availability" %}</a>
+</nav>

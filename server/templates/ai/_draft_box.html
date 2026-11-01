@@ -1,0 +1,8 @@
+{% load i18n rentalars %}{# ADM-017: "Entwurf vorschlagen" – a reply draft by AI from the mails so far, only when switched on. #}
+{% if shown %}<div class="ai-draft no-print" id="ai-draft">
+  <form method="post" action="{% url 'ai:draft' project.pk %}" hx-post="{% url 'ai:draft' project.pk %}" hx-target="#ai-draft" hx-swap="outerHTML" class="btn-row">
+    {% csrf_token %}{% if answer_to %}<input type="hidden" name="answer" value="{{ answer_to.pk }}">{% endif %}
+    <button class="btn secondary small" type="submit">{% icon "edit" %}{% translate "Suggest a draft" %}</button>
+    <span class="muted small">{% translate "The AI writes a reply from the mails so far; you check it before sending." %}</span>
+  </form>
+</div>{% endif %}

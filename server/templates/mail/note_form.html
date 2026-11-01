@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Add note" %} {{ project.number }}{% endblock %}
+{% block content %}
+{% include "projects/_head.html" %}
+{% comment %}
+  EML-051: a note in the correspondence – a phone call, a talk, an agreement – with the time it happened, so
+  that it stands in the chronology between the mails. No mail is sent.
+  EML-055: "With lock", ticked at first, for who may set it; without the right the note is open – said here.
+{% endcomment %}
+<section class="panel">
+  <div class="panel-head"><h2>{% translate "Add note" %}</h2>
+    <span class="muted small">{% translate "Nothing is sent – the note is only for the correspondence of the project." %}</span></div>
+  <div class="panel-body">
+    <form method="post" class="form wide" novalidate>
+      {% csrf_token %}
+      {% include "core/_form_errors.html" %}
+      <div class="form-grid">
+        {% include "core/_field.html" with field=form.date %}
+        {% include "core/_field.html" with field=form.subject %}
+      </div>
+      {% include "core/_field.html" with field=form.text %}
+      {% if form.locked %}{% include "core/_field.html" with field=form.locked %}{% else %}<p class="note">{% translate "The message is stored without lock: the crew reads it as well. A lock is set only by those who may see prices and calculation." %}</p>{% endif %}
+      <div class="btn-row"><button class="btn" type="submit">{% icon "note" %}{% translate "Save note" %}</button><a class="btn secondary" href="{% url 'mail:project_mails' project.pk %}">{% translate "Cancel" %}</a></div>
+    </form>
+  </div>
+</section>
+{% endblock %}

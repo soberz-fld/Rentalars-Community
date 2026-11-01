@@ -1,0 +1,47 @@
+{% load i18n %}
+{% comment %}
+  PRJ-077: one fixture type of an MVR plot. The product is one of the suggestions, another product found with the
+  search field, or nothing. Typing into the search field chooses "another product" (static/js/app.js).
+{% endcomment %}
+{% with index=row.index type=row.type %}
+<tr data-mvr-row>
+  <td data-label="{% translate 'Fixture type' %}">
+    <strong>{{ type.label }}</strong>
+    <div class="muted small">{{ type.spec }}{% if type.mode %} · {% blocktranslate with mode=type.mode %}mode {{ mode }}{% endblocktranslate %}{% endif %}</div>
+    {% if type.examples %}<div class="muted small">{% blocktranslate with examples=type.examples|join:", " %}e.g. {{ examples }}{% endblocktranslate %}</div>{% endif %}
+    <input type="hidden" name="key_{{ index }}" value="{{ type.key }}">
+  </td>
+  <td class="num" data-label="{% translate 'Quantity' %}">
+    <input class="qty" type="text" inputmode="decimal" name="quantity_{{ index }}" value="{{ row.quantity }}" aria-label="{% blocktranslate with type=type.label %}Quantity of {{ type }}{% endblocktranslate %}">
+  </td>
+  <td data-label="{% translate 'Product' %}">
+    <fieldset class="mvr-choices">
+      <legend class="visually-hidden">{% blocktranslate with type=type.label %}Product for {{ type }}{% endblocktranslate %}</legend>
+      {% for suggestion in row.suggestions %}
+      <label class="mvr-choice">
+        <input type="radio" name="choice_{{ index }}" value="{{ suggestion.product_id }}"{% if row.selected == suggestion.product_id|stringformat:"s" %} checked{% endif %}>
+        <span>{{ suggestion.label }}</span>
+        {% if suggestion.source == "remembered" %}<span class="badge green">{% translate "remembered" %}</span>
+        {% elif suggestion.source == "remembered_mode" %}<span class="badge green">{% translate "remembered for another mode" %}</span>
+        {% else %}<span class="badge{% if suggestion.preselected %} accent{% endif %}">{{ suggestion.score }} % {% translate "similar" context "resemblance of a product" %}</span>{% endif %}
+        {% if suggestion.reason %}<small>{{ suggestion.reason }}</small>{% endif %}
+      </label>
+      {% empty %}
+      <p class="muted small">{% translate "No product resembles this type. Search for one, or do not take the type over." %}</p>
+      {% endfor %}
+      <label class="mvr-choice">
+        <input type="radio" name="choice_{{ index }}" value="other" data-mvr-other{% if row.selected == "other" %} checked{% endif %}>
+        <span>{% translate "another product:" %}</span>
+      </label>
+      <div class="typeahead mvr-search" data-typeahead data-url="{% url 'products:suggest' %}?exclude_kind=service,vehicle">
+        <input type="search" name="other_{{ index }}_label" value="{{ row.other_label }}" data-typeahead-input placeholder="{% translate 'Article number or name' %}" aria-label="{% blocktranslate with type=type.label %}Another product for {{ type }}{% endblocktranslate %}" autocomplete="off">
+        <input type="hidden" name="other_{{ index }}" value="{{ row.other_value }}" data-typeahead-value>
+      </div>
+      <label class="mvr-choice">
+        <input type="radio" name="choice_{{ index }}" value="skip"{% if row.selected == "skip" %} checked{% endif %}>
+        <span>{% translate "do not take over" %}</span>
+      </label>
+    </fieldset>
+  </td>
+</tr>
+{% endwith %}

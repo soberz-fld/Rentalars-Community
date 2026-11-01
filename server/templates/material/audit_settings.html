@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Audits" %}{% endblock %}
+{% block content %}
+{% comment %}
+  MAT-067: Einstellungen → Audits – how long after its last audit an item is due again (24 months; 0 switches
+  audits off) and the quick picks offered for to-dos in the audit mode and on the page of an item.
+{% endcomment %}
+<div class="page-head"><div><div class="breadcrumb"><a href="{% url 'core:administration' %}">{% translate "Settings" %}</a></div><h1>{% translate "Audits" %}</h1></div>
+  {% if can.write.material %}<div class="actions"><a class="btn secondary" href="{% url 'material:audit' %}">{% icon "inspection" %}{% translate "Audit" %}</a></div>{% endif %}
+</div>
+<p class="tab-lead">{% translate "An audit is a short look at an item: in order – or small things to be done, such as a missing label. Items whose audit is due are listed under Material management → Open points → Audit due." %}</p>
+<form method="post" class="form panel" novalidate>
+  {% csrf_token %}
+  <div class="panel-body">
+    {% include "core/_form_errors.html" %}
+    <fieldset{% if not can_write %} disabled{% endif %}>
+      {% include "core/_field.html" with field=form.interval_months %}
+      {% include "core/_field.html" with field=form.quick_todos %}
+    </fieldset>
+  </div>
+  {% if can_write %}<div class="panel-body btn-row"><button class="btn" type="submit">{% translate "Save" %}</button></div>{% endif %}
+</form>
+{% endblock %}

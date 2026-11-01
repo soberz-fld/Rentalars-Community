@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Rental scales" %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><div class="breadcrumb"><a href="{% url 'core:administration' %}">{% translate "Settings" %}</a></div><h1>{% translate "Rental scales" %}</h1>
+  <p class="lead">{% translate "A scale turns the number of rental days into a factor on the daily price." %}</p></div>
+  <div class="actions">{% if can_edit %}<a class="btn" href="{% url 'products:scale_create' %}">{% icon "plus" %}{% translate "New rental scale" %}</a>{% endif %}</div>
+</div>
+{# UIX-040: the scales as a table of core/tables.py (products/scale_tables.py); the full table of a scale is in its form. #}
+<section class="panel">
+  {% if scales %}
+  {% include "core/_table_tools.html" %}
+  {% include "core/_table.html" with stack=True %}
+  {% include "core/_pagination.html" %}
+  {% else %}
+  <div class="empty"><strong>{% translate "No rental scales yet." %}</strong>{% translate "Without a scale every rental day counts fully." %}</div>
+  {% endif %}
+</section>
+<p class="muted small section">{% translate "Which scale a category uses is set at the category (Settings, master data). A product can name its own scale or none." %}</p>
+{% endblock %}

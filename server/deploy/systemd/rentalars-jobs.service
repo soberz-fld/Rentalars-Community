@@ -1,0 +1,26 @@
+# Runs every minute, started by rentalars-jobs.timer (NFA-041):
+#
+# Tasks in the background – large imports, many labels, the full export –
+# are normally started at once as a process of their own. This service runs
+# the ones that were not started (the start failed) and starts again the
+# ones a restart interrupted. A task may take long; therefore it has a
+# service of its own and does not hold up the mail fetch.
+#
+# It also checks for shortages when they are due – at the time,
+# rhythm and lead time of Einstellungen → Benachrichtigungen (VFG-036); a
+# minute without a due check costs one query.
+
+[Unit]
+Description=Rentalars – Aufgaben im Hintergrund
+After=network-online.target mariadb.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=rentalars
+Group=rentalars
+Environment=RENTALARS_CONFIG=/etc/rentalars/rentalars.conf
+ExecStart=/opt/rentalars/venv/bin/python /opt/rentalars/app/manage.py run_jobs
+# Tasks must not slow down people who are working.
+Nice=10
+TimeoutStartSec=6h

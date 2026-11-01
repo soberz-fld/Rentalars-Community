@@ -1,0 +1,252 @@
+{% load i18n rentalars %}
+{% comment %}
+  The packlist block, swapped in again after every tick (see packing.views). Expects the context of
+  packing.views._context: packlist, packlists, overview, mode ("pack" or "return"), order, base (the address of
+  this packlist; every step is base + its name).
+{% endcomment %}
+<div id="packlist"{% if highlight_open %} hx-vals='{"open": "1"}'{% endif %}>
+  {% if is_fragment %}{% include "core/_messages.html" %}{% endif %}
+
+  {# PCK-008: several packlists per project; PCK-030: in a whole project also the other parts and all together. #}
+  {% include "packing/_tabs.html" %}
+
+  <div class="panel">
+    <div class="panel-head">
+      <h2>{{ packlist.label }} <span class="badge {{ packlist.status|status_colour }}">{{ packlist.get_status_display }}</span>{% if packlist.loading_at %} <span class="muted small">{% translate "Loading" %} {{ packlist.loading_at|date:"D d.m. H:i" }}</span>{% endif %}{% if packlist.vehicle_line %} <span class="badge" data-packlist-vehicle>{% icon "route" %}{{ packlist.vehicle_line.label }}</span>{% endif %}</h2>
+      <span class="btn-row no-print">
+        {% if packlists|length > 1 and can_pack %}<a class="btn secondary small" href="{% url 'packing:packlist_lines' project.pk %}">{% translate "Distribute lines" %}</a>{% endif %}
+        <a class="btn secondary small" href="{{ base }}pdf/" target="_blank" rel="noopener">{% icon "print" %}{% translate "PDF to print" %}</a>
+      </span>
+    </div>
+    <div class="panel-body">
+      {% if packlist.note %}<p>{{ packlist.note }}</p>{% endif %}
+      {# PCK-029: one bar from packing to return, with its legend in words. #}
+      {% include "packing/_bar.html" %}
+      {% if mode == "return" and packlist.status != "returned" %}
+        <p class="muted small">{% blocktranslate with back=overview.returned_total|number total=overview.issued_total|number date=packlist.issued_at|date:"d.m.Y H:i" %}Issued on {{ date }}. {{ back }} of {{ total }} pieces are back.{% endblocktranslate %}{% if overview.handed_over_total %} {% blocktranslate with count=overview.handed_over_total|number %}{{ count }} of them went on to other subprojects.{% endblocktranslate %}{% endif %} {% translate "Tick each row when it is back, then book the return. If something does not come back, note on the row what happened." %}</p>
+      {% elif packlist.status == "returned" %}
+        <p class="muted">{% blocktranslate with issued=packlist.issued_at|date:"d.m.Y H:i" returned=packlist.returned_at|date:"d.m.Y H:i" %}Issued on {{ issued }}, returned on {{ returned }}.{% endblocktranslate %}</p>
+      {% else %}
+        <p class="muted small">{% blocktranslate with packed=overview.packed_total|number total=overview.required_total|number %}{{ packed }} of {{ total }} pieces are packed.{% endblocktranslate %} {% translate "Tick each row when it is packed – no scan and no choice of single items needed." %}</p>
+      {% endif %}
+      {# PRJ-060: pieces taken over from other subprojects are not packed in the warehouse. #}
+      {% if overview.takeover_total and packlist.status != "returned" %}<p class="note accent small pack-takeover-note">{% blocktranslate with count=overview.takeover_total|number %}{{ count }} pieces come from other subprojects, not from the warehouse. Book their handover on the row when they arrive.{% endblocktranslate %}{% if overview.awaiting_handover_total %} {% blocktranslate with count=overview.awaiting_handover_total|number %}{{ count }} have not arrived yet.{% endblocktranslate %}{% endif %}</p>{% endif %}
+      {# PCK-025: issued per article – the rest is packed and issued later; the project is "out" only once everything is. #}
+      {% if packlist.status == "partly_issued" %}
+      <p class="note accent small pack-partly">{% blocktranslate with out=overview.warehouse_issued_total|number total=overview.required_total|number %}Partly issued: {{ out }} of {{ total }} pieces are out.{% endblocktranslate %} {% blocktranslate with rest=overview.not_issued_total|number %}{{ rest }} pieces are not issued yet.{% endblocktranslate %}{% if mode == "pack" and can_pack %} {% translate "Tick them as they are packed and issue them; returns can be booked meanwhile." %}{% endif %}{% if project.status != "out" %} {% blocktranslate with status=project.get_status_display %}The project stays “{{ status }}” until everything is issued.{% endblocktranslate %}{% endif %}</p>
+      {# PCK-028: packing and issue go on while returns are ticked and booked. #}
+      <p class="segmented no-print" role="group" aria-label="{% translate 'View' %}">
+        <a class="btn secondary small{% if mode == 'pack' %} is-active{% endif %}" href="{{ base }}?mode=pack"{% if mode == 'pack' %} aria-current="true"{% endif %}>{% translate "Pack and issue" context "packlist mode" %}</a>
+        <a class="btn secondary small{% if mode == 'return' %} is-active{% endif %}" href="{{ base }}?mode=return"{% if mode == 'return' %} aria-current="true"{% endif %}>{% translate "Take back" context "packlist mode" %}</a>
+      </p>
+      {% elif packlist.status == "issued" and project.status != "out" and project.status != "returned" %}
+      <p class="note small pack-partly">{% blocktranslate with status=project.get_status_display %}The project stays “{{ status }}” until the material of its other packing lists is issued too.{% endblocktranslate %}</p>
+      {% endif %}
+      {# PCK-004: the order of the rows; PCK-006: weight and volume; MAT-037: contents of containers. #}
+      <div class="pack-tools no-print">
+        <span class="segmented" role="group" aria-label="{% translate 'Order' %}">
+          <a class="btn secondary small{% if order == 'groups' %} is-active{% endif %}" href="{{ base }}?order=groups{% if mode == 'return' %}&amp;mode=return{% endif %}">{% translate "Groups" %}</a>
+          <a class="btn secondary small{% if order == 'category' %} is-active{% endif %}" href="{{ base }}?order=category{% if mode == 'return' %}&amp;mode=return{% endif %}">{% translate "Category" %}</a>
+          <a class="btn secondary small{% if order == 'location' %} is-active{% endif %}" href="{{ base }}?order=location{% if mode == 'return' %}&amp;mode=return{% endif %}">{% translate "Storage location" %}</a>
+        </span>
+        <a class="small" href="{{ base }}?contents={% if with_contents %}0{% else %}1{% endif %}{% if mode == 'return' %}&amp;mode=return{% endif %}">{% if with_contents %}{% translate "Hide contents of containers" %}{% else %}{% translate "Show contents of containers" %}{% endif %}</a>
+        {% if overview.weight_kg %}<span class="muted small">{% blocktranslate with weight=overview.weight_kg|number volume=overview.volume_litres|number %}about {{ weight }} kg, {{ volume }} l{% endblocktranslate %}{% if overview.rows_without_weight %} – {% blocktranslate count count=overview.rows_without_weight %}{{ count }} row without weight{% plural %}{{ count }} rows without weight{% endblocktranslate %}{% endif %}</span>{% endif %}
+      </div>
+    </div>
+
+    {# PCK-015: the planning changed after packing started. #}
+    {% if overview.has_changes and packlist.status != "returned" %}
+    <div class="note no-print pack-changes">
+      <strong>{% translate "The planning changed since packing started." %}</strong>
+      {% if overview.removed %}<ul class="plain-list">{% for removed in overview.removed %}<li><s>{{ removed.was_required|number }} × {{ removed.article_number }} {{ removed.title }}</s> {% translate "no longer needed" %}{% if removed.packed %} – {% blocktranslate with packed=removed.packed|number %}{{ packed }} packed, put back{% endblocktranslate %}{% endif %}</li>{% endfor %}</ul>{% endif %}
+      {% if can_pack %}<form hx-post="{{ base }}acknowledge-changes/" hx-target="#packlist" hx-swap="outerHTML" class="inline-form"><button class="btn secondary small" type="submit">{% translate "Changes are dealt with" %}</button></form>{% endif %}
+    </div>
+    {% endif %}
+    {% if overview.extracted %}<div class="note accent">{% for text in overview.extracted %}{{ text }}{% if not forloop.last %}<br>{% endif %}{% endfor %}</div>{% endif %}
+
+    {# PCK-010, PCK-016, UIX-006: an item is marked packed or back by reading its label – camera, hand scanner or typed ID. Voluntary: ticking a row works as before. #}
+    {% if can_pack and overview.rows and mode == "pack" and packlist.can_be_packed or can_pack and overview.rows and mode == "return" and packlist.is_out %}
+    <form class="pack-scan no-print" method="post" action="{{ base }}scan/" hx-post="{{ base }}scan/" hx-target="#packlist" hx-swap="outerHTML" data-scan-form autocomplete="off">
+      {% csrf_token %}<input type="hidden" name="mode" value="{{ mode }}"><input type="hidden" name="view_mode" value="{{ mode }}">
+      <label for="pack-scan-code">{% if mode == "return" %}{% translate "Item is back: scan or type the ID" %}{% else %}{% translate "Item is packed: scan or type the ID" %}{% endif %}</label>
+      <div class="scan-row">
+        <input type="text" id="pack-scan-code" name="code" data-scan-field placeholder="{% translate 'ID or code of the label' %}" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="300">
+        <button class="btn" type="submit">{% icon "check" %}{% translate "Count" context "scan button" %}</button>
+        {% include "material/_scan.html" with scan_input="#pack-scan-code" scan_continuous=True %}
+      </div>
+    </form>
+    {% endif %}
+
+    {% if not overview.rows %}
+    <div class="empty"><strong>{% translate "Nothing to pack." %}</strong>{% if is_main %}{% translate "The project has no material lines yet, or only services and surcharges." %}{% else %}{% translate "Give this packing list its lines with “Distribute lines”." %}{% endif %}</div>
+    {% endif %}
+
+    {% for section in overview.sections %}
+      <div class="pack-kit">{% if section.title %}{{ section.title }}{% else %}{% translate "Without group" %}{% endif %}{% if section.weight_kg %} <span class="muted small">{{ section.weight_kg|number }} kg</span>{% endif %}</div>
+      <ul class="pack-list">
+      {% for row in section.rows %}
+        {% if mode == "return" %}
+        {% with state=row.return_state %}
+        {# PCK-023: "out" is the normal state and stays plain. Only a row that came back incomplete, or one that stands in the way of completing the return, is marked. #}
+        {# PCK-028: a row booked back completely is done; one ticked as back waits for "book the return". #}
+        <li class="pack-row{% if scan_row and row.key == scan_row %} is-scanned{% endif %}{% if row.is_taken_back_in_full %} is-taken-back{% elif state == "back" %} is-done{% elif state == "partial" %} is-partial{% endif %}{% if row.takeover_from %} is-takeover{% endif %}{% if highlight_open %}{% if state == "partial" or state == "out" %} is-open{% endif %}{% endif %}">
+          <div class="qty">{{ row.issued|number }}<small>{{ row.product.unit.abbreviation }}</small></div>
+          <div class="what">
+            <div class="name">{{ row.title }}</div>
+            <div class="meta"><span class="artno">{{ row.product.article_number }}</span>{% if row.kit_title %}<span>{% translate "from" context "kit" %} {{ row.kit_title }}</span>{% endif %}{% if row.is_subrental %}<span class="badge yellow">{% translate "subrental" %}{% if row.line.supplier %}: {{ row.line.supplier }}{% endif %}</span>{% endif %}{% if row.is_customer_material %}<span class="badge accent">{% translate "customer material – taken along" %}</span>{% endif %}{% if state == "sold" %}<span class="badge solid">{% translate "sold – does not come back" %}</span>{% elif state == "not_issued" %}{% if not row.takeover_from %}<span class="badge">{% translate "was not issued" %}</span>{% endif %}{% elif row.is_taken_back_in_full %}<span class="badge solid">{% translate "taken back" context "packlist row" %}</span>{% elif state == "out" %}<span class="badge">{% translate "out" context "packlist" %}</span>{% elif state == "partial" %}<span class="badge yellow">{% blocktranslate with back=row.back|number total=row.issued|number %}{{ back }} of {{ total }} back{% endblocktranslate %}</span>{% endif %}{% if row.taken_back and not row.is_taken_back_in_full %}<span class="badge">{% blocktranslate with taken=row.taken_back|number total=row.issued|number %}{{ taken }} of {{ total }} taken back{% endblocktranslate %}</span>{% endif %}{% if row.ready_to_take_back %}<span class="badge accent">{% blocktranslate with count=row.ready_to_take_back|number %}{{ count }} not booked yet{% endblocktranslate %}</span>{% endif %}{% if row.issued < row.required and state != "not_issued" and not row.takeover_from %}<span class="badge">{% blocktranslate with issued=row.issued|number required=row.required|number %}{{ issued }} of {{ required }} issued{% endblocktranslate %}</span>{% endif %}{% for id in row.allocated_ids %}<span class="tape">{{ id }}</span>{% endfor %}</div>
+            {% include "packing/_row_pieces.html" %}
+            {% include "packing/_row_takeover.html" %}
+            {% include "packing/_row_contents.html" %}
+            {% if state == "clarified" %}
+              <div class="meta"><span class="badge">{% blocktranslate with count=row.missing|number %}{{ count }} not back, clarified{% endblocktranslate %}</span> {{ row.missing_note }}</div>
+            {% elif packlist.is_out and can_pack %}{% if state == "partial" or state == "out" %}
+              <details class="pack-clarify no-print"{% if state == "partial" or highlight_open %} open{% endif %}>
+                <summary>{% if state == "partial" %}{% blocktranslate count count=row.missing with number=row.missing|number %}{{ number }} piece is not back{% plural %}{{ number }} pieces are not back{% endblocktranslate %}{% else %}{% translate "Does not come back?" %}{% endif %}</summary>
+                <form class="btn-row" hx-post="{{ base }}resolve-missing/" hx-target="#packlist" hx-swap="outerHTML" autocomplete="off">
+                  <input type="hidden" name="line" value="{{ row.line.pk }}"><input type="hidden" name="product" value="{{ row.product.pk }}"><input type="hidden" name="view_mode" value="return">
+                  <input type="text" name="note" placeholder="{% translate 'What happened? E.g. lost, stays with the customer' %}" aria-label="{% translate 'How were the missing parts clarified?' %}">
+                  <button class="btn secondary small" type="submit">{% translate "Note and close the row" %}</button>
+                </form>
+              </details>
+            {% endif %}{% endif %}
+          </div>
+          {# PRJ-060: pieces handed over to another subproject come back with that one, not here. #}
+          {# PCK-028: what is taken back stays back – the tick does not go below it. #}
+          {% if row.is_taken_back_in_full %}
+          <span class="pack-issued is-back no-print" aria-hidden="true">{% icon "box-in" %}</span>
+          {% elif packlist.is_out and can_pack and state != "sold" and state != "not_issued" and row.returnable %}
+          <form class="pack-check no-print" hx-post="{{ base }}row/" hx-target="#packlist" hx-swap="outerHTML" hx-trigger="submit, change from:find input[type=number]" autocomplete="off">
+            <input type="hidden" name="mode" value="return"><input type="hidden" name="view_mode" value="return"><input type="hidden" name="line" value="{{ row.line.pk }}"><input type="hidden" name="product" value="{{ row.product.pk }}">
+            {% if row.returnable > 1 %}<input type="number" name="quantity" value="{{ row.returned|floatformat:'0' }}" min="{{ row.taken_back|floatformat:'0' }}" max="{{ row.returnable|floatformat:'0' }}" aria-label="{% translate 'Returned quantity' %}">{% endif %}
+            <button class="tick" type="submit" name="{% if row.returnable > 1 %}all{% else %}quantity{% endif %}" value="{% if row.returned >= row.returnable %}{{ row.taken_back|floatformat:'0' }}{% else %}{{ row.returnable|floatformat:'0' }}{% endif %}" aria-pressed="{% if row.returned >= row.returnable %}true{% else %}false{% endif %}" aria-label="{% translate 'Completely back' %}" data-set-quantity="{% if row.returned >= row.returnable %}{{ row.taken_back|floatformat:'0' }}{% else %}{{ row.returnable|floatformat:'0' }}{% endif %}">{% icon "check" %}</button>
+          </form>
+          {% endif %}
+        </li>
+        {% endwith %}
+        {% else %}
+        {# PCK-025: a row that went out in full is no longer packed; a row issued in part is packed on. #}
+        <li class="pack-row{% if scan_row and row.key == scan_row %} is-scanned{% endif %}{% if row.is_issued_in_full %} is-issued{% elif row.is_packed %} is-done{% endif %}{% if row.change %} is-changed{% endif %}{% if row.takeover_from %} is-takeover{% endif %}">
+          <div class="qty">{{ row.required|number }}<small>{{ row.product.unit.abbreviation }}</small></div>
+          <div class="what">
+            <div class="name">{{ row.title }}{% if row.change == "new" %} <span class="badge accent">{% translate "new" %}</span>{% elif row.change == "changed" %} <span class="badge accent">{% blocktranslate with was=row.was_required|number %}was {{ was }}{% endblocktranslate %}</span>{% endif %}{% if row.line.is_addendum %} <span class="badge">{% translate "addendum" %}</span>{% endif %}</div>
+            <div class="meta"><span class="artno">{{ row.product.article_number }}</span>{% if row.kit_title %}<span>{% translate "from" context "kit" %} {{ row.kit_title }}</span>{% endif %}{% if row.is_subrental %}<span class="badge yellow">{% translate "subrental" %}{% if row.line.supplier %}: {{ row.line.supplier }}{% endif %}</span>{% endif %}{% if row.is_customer_material %}{# PRJ-096 #}<span class="badge accent">{% translate "customer material – taken along" %}</span>{% endif %}{% if row.is_sale %}<span class="badge solid">{% translate "sale" %}</span>{% endif %}{% if row.wish and not row.kit_title %}<span class="badge accent">{% translate "Wish" %}: {{ row.wish }}</span>{% endif %}{% if row.is_issued_in_full %}<span class="badge solid">{% translate "issued" %}</span>{% elif row.issued and not row.takeover_from %}<span class="badge yellow">{% blocktranslate with issued=row.issued|number required=row.required|number %}{{ issued }} of {{ required }} issued{% endblocktranslate %}</span>{% endif %}{% if row.line.note %}<span>{{ row.line.note }}</span>{% endif %}{% if order == "location" and row.location %}<span>{% icon "tag" %}{{ row.location }}</span>{% endif %}</div>
+            {% if row.hints and not row.takeover_from %}<div class="meta hints">{% for hint in row.hints %}<span>{{ hint }}</span>{% endfor %}</div>{% endif %}
+            {% if row.takeover_from %}{% if row.chosen %}<div class="meta chosen">{% for chosen in row.chosen %}<span class="tape">{{ chosen.display_id }}</span>{% endfor %}</div>{% endif %}
+            {% elif row.chosen or can_pack and not row.is_bulk and not row.is_subrental %}
+            <div class="meta chosen">{% for chosen in row.chosen %}<span class="tape{% if chosen.inspection_overdue %} is-warning{% endif %}" title="{% if chosen.is_issued %}{% translate 'issued' %}{% else %}{% translate 'chosen' %}{% endif %}{% if chosen.inspection_overdue %} – {% translate 'inspection overdue' %}{% endif %}">{{ chosen.display_id }}</span>{% if chosen.spot and not chosen.is_issued %}<span class="storage-spot" title="{% translate 'Storage spot' %}">{{ chosen.spot }}</span>{% endif %}{% endfor %}
+              {% if can_pack and not row.is_bulk and not row.is_subrental and not row.is_issued_in_full %}<a class="small no-print" href="{{ base }}items/?line={{ row.line.pk }}&amp;product={{ row.product.pk }}" hx-get="{{ base }}items/?line={{ row.line.pk }}&amp;product={{ row.product.pk }}" hx-target="#dialog">{% if row.chosen %}{% translate "change items" %}{% else %}{% translate "choose items" %}{% endif %}</a>{% endif %}</div>
+            {% endif %}
+            {# Piece share: exactly the items the planner wished for, with the spot to take them from. #}
+            {% if row.open_wished %}<div class="meta wished"><span>{% translate "Wished" %}:</span> {% for wished in row.open_wished %}<span class="tape{% if wished.problem %} is-warning{% endif %}">{{ wished.display_id }}</span> <span class="muted small">{{ wished.name }}{% if wished.spot %}, {{ wished.spot }}{% endif %}{% if wished.problem %} – {{ wished.problem }}{% endif %}</span>{% if not forloop.last %}; {% endif %}{% endfor %}</div>{% endif %}
+            {% include "packing/_row_pieces.html" %}
+            {% include "packing/_row_takeover.html" %}
+            {% include "packing/_row_contents.html" %}
+          </div>
+          {% if row.is_issued_in_full %}
+          <span class="pack-issued no-print" aria-hidden="true">{% icon "box-out" %}</span>
+          {% elif can_pack and not row.takeover_from %}
+          <form class="pack-check no-print" hx-post="{{ base }}row/" hx-target="#packlist" hx-swap="outerHTML" hx-trigger="submit, change from:find input[type=number]" autocomplete="off">
+            <input type="hidden" name="mode" value="pack"><input type="hidden" name="line" value="{{ row.line.pk }}"><input type="hidden" name="product" value="{{ row.product.pk }}">
+            {% if row.is_bulk or row.required > 1 %}<input type="number" name="quantity" value="{{ row.packed|floatformat:'0' }}" min="{{ row.issued|floatformat:'0' }}" max="{{ row.required|floatformat:'0' }}" aria-label="{% translate 'Packed quantity' %}">{% endif %}
+            <button class="tick" type="submit" name="{% if row.is_bulk or row.required > 1 %}all{% else %}quantity{% endif %}" value="{% if row.is_packed %}{{ row.issued|floatformat:'0' }}{% else %}{{ row.required|floatformat:'0' }}{% endif %}" aria-pressed="{% if row.is_packed %}true{% else %}false{% endif %}" aria-label="{% translate 'Completely packed' %}" data-set-quantity="{% if row.is_packed %}{{ row.issued|floatformat:'0' }}{% else %}{{ row.required|floatformat:'0' }}{% endif %}">{% icon "check" %}</button>
+          </form>
+          {% endif %}
+        </li>
+        {% endif %}
+      {% endfor %}
+      </ul>
+    {% endfor %}
+
+    {# PCK-013: more material while packing, marked as addendum in the project. A charged line – only for #}
+    {# whoever may change the project or packs for all projects (packing.services.may_add_material); crew packs 1:1. #}
+    {% if can_pack and mode == "pack" and packlist.can_be_packed and not can_add_material %}
+    <p class="muted small no-print" data-no-addendum>{% translate "Only people who may change the project or pack for all projects may add material while packing." %}</p>
+    {% elif can_pack and mode == "pack" and packlist.can_be_packed %}
+    <form method="post" action="{{ base }}add-material/" class="line-add no-print">
+      {% csrf_token %}
+      <div class="typeahead" data-typeahead data-url="{% url 'products:suggest' %}?exclude_kind=surcharge,service,incidental,vehicle&amp;project={{ project.pk }}">
+        <input type="search" data-typeahead-input placeholder="{% translate 'Add material while packing' %}" aria-label="{% translate 'Product' %}" autocomplete="off">
+        <input type="hidden" name="product" data-typeahead-value>
+      </div>
+      <input class="qty" type="number" name="quantity" value="1" min="1" aria-label="{% translate 'Quantity' %}">
+      <button class="btn secondary" type="submit">{% icon "plus" %}{% translate "Add as addendum" %}</button>
+    </form>
+    {% endif %}
+
+    {# PCK-019, PCK-028: booking completes the return once all is back; by hand for clarified parts or an unneeded rest. #}
+    {% if can_pack and mode == "return" and packlist.is_out %}
+    <div class="panel-body pack-complete no-print">
+      <p class="muted small">{% translate "Does something not come back, or is the rest not issued any more? Clarify missing parts on their row, then complete the return." %}</p>
+      <form method="post" action="{{ base }}complete-return/">{% csrf_token %}<button class="btn secondary" type="submit"{% if packlist.status == "partly_issued" %} data-confirm="{% translate 'Complete the return? What was not issued stays in the warehouse.' %}"{% endif %}>{% translate "Complete the return" %}</button></form>
+    </div>
+    {% endif %}
+
+    {# PCK-017: a defect noticed on return, per item. #}
+    {% if can_pack and mode == "return" and packlist.is_issued %}
+    <details class="panel-body no-print">
+      <summary>{% icon "alert" %}{% translate "Report a defect of a returned item" %}</summary>
+      <form method="post" action="{{ base }}report-defect/" enctype="multipart/form-data" class="form-grid">
+        {% csrf_token %}
+        <div class="field"><label for="defect-item">{% translate "ID" %}</label><input id="defect-item" type="text" name="item" list="defect-items" required autocomplete="off"><datalist id="defect-items">{% for item in defect_items %}<option value="{{ item.display_id }}">{{ item.material_model.name }}</option>{% endfor %}</datalist></div>
+        <div class="field grow"><label for="defect-description">{% translate "What is defective?" %}</label><input id="defect-description" type="text" name="description" required></div>
+        <div class="field"><label for="defect-photo">{% translate "Photo" %}</label><input id="defect-photo" type="file" name="photo" accept="image/*" capture="environment"></div>
+        <div class="field"><span class="label">&nbsp;</span><button class="btn secondary" type="submit">{% translate "Report defect" %}</button></div>
+      </form>
+    </details>
+    {% endif %}
+
+    {% if can_pack and vehicle_choices and packlist.status != "returned" %}
+    {# LOG-001: which vehicle of the logistics this list is loaded into – a hint on the list and its PDF. #}
+    <form method="post" action="{{ base }}vehicle/" class="panel-body form-grid no-print packlist-vehicle">
+      {% csrf_token %}
+      <div class="field"><label for="pl-vehicle">{% translate "Loaded into" %}</label>
+        <select id="pl-vehicle" name="vehicle_line"><option value="">{% translate "– no vehicle –" %}</option>{% for choice in vehicle_choices %}<option value="{{ choice.pk }}"{% if choice.pk == packlist.vehicle_line_id %} selected{% endif %}>{{ choice.label }}</option>{% endfor %}</select></div>
+      <div class="field"><span class="label">&nbsp;</span><button class="btn secondary small" type="submit">{% translate "Save" %}</button></div>
+    </form>
+    {% endif %}
+
+    {% if can_pack and not is_main and not packlist.is_issued %}
+    {# PCK-008: the fields are text fields like all others; Save and Delete stand side by side. #}
+    <details class="panel-body no-print packlist-edit">
+      <summary>{% translate "Edit or delete this packing list" %}</summary>
+      <form method="post" action="{{ base }}edit/" class="form-grid" id="pl-edit" novalidate>
+        {% csrf_token %}
+        <div class="field"><label for="pl-title">{% translate "Title" %}</label><input id="pl-title" type="text" name="title" value="{{ packlist.title }}" maxlength="120" required></div>
+        <div class="field"><label for="pl-loading">{% translate "Loading" %}</label><input id="pl-loading" type="datetime-local" name="loading_at" value="{{ packlist.loading_at|date:'Y-m-d\TH:i' }}"></div>
+        <div class="field"><label for="pl-note">{% translate "Note" %}</label><input id="pl-note" type="text" name="note" value="{{ packlist.note }}" maxlength="250"></div>
+      </form>
+      <form method="post" action="{{ base }}delete/" id="pl-delete">{% csrf_token %}</form>
+      <div class="btn-row packlist-edit-actions">
+        <button class="btn" type="submit" form="pl-edit">{% translate "Save" %}</button>
+        <button class="btn danger" type="submit" form="pl-delete" data-confirm="{% translate 'Delete this packing list? Its lines go back to the first packing list.' %}">{% icon "trash" %}{% translate "Delete packing list" %}</button>
+      </div>
+    </details>
+    {% endif %}
+  </div>
+
+  {% if can_pack and overview.rows %}
+  <div class="pack-bar no-print">
+    {% if mode == "pack" and packlist.can_be_packed %}{% if overview.warehouse_rows %}
+      <form hx-post="{{ base }}pack-all/" hx-target="#packlist" hx-swap="outerHTML"><button class="btn secondary" type="submit">{% translate "Tick all rows" %}</button></form>
+      {# PCK-025: "issue" books what is ticked; "issue everything" is for packing done on paper. #}
+      <span class="btn-row">
+        <span class="muted small pack-ready" id="issue-ready">{% if overview.ready_total %}{% blocktranslate count count=overview.ready_total with number=overview.ready_total|number %}{{ number }} ticked piece goes out.{% plural %}{{ number }} ticked pieces go out.{% endblocktranslate %}{% else %}{% translate "Tick what goes out." %}{% endif %}</span>
+        {% if not overview.is_all_ticked %}
+        <form method="post" action="{{ base }}issue/">{% csrf_token %}<input type="hidden" name="only_packed" value="0"><button class="btn secondary" type="submit" data-confirm="{% translate 'Issue everything with its full quantity, also what is not ticked? Use this when the packing was done on paper.' %}">{% translate "Issue everything" %}</button></form>
+        {% endif %}
+        <form method="post" action="{{ base }}issue/">{% csrf_token %}<input type="hidden" name="only_packed" value="1"><button class="btn" type="submit" aria-describedby="issue-ready"{% if not overview.ready_total %} disabled{% endif %}>{% icon "box-out" %}{% translate "Issue" context "packlist action" %}</button></form>
+      </span>
+    {% endif %}{% elif packlist.is_out %}
+      {# PCK-028: like the issue – tick what came back, then book it. #}
+      <span class="btn-row">
+        <form hx-post="{{ base }}return-all/" hx-target="#packlist" hx-swap="outerHTML"><input type="hidden" name="view_mode" value="return"><button class="btn secondary" type="submit">{% translate "Everything is back" %}</button></form>
+        {% if not overview.returned_total %}<form method="post" action="{{ base }}undo-issue/">{% csrf_token %}<button class="link-btn" type="submit" data-confirm="{% translate 'Take back the issue? Use this only if it was booked by mistake.' %}">{% translate "Take back the issue" %}</button></form>{% endif %}
+      </span>
+      <span class="btn-row">
+        <span class="muted small pack-ready" id="take-back-ready">{% if overview.ready_back_total %}{% blocktranslate count count=overview.ready_back_total with number=overview.ready_back_total|number %}{{ number }} ticked piece comes back.{% plural %}{{ number }} ticked pieces come back.{% endblocktranslate %}{% else %}{% translate "Tick what came back." %}{% endif %}</span>
+        <form method="post" action="{{ base }}take-back/">{% csrf_token %}<button class="btn" type="submit" aria-describedby="take-back-ready"{% if not overview.ready_back_total %} disabled{% endif %}>{% icon "box-in" %}{% translate "Book the return" %}</button></form>
+      </span>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>

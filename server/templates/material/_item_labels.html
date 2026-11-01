@@ -1,0 +1,28 @@
+{% load i18n rentalars %}
+{% comment %}
+  MAT-066 (labels): "Etikett" on the page of an item – which label to print. Each choice opens the print page of exactly
+  this item in a tab of its own; its print dialog opens by itself (MAT-056). The label suggested under Einstellungen →
+  Etiketten comes first. A dialog over the item's page, or a page of its own without JavaScript (item_labels.html).
+  Expects: item, label_choices, sheet_choices, more_url, as_page.
+{% endcomment %}
+<div class="dialog-head"><h2 id="item-labels-title">{% blocktranslate with id=item.display_id %}Label for {{ id }}{% endblocktranslate %}</h2>{% if not as_page %}<button type="button" class="icon-btn" data-close-dialog aria-label="{% translate 'Close' %}">{% icon "close" %}</button>{% endif %}</div>
+<div class="dialog-body">
+  {% if item.is_archived %}
+  <p>{% translate "Archived items get no labels." %}</p>
+  {% else %}
+  <p class="muted">{% translate "Choose a label: it opens in a new tab, ready to print." %}</p>
+  <div class="btn-row label-choices" role="group" aria-labelledby="item-labels-title">
+    {% for choice in label_choices %}<a class="btn{% if not choice.suggested %} secondary{% endif %}" href="{{ choice.url }}" target="_blank" rel="noopener" data-label-kind="{{ choice.key }}"{% if not as_page %} data-close-dialog{% endif %}>{% icon "print" %}{{ choice.name }}</a>{% endfor %}
+  </div>
+  {% if sheet_choices %}
+  <h3 class="small" id="item-labels-sheets">{% translate "Sheets and roll" %}</h3>
+  <div class="btn-row label-choices" role="group" aria-labelledby="item-labels-sheets">
+    {% for choice in sheet_choices %}<a class="btn secondary small" href="{{ choice.url }}" target="_blank" rel="noopener" data-label-kind="{{ choice.key }}"{% if not as_page %} data-close-dialog{% endif %}>{{ choice.name }}</a>{% endfor %}
+  </div>
+  {% endif %}
+  {% endif %}
+</div>
+<div class="dialog-foot">
+  <a class="btn secondary" href="{{ more_url }}">{% icon "settings" %}{% translate "More settings" %}</a>
+  {% if as_page %}<a class="btn secondary" href="{% url 'material:item_detail' item.pk %}">{% translate "Back to the item" %}</a>{% else %}<button type="button" class="btn secondary" data-close-dialog>{% translate "Cancel" %}</button>{% endif %}
+</div>

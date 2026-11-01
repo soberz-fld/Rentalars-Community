@@ -1,0 +1,21 @@
+{% load i18n rentalars %}
+{% comment %}
+  PRJ-120: the rows "Funktion + Plätze" of a new phase (staffing_forms.FunctionRowsMixin) – saving the phase
+  plans that many open places in it, with its period. "Weitere Funktion" and "Entfernen" send the form back for one row
+  more or less, without saving – in a dialog and on a page without the page script alike. The form that includes this
+  puts a hidden default button first, so that Enter in a field saves rather than adds or removes a row.
+  Expects: form.
+{% endcomment %}
+<fieldset class="function-rows" aria-describedby="{{ form.auto_id|default:'id_%s'|cut:'%s' }}function-rows-help">
+  <legend>{% translate "Personnel places (optional)" %}</legend>
+  <p class="help" id="{{ form.auto_id|default:'id_%s'|cut:'%s' }}function-rows-help">{% translate "Job functions with their places: saving the phase plans that many open places in it, to be filled with “Personnel for this phase”." %}</p>
+  {{ form.rows }}
+  {% for index, function, places in form.function_rows %}
+  <div class="form-row staffing-row" data-staffing-row="{{ index }}">
+    {% include "core/_field.html" with field=function %}
+    {% include "core/_field.html" with field=places %}
+    {% if form.row_count > 1 %}<button type="submit" class="btn secondary small staffing-remove" name="remove_row" value="{{ index }}" formnovalidate aria-label="{% blocktranslate with number=forloop.counter %}Remove job function {{ number }}{% endblocktranslate %}">{% icon "trash" %}<span class="visually-hidden">{% translate "Remove" %}</span></button>{% endif %}
+  </div>
+  {% endfor %}
+  {% if form.can_add_row %}<div class="btn-row"><button type="submit" class="btn secondary small" name="add_row" value="1" formnovalidate>{% icon "plus" %}{% translate "Another job function" %}</button></div>{% endif %}
+</fieldset>

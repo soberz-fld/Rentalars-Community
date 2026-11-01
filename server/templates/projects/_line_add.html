@@ -1,0 +1,13 @@
+{% load i18n rentalars %}
+{# Add a product. The search also finds models and items; the choice then travels along as a wish (PRJ-065). #}
+{# PRJ-096: with the project named, the search also offers the material its customer keeps here. #}
+{# PRD-044: services are planned under Personnel with their job function; the search leaves them out. #}
+<form class="line-add add-row no-print" hx-post="{% url 'projects:line_add' project.pk %}" hx-target="#planning" hx-swap="outerHTML" autocomplete="off">
+  <input type="hidden" name="group" value="{{ group_id }}">
+  <div class="typeahead" data-typeahead data-url="{% url 'products:suggest' %}?with_material=1&amp;exclude_kind=service,vehicle&amp;project={{ project.pk }}">
+    <input type="search" data-typeahead-input placeholder="{% translate 'Add: article number, product, model or item ID' %}" aria-label="{% translate 'Product' %}" autocomplete="off">
+    <input type="hidden" name="product" data-typeahead-value>
+  </div>
+  <input class="qty" type="text" inputmode="decimal" name="quantity" value="1" aria-label="{% translate 'Quantity' %}" autocomplete="off">
+  <button class="btn secondary" type="submit">{% icon "plus" %}{% translate "Add" %}</button>
+</form>

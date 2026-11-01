@@ -1,0 +1,14 @@
+# Starts the mail fetch every minute (EML-005, NFA-036). The interval set in
+# the mail settings decides whether the command really fetches; every
+# mailbox of the correspondence is fetched in turn (EML-041).
+
+[Unit]
+Description=Rentalars – E-Mails abrufen (Zeitplan)
+
+[Timer]
+OnBootSec=2min
+OnUnitInactiveSec=1min
+AccuracySec=10s
+
+[Install]
+WantedBy=timers.target

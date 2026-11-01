@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Procedure documentation" %}{% endblock %}
+{% block content %}
+{% comment %}
+  DOK-046: the procedure documentation as a page, filled from the settings (documents/procedure.py); PDF and Markdown to download.
+{% endcomment %}
+<div class="page-head"><div><h1>{% translate "Accounting" %}</h1></div>
+  <div class="actions"><a class="btn secondary" href="?format=pdf">{% icon "download" %}PDF</a><a class="btn secondary" href="?format=md">{% icon "download" %}Markdown</a></div></div>
+{% include "documents/_accounting_tabs.html" %}
+<div class="panel"><div class="panel-head"><h2>{% translate "Procedure documentation" %}</h2></div>
+  <div class="panel-body">
+  <p class="muted small">{% translate "A draft made from the settings of this installation. It has to be completed by the company and checked with the tax adviser; Rentalars is not certified." %}</p>
+  {% for section in sections %}
+  <h3>{{ section.heading }}</h3>
+  {% for paragraph in section.paragraphs %}<p>{{ paragraph }}</p>{% endfor %}
+  {% if section.facts %}<dl class="facts">{% for name, value in section.facts %}<dt>{{ name }}</dt><dd>{{ value }}</dd>{% endfor %}</dl>{% endif %}
+  {% endfor %}
+  </div></div>
+{% endblock %}

@@ -1,0 +1,39 @@
+{% load i18n rentalars %}
+{% comment %}
+  Above a list: choose the columns (UIX-015) and download the filtered view as CSV (IMP-005). The chooser is a
+  plain form inside <details>; it works without scripts. UIX-040: "Group by" for tables with columns that can group.
+  Expects: table (a TableState).
+{% endcomment %}
+<div class="table-tools">
+  <details class="column-chooser">
+    <summary class="btn secondary small">{% icon "columns" %}{% translate "Columns" %}</summary>
+    <form method="post" action="{% url 'core:table_columns' table.key %}" class="column-chooser-panel">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{{ request.get_full_path }}">
+      <fieldset>
+        <legend>{% translate "Show these columns" %}</legend>
+        {% for column, shown in table.chooser %}
+        <label class="check"><input type="checkbox" name="columns" value="{{ column.key }}"{% if shown %} checked{% endif %}{% if column.fixed %} checked disabled{% endif %}> {{ column.label|striptags }}</label>
+        {% if column.fixed %}<input type="hidden" name="columns" value="{{ column.key }}">{% endif %}
+        {% endfor %}
+      </fieldset>
+      <div class="btn-row">
+        <button class="btn small" type="submit">{% translate "Apply" %}</button>
+        {% if not table.is_default %}<button class="btn secondary small" type="submit" name="reset" value="1">{% translate "Default columns" %}</button>{% endif %}
+      </div>
+    </form>
+  </details>
+  {% with choices=table.group_choices %}{% if choices %}
+  {# UIX-040: group the rows by a column; a plain GET form, so the grouping is part of the address like sort and filters. #}
+  <form method="get" class="group-chooser">
+    {% for name, value in table.kept_parameters %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}
+    <label for="group-{{ table.key }}">{% translate "Group by" %}</label>
+    <select id="group-{{ table.key }}" name="{{ table.group_param }}" data-autosubmit>
+      <option value="">{% translate "no grouping" %}</option>
+      {% for column, chosen in choices %}<option value="{{ column.key }}"{% if chosen %} selected{% endif %}>{{ column.label|striptags }}</option>{% endfor %}
+    </select>
+    <noscript><button class="btn secondary small" type="submit">{% translate "Apply" %}</button></noscript>
+  </form>
+  {% endif %}{% endwith %}
+  <span class="csv-links">{% icon "download" %}<a href="{{ table.csv_url }}">{% translate "CSV" %}</a> · <a href="{{ table.csv_url_all }}">{% translate "CSV with all columns" %}</a></span>
+</div>

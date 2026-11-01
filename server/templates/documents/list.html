@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% load i18n rentalars invoices product_relations %}
+{% block title %}{% translate "Documents" %} {{ project.number }}{% endblock %}
+{% block content %}
+{% include "projects/_head.html" %}
+{% comment %}
+  DOK-003 to DOK-008, DOK-010: documents made from the project and stored for good. A document is never changed;
+  an invoice is cancelled by a cancellation. Priced documents only show to people with the price right. Offers
+  come first in the list of kinds; they hold until a date that is chosen when the offer is made – or for a number of
+  days (DOK-013) – and show every position or only the groups with their sums.
+  DOK-011: invoices and cancellations say whether they are in Lexware Office; whoever may make them hands them over.
+  DOK-014: with "use Rentalars as accounting software" off, no invoice is offered and none is cancelled or handed to Lexware
+  Office. Invoices made before stay in the list, with what became of them in Lexware Office.
+  PRJ-045, PRJ-046: billing happens at the whole project – its offer, order confirmation and invoice contain every part
+  that is not cancelled. A part says so and leads there; it makes its own delivery notes and crew dispositions.
+{% endcomment %}
+{% if whole %}
+<div class="note documents-family-note" data-documents-part-of="{{ whole.pk }}">
+  <p>{% blocktranslate with number=whole.number %}Offers, order confirmations and invoices are made on the whole project {{ number }} – with all its subprojects.{% endblocktranslate %}{% if whole_readable %} <a href="{% url 'documents:list' whole.pk %}">{% blocktranslate with number=whole.number name=whole.name %}To the documents of {{ number }} {{ name }}{% endblocktranslate %}</a>{% endif %}</p>
+  <p class="small">{% translate "Delivery notes and crew dispositions of this subproject are made here, with its own delivery address and crew." %}</p>
+</div>
+{% elif billed_parts or cancelled_parts %}
+<div class="note documents-family-note" data-documents-whole>
+  <p>{% translate "Offers, order confirmations and invoices of this whole project contain its own positions and then those of every subproject that is not cancelled, each as a block with its subtotal." %}</p>
+  {% if cancelled_parts %}<p class="small">{% translate "Cancelled, therefore not included:" %} {% for part, readable in cancelled_parts %}{{ part.number }} {{ part.name }}{% if not forloop.last %}, {% endif %}{% endfor %}</p>{% endif %}
+  {% if billed_parts %}<p class="small">{% translate "Delivery notes and crew dispositions are made per subproject, with its own delivery address; a delivery note here holds the whole project's own material only. The documents of the subprojects:" %}</p>
+  <ul class="documents-family-parts">{% for part, readable in billed_parts %}<li>{% if readable %}<a href="{% url 'documents:list' part.pk %}">{{ part.number }} {{ part.name }}</a>{% else %}{{ part.number }} {{ part.name }}{% endif %}</li>{% endfor %}</ul>{% endif %}
+</div>
+{% endif %}
+{% invoice_state project elsewhere=True %}{# DOK-015: before "Wieder im Lager" here – afterwards in the head #}
+{% if billing_state %}
+{# Several invoices per project: what the project amounts to and what the advance and partial invoices bill. #}
+<section class="panel billing-state" id="billing-state" data-billing-state>
+  <div class="panel-head"><h2>{% translate "Billing status" %}</h2></div>
+  <div class="panel-body">
+    <dl class="facts">
+      <dt>{% translate "Project, net" %}</dt><dd class="num">{{ billing_state.project_net|money }}</dd>
+      <dt>{% translate "Billed on account (advance and partial invoices), net" %}</dt><dd class="num">{{ billing_state.billed_net|money }}</dd>
+      {% if billing_state.complete %}
+      <dt>{% translate "Billed completely by" %}</dt><dd><strong>{{ billing_state.complete.title }} {{ billing_state.complete.number }}</strong></dd>
+      {% else %}
+      <dt>{% translate "Still to bill, net" %}</dt><dd class="num"><strong>{{ billing_state.remaining_net|money }}</strong></dd>
+      <dt>{% translate "Still to bill, gross" %}</dt><dd class="num">{{ billing_state.remaining_gross|money }}</dd>
+      {% endif %}
+    </dl>
+    {% if billing_state.parts %}
+    <table class="table stack">
+      <thead><tr><th scope="col">{% translate "Invoice" %}</th><th scope="col" class="num">{% translate "Net" %}</th><th scope="col" class="num">{% translate "Gross" %}</th><th scope="col">{% translate "Credit notes" %}</th></tr></thead>
+      <tbody>{% for billed in billing_state.parts %}
+        <tr><td>{{ billed.document.title }} {{ billed.document.number }}</td><td class="num" data-label="{% translate 'Net' %}">{{ billed.net|money }}</td><td class="num" data-label="{% translate 'Gross' %}">{{ billed.gross|money }}</td><td data-label="{% translate 'Credit notes' %}">{% for credit in billed.credits %}{{ credit.number }}{% if not forloop.last %}, {% endif %}{% empty %}<span class="muted">–</span>{% endfor %}</td></tr>
+      {% endfor %}</tbody>
+    </table>
+    {% if not billing_state.complete %}<p class="help">{% translate "Make the final invoice to bill the rest: it shows the whole project and deducts these invoices." %}</p>{% endif %}
+    {% endif %}
+  </div>
+</section>
+{% endif %}
+<div class="columns">
+<section class="panel">
+  <div class="panel-head"><h2>{% translate "Documents of the project" %}</h2></div>
+  {% if documents %}
+  <table class="table stack" data-sort-table>
+    <thead><tr><th scope="col">{% translate "Document" %}</th><th scope="col">{% translate "Date" %}</th><th scope="col" class="num">{% translate "Gross" %}</th><th scope="col">{% translate "Sent" %}</th><th scope="col"></th></tr></thead>
+    <tbody>
+    {% for document in documents %}
+      <tr{% if document.is_cancelled %} class="is-muted"{% endif %}>
+        <td><a href="{% url 'documents:file' document.pk %}" target="_blank" rel="noopener">{{ document.title }} {{ document.number }}</a>{% if document.is_cancelled %} <span class="badge">{% translate "cancelled" %}</span>{% endif %}{% if document.cancels_id %} <span class="muted small">{% blocktranslate with number=document.cancels.number %}cancels {{ number }}{% endblocktranslate %}</span>{% endif %}{% if document.credit_for_id %} <span class="muted small">{% blocktranslate with number=document.credit_for.number %}credits {{ number }}{% endblocktranslate %}</span>{% endif %}{% if document.billing_type == "final" or document.billing_type == "advance" or document.billing_type == "partial" %} <span class="badge" data-billing-type="{{ document.billing_type }}">{{ document.get_billing_type_display }}</span>{% endif %}{% if document.project_id != project.pk %}{# DOK-016 #} <span class="muted small">{% blocktranslate with number=document.project.number %}monthly invoice of the service cases, belongs to {{ number }}{% endblocktranslate %}</span>{% endif %}{% if document.xml_file %} · <a class="small" href="{% url 'documents:xml' document.pk %}">{% if document.einvoice_syntax == "zugferd" %}ZUGFeRD (XML){% else %}XRechnung{% endif %}</a>{% endif %}{% if show_payments and document.kind == "invoice" %} · <a class="small" href="{% url 'documents:payments' document.pk %}">{% translate "Payments" %}</a>{% endif %}{% if document.is_bookable %}{% include "documents/_lexware_state.html" with transfer=document.accounting_transfer %}{% endif %}</td>
+        <td data-label="{% translate 'Date' %}" data-sort-value="{{ document.issued_on|date:'Y-m-d' }}">{{ document.issued_on|date:"d.m.Y" }}{% if document.due_on %}<div class="muted small">{% translate "due" %} {{ document.due_on|date:"d.m.Y" }}</div>{% endif %}{% if document.valid_until %}<div class="muted small">{% translate "valid until" %} {{ document.valid_until|date:"d.m.Y" }}</div>{% endif %}{% if document.detail == "groups" %}<div class="muted small">{{ document.get_detail_display }}</div>{% endif %}</td>
+        <td class="num" data-label="{% translate 'Gross' %}">{% if document.gross_total is not None %}{{ document.gross_total|money }}{% endif %}</td>
+        <td data-label="{% translate 'Sent' %}">{% if document.sent_at %}{{ document.sent_at|date:"d.m.Y H:i" }}<div class="muted small">{{ document.sent_to }}</div>{% else %}<span class="muted">–</span>{% endif %}</td>
+        <td class="actions">
+          {% if can.special.correspondence_write and document.project_id == project.pk %}{# DOK-016: a monthly invoice is sent from its own case #}<a class="btn secondary small" href="{% url 'mail:compose' project.pk %}?document={{ document.pk }}">{% icon "mail" %}{% translate "Send" %}</a>{% endif %}
+          {# DOK-011 #}{% if lexware_on and may_transfer and document.is_bookable %}{% include "documents/_lexware_button.html" with transfer=document.accounting_transfer %}{% endif %}
+          {% if can_make and invoices_on and document.kind == "invoice" and not document.is_cancelled and not document.is_historic %}{# #}<details class="credit-dialog"><summary class="link-btn">{% translate "credit in part" %}</summary>
+            <form method="post" action="{% url 'documents:credit' document.pk %}" class="form" novalidate>{% csrf_token %}
+              <p class="help">{% translate "A partial credit note with negative amounts is made; the invoice stays valid. Give a net amount or a percentage of what the invoice still bills." %}</p>
+              <div class="field"><label for="credit-amount-{{ document.pk }}">{% translate "Net amount (€)" %}</label><input type="text" inputmode="decimal" name="amount" id="credit-amount-{{ document.pk }}"></div>
+              <div class="field"><label for="credit-percent-{{ document.pk }}">{% translate "Percentage" %}</label><input type="text" inputmode="decimal" name="percent" id="credit-percent-{{ document.pk }}"></div>
+              <div class="field"><label for="credit-note-{{ document.pk }}">{% translate "What is it for?" %}</label><input type="text" name="note" id="credit-note-{{ document.pk }}" maxlength="200"></div>
+              <button class="btn secondary small" type="submit" data-confirm="{% translate 'Make this partial credit note now? It gets its number and is stored for good.' %}">{% translate "Make credit note" %}</button>
+            </form></details>{% endif %}
+          {% if can_make and invoices_on and document.kind == "invoice" and not document.is_cancelled %}<form method="post" action="{% url 'documents:cancel' document.pk %}" class="inline-form">{% csrf_token %}<button class="link-btn danger" type="submit" data-confirm="{% translate 'Cancel this invoice? A cancellation with the negated amounts is made; both stay with the project.' %}">{% translate "cancel" %}</button></form>{% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<div class="empty"><strong>{% translate "No documents yet." %}</strong>{% translate "Documents made here are stored with the project and never change." %}</div>{% endif %}
+</section>
+{% if form %}
+<section class="panel" id="make-document">
+  <div class="panel-head"><h2>{% translate "Make a document" %}</h2></div>
+  <form method="post" action="{% url 'documents:create' project.pk %}" class="panel-body form" novalidate>
+    {% csrf_token %}{% include "core/_required_note.html" %}
+    {% include "core/_field.html" with field=form.kind %}
+    {# Advance, partial and final invoices; the amount only for advance and partial invoices. #}
+    <div class="billing-options" data-show-if="kind=invoice">
+      {% include "core/_field.html" with field=form.billing_type %}
+      <div data-show-if="kind=invoice&billing_type=advance|partial">
+        {% include "core/_field.html" with field=form.billing_percent %}
+        {% include "core/_field.html" with field=form.billing_amount %}
+        {% include "core/_field.html" with field=form.billing_note %}
+        <p class="help">{% translate "Give a percentage of the net total or a net amount. It is split over the tax rates of the project." %}</p>
+      </div>
+    </div>
+    {% if not invoices_on %}<p class="help" data-invoices-off>{% translate "Rentalars makes no invoices: the setting “Use Rentalars as accounting software” is off." %}</p>{% endif %}
+    {# PRD-023, VFG-015: accessories and replacements as a hint for the offer; nothing is added here. #}
+    <div data-show-if="kind=offer">{% suggestions_slot project offer=True %}</div>
+    <div class="offer-options" data-show-if="kind=offer">
+      {# DOK-013: every position or only the groups with their sums; the validity as a date or in days – changing one changes the other. #}
+      <fieldset class="field">
+        <legend>{{ form.detail.label }}{% include "core/_required_mark.html" with field=form.detail %}</legend>
+        {% for choice in form.detail %}<div class="check">{{ choice.tag }}<label for="{{ choice.id_for_label }}">{{ choice.choice_label }}</label></div>{% endfor %}
+        <div class="help">{{ form.detail.help_text }}</div>
+      </fieldset>
+      <div class="offer-validity" data-validity data-validity-from="{{ form.issued_on|date:'Y-m-d' }}">{% include "core/_field.html" with field=form.valid_until %}{% include "core/_field.html" with field=form.validity_days %}</div>
+    </div>
+    {# Product descriptions: preset from the template of the kind, changeable for this document; a crew disposition lists no products. #}
+    <div data-show-if="kind=offer|order_confirmation|invoice|delivery_note">{% include "core/_field.html" with field=form.print_product_descriptions %}</div>
+    {% if form.packlist.is_hidden %}{{ form.packlist }}{% else %}<div data-show-if="kind=delivery_note">{% include "core/_field.html" with field=form.packlist %}</div>{% endif %}
+    {% if text_blocks %}
+    {# DOK-005: a block shows for the kinds of document it is meant for. #}
+    <fieldset class="field">
+      <legend>{% translate "Text blocks" %}</legend>
+      {% for block in text_blocks %}<div class="check"{% if block.kinds %} data-show-if="kind={{ block.kinds|join:'|' }}"{% endif %}><input type="checkbox" name="text_blocks" value="{{ block.pk }}" id="text-block-{{ block.pk }}"><label for="text-block-{{ block.pk }}">{{ block.name }}</label></div>{% endfor %}
+    </fieldset>
+    {% endif %}
+    <p class="help">{% translate "Look at the draft first: a document that was made cannot be changed any more." %}</p>
+    <div class="btn-row">
+      <button class="btn secondary" type="submit" formaction="{% url 'documents:preview' project.pk %}" formtarget="_blank">{% icon "print" %}{% translate "Draft as PDF" %}</button>
+      <button class="btn" type="submit" data-confirm="{% translate 'Make this document now? It gets its number and is stored for good.' %}">{% translate "Make document" %}</button>
+    </div>
+  </form>
+</section>
+{% endif %}
+</div>
+{# PRJ-079: the files of the project on the same tab. #}
+{% include "projects/_files.html" %}
+{% endblock %}

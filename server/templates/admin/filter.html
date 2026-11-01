@@ -1,0 +1,17 @@
+{% load i18n %}{% comment %}
+  UIX-038: the filters of the master-data lists start folded on every page load, like every list of
+  Rentalars. Django's own template opens each filter, and its script (admin/js/filters.js) reopens what was opened
+  before in this browser tab; it finds a filter by data-filter-title – here it is data-list-filter, so nothing is
+  reopened. An active filter shows its choice in the folded heading, so nobody misses that the list is filtered.
+{% endcomment %}
+<details data-list-filter="{{ title }}"{% for choice in choices %}{% if choice.selected and not forloop.first %} class="is-active"{% endif %}{% endfor %}>
+  <summary>
+    {% blocktranslate with filter_title=title %} By {{ filter_title }} {% endblocktranslate %}{% for choice in choices %}{% if choice.selected and not forloop.first %}: <strong class="filter-chosen">{{ choice.display }}</strong>{% endif %}{% endfor %}
+  </summary>
+  <ul>
+  {% for choice in choices %}
+    <li{% if choice.selected %} class="selected"{% endif %}>
+    <a href="{{ choice.query_string|iriencode }}">{{ choice.display }}</a></li>
+  {% endfor %}
+  </ul>
+</details>

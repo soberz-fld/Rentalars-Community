@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+{% load i18n rentalars trips price_offers %}
+{% block title %}{% translate "Overview" context "project tab" %} {{ project.number }}{% endblock %}
+{% block content %}
+{% include "projects/_head.html" %}
+{% comment %}
+  The deployment view (AUT-025): when, where, as what and with whom. PRJ-104: the tab and the title say
+  "Overview" ("Überblick"); the PDF says "Einsatzübersicht".
+  It is all that crew and freelancers see of a project (AUT-023) – no prices, no customer, no rates of others. Contact data of colleagues
+  appear as far as they released them (PER-019).
+  PRJ-081: the page prints cleanly (app.css, @media print), and "Print / PDF" gives the PDF "Einsatzübersicht" with the
+  same content for the same person.
+{% endcomment %}
+<div class="deployment-view">
+<div class="btn-row deployment-tools no-print">
+  <a class="btn secondary" href="{% url 'documents:deployment_pdf' project.pk %}" target="_blank" rel="noopener">{% icon "print" %}{% translate "Print / PDF" %}</a>
+</div>
+<div class="columns">
+  <section class="panel">
+    <div class="panel-head"><h2>{% translate "When and where" %}</h2></div>
+    <div class="panel-body">
+      <dl class="facts">
+        {# PRJ-048: a deployment in a part belongs to the part; the whole project says what it is part of. #}
+        {% if project.parent_id %}<dt>{% translate "Whole project" %}</dt><dd>{{ project.parent.number }} {{ project.parent.name }}</dd>{% endif %}
+        <dt>{% translate "Material out" %}</dt><dd>{{ project.start|date:"D d.m.Y H:i" }} – {{ project.end|date:"D d.m.Y H:i" }}</dd>
+        {% if project.event_start %}<dt>{% translate "Event" %}</dt><dd>{{ project.event_start|date:"D d.m.Y H:i" }} – {{ project.event_end|date:"D d.m.Y H:i" }}</dd>{% endif %}
+        <dt>{% translate "Venue" %}</dt><dd>{{ project.venue_label|default:"–" }}</dd>
+        {% if project.contact %}<dt>{% translate "Contact on site" %}</dt><dd>{{ project.contact.name }}{% if project.contact.phone %}, <a href="tel:{{ project.contact.phone }}">{{ project.contact.phone }}</a>{% endif %}</dd>{% endif %}
+        {% if project.manager %}<dt>{% translate "Project manager" %}</dt><dd>{{ project.manager }}</dd>{% endif %}
+      </dl>
+      {% if can_see_packlist %}<p class="spaced"><a class="btn secondary" href="{% url 'packing:packlist' project.pk %}">{% icon "material" %}{% translate "Packing list" %}</a></p>{% endif %}
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head"><h2>{% translate "My deployment" %}</h2></div>
+    {% if own_lines %}
+    <ul class="deployments">
+      {% for row in own_lines %}{% with line=row.line %}
+      <li>
+        <div class="what"><strong>{{ line.job_function.name }}</strong></div>
+        <div>{{ line.start|date:"D d.m.Y H:i" }} – {{ line.end|date:"D d.m.Y H:i" }} <span class="muted">({{ line.planned_hours|number }} {% translate "h" %})</span></div>
+        {% if line.meeting_point %}<div>{% translate "Meeting point" %}: {{ line.meeting_point }}</div>{% endif %}
+        {% if line.vehicle_line %}<div data-own-vehicle>{% translate "Vehicle" %}: {{ line.vehicle_line.crew_label }}{% if line.is_driver %} – {% translate "you drive" %}{% endif %}</div>{% endif %}
+        {% if line.note %}<div class="muted">{{ line.note|linebreaksbr }}</div>{% endif %}
+        {% if line.request_status == "requested" %}
+        <form method="post" action="{% url 'projects:crew_answer' project.pk line.pk %}" class="request-answer">
+          {% csrf_token %}
+          <p><strong>{% translate "You were asked for this deployment." %}</strong></p>
+          <input type="text" name="note" maxlength="250" placeholder="{% translate 'Note (optional)' %}" aria-label="{% translate 'Note' %}">
+          <div class="btn-row"><button class="btn small" name="answer" value="accept" type="submit">{% icon "check" %}{% translate "Accept" %}</button><button class="btn secondary small" name="answer" value="decline" type="submit">{% translate "Decline" %}</button></div>
+        </form>
+        {% elif line.request_status %}<div><span class="badge {% if line.is_confirmed %}green{% else %}red{% endif %}">{{ line.get_request_status_display }}</span></div>{% endif %}
+        {# PER-038: the own price offer for this request – only where the company switched it on. #}
+        {% offer_box line %}
+        {% if show_own_rate %}<div class="muted small">{% if line.cost_flat_rate is not None %}{% blocktranslate with amount=line.cost_flat_rate|money %}Flat rate {{ amount }}{% endblocktranslate %}{% elif line.billing == "day" and line.daily_rate is not None %}{% blocktranslate with rate=line.daily_rate|money %}My day rate here: {{ rate }}{% endblocktranslate %}{% elif line.hourly_rate is not None %}{% blocktranslate with rate=line.hourly_rate|money %}My hourly rate here: {{ rate }}{% endblocktranslate %}{% endif %}</div>{% endif %}
+      </li>
+      {% endwith %}{% endfor %}
+    </ul>
+    {% else %}
+    <div class="empty">{% translate "You are not scheduled for this project yourself." %}</div>
+    {% endif %}
+  </section>
+</div>
+
+{# PRJ-119: the box "Verwandt" – for whoever reads the project, not with the deployment view only. #}
+{% load project_relations %}{% related_box project %}
+
+{% if phases or project.venue_site %}
+<div class="columns">
+  {% if phases %}
+  <section class="panel">
+    <div class="panel-head"><h2>{% translate "Schedule" %}</h2></div>
+    <table class="table stack">
+      <tbody>
+      {% for phase in phases %}
+        <tr><td><strong>{{ phase.label }}</strong>{% if phase.notes %}<div class="muted small">{{ phase.notes|linebreaksbr }}</div>{% endif %}</td>
+        <td class="nowrap" data-label="{% translate 'When' %}">{{ phase.start|date:"D d.m. H:i" }} – {{ phase.end|date:"D d.m. H:i" }}</td>
+        <td data-label="{% translate 'Where' %}">{{ phase.place }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </section>
+  {% endif %}
+  {% if project.venue_site %}
+  <section class="panel">
+    <div class="panel-head"><h2>{{ project.venue_site.name }}</h2></div>
+    <div class="panel-body">{% include "customers/_venue_facts.html" with venue=project.venue_site show_hall_plan=can.read.customers %}</div>
+  </section>
+  {% endif %}
+</div>
+{% endif %}
+
+{# PRJ-097: the trips of the project for the drivers, with their route links and the map of the places. #}
+{% project_trips project for_crew=True %}
+
+{% if crew_files %}
+<section class="panel">
+  <div class="panel-head"><h2>{% translate "Files" %}</h2></div>
+  <ul class="file-list">
+  {% for item in crew_files %}
+    <li><a href="{% url 'projects:file_download' project.pk item.pk %}" target="_blank" rel="noopener">{% icon "file" %}{{ item.label }}</a>{% if item.document_type %} <span class="muted small">{{ item.document_type }}</span>{% endif %}{% include "projects/_show_info.html" %}{# PRJ-089 #}</li>
+  {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+<section class="panel">
+  <div class="panel-head"><h2>{% translate "Crew" %}</h2></div>
+  {% if colleagues %}
+  <table class="table stack">
+    <thead><tr><th>{% translate "Person" %}</th><th>{% translate "Job function" %}</th><th>{% translate "Period" %}</th><th>{% translate "Meeting point" %}</th><th>{% translate "Contact" context "contact data" %}</th></tr></thead>
+    <tbody>
+    {% for row in colleagues %}{% with line=row.line %}
+      <tr{% if row.is_self %} class="is-own"{% endif %}>
+        <td>{% if row.person %}{{ row.person.name }}{% if row.is_self %} <span class="badge accent">{% translate "me" %}</span>{% endif %}{% else %}<span class="badge yellow">{% translate "open" context "crew" %}</span>{% endif %}</td>
+        <td data-label="{% translate 'Job function' %}">{{ line.job_function.name }}{% if line.vehicle_line %}<div class="muted small">{{ line.vehicle_line.crew_label }}{% if line.is_driver %} · {% translate "driver" %}{% endif %}</div>{% endif %}</td>
+        <td data-label="{% translate 'Period' %}">{{ line.start|date:"D d.m. H:i" }} – {{ line.end|date:"D d.m. H:i" }}</td>
+        <td data-label="{% translate 'Meeting point' %}">{{ line.meeting_point }}</td>
+        <td data-label="{% translate 'Contact' context 'contact data' %}">{% if row.phone %}<a href="tel:{{ row.phone }}">{{ row.phone }}</a>{% endif %}{% if row.phone and row.email %}<br>{% endif %}{% if row.email %}<a href="mailto:{{ row.email }}">{{ row.email }}</a>{% endif %}{% if row.person and not row.phone and not row.email %}<span class="muted small">{% translate "not released" %}</span>{% endif %}</td>
+      </tr>
+    {% endwith %}{% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty">{% translate "Nobody is planned yet." %}</div>
+  {% endif %}
+</section>
+
+{% if viewer and can.read.time_tracking %}
+<section class="panel" data-reload-after-times>
+  <div class="panel-head"><h2>{% translate "My times in this project" %}</h2>
+    {% if can_record %}<a class="btn small" href="{% url 'timetracking:quick' %}?project={{ project.pk }}" hx-get="{% url 'timetracking:quick' %}?project={{ project.pk }}" hx-target="#dialog">{% icon "clock" %}{% translate "Record time" %}</a>{% endif %}
+  </div>
+  {% if own_entries %}
+  <table class="table stack">
+    <thead><tr><th>{% translate "Day" %}</th><th>{% translate "Time" %}</th><th>{% translate "Job function" %}</th><th class="num">{% translate "Hours" %}</th><th>{% translate "Status" %}</th></tr></thead>
+    <tbody>
+    {% for entry in own_entries %}
+      <tr>
+        <td>{{ entry.start|date:"D d.m.Y" }}</td>
+        <td data-label="{% translate 'Time' %}">{{ entry.start|date:"H:i" }} – {% if entry.end %}{{ entry.end|date:"H:i" }}{% else %}<span class="badge accent">{% translate "running" %}</span>{% endif %}</td>
+        <td data-label="{% translate 'Job function' %}">{{ entry.job_function.name }}{% include "timetracking/_part_of.html" %}</td>
+        <td class="num" data-label="{% translate 'Hours' %}">{% if entry.end %}{{ entry.hours|number }}{% endif %}</td>
+        <td data-label="{% translate 'Status' %}"><span class="badge {{ entry.status|status_colour }}">{{ entry.get_status_display }}</span></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty">{% translate "No times recorded for this project yet." %}</div>
+  {% endif %}
+</section>
+{# ZEI-019: the own expenses and travel costs of this project, recorded on the spot with a photo of the receipt. #}
+<section class="panel" data-reload-after-expenses>
+  <div class="panel-head"><h2>{% translate "My expenses in this project" %}</h2>
+    {% if can_record %}<a class="btn small" href="{% url 'timetracking:expense_new' %}?project={{ project.pk }}" hx-get="{% url 'timetracking:expense_new' %}?project={{ project.pk }}" hx-target="#dialog">{% icon "plus" %}{% translate "Record expenses" %}</a>{% endif %}
+  </div>
+  {% if own_expenses %}
+  <table class="table stack">
+    <thead><tr><th>{% translate "Day" %}</th><th>{% translate "Kind" %}</th><th>{% translate "Note" %}</th><th class="num">{% translate "Amount" %}</th><th>{% translate "Status" %}</th></tr></thead>
+    <tbody>
+    {% for expense in own_expenses %}
+      <tr>
+        <td>{{ expense.date|date:"D d.m.Y" }}</td>
+        <td data-label="{% translate 'Kind' %}">{{ expense.get_kind_display }}</td>
+        <td data-label="{% translate 'Note' %}">{{ expense.note }}</td>
+        <td class="num" data-label="{% translate 'Amount' %}">{{ expense.amount|money }}</td>
+        <td data-label="{% translate 'Status' %}"><span class="badge {{ expense.status_key|status_colour }}">{{ expense.status_label }}</span></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty">{% translate "No expenses recorded for this project yet." %}</div>
+  {% endif %}
+</section>
+{% endif %}
+</div>
+{% endblock %}

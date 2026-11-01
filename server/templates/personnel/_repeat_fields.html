@@ -1,0 +1,23 @@
+{% load i18n %}
+{% comment %}
+The repetition of an availability (PER-028), like an appointment series in a calendar program. Expects: form (with the fields
+repeat, interval, weekdays, until, count). The style sheet shows the details only with a repetition, the weekdays only for
+"weekly", and the unit of "every" that fits – without JavaScript.
+{% endcomment %}
+<fieldset class="avail-repeat" data-avail-repeat>
+  <legend class="visually-hidden">{% translate "Repeat" %}</legend>
+  <div class="inline-fields">
+    <div class="field"><label for="{{ form.repeat.id_for_label }}">{{ form.repeat.label }}{% include "core/_required_mark.html" with field=form.repeat %}</label>{{ form.repeat }}{{ form.repeat.errors }}</div>
+    <div class="field repeat-every" data-repeat-detail><label for="{{ form.interval.id_for_label }}">{{ form.interval.label }}{% include "core/_required_mark.html" with field=form.interval %}</label><span class="with-unit">{{ form.interval }}<span class="unit unit-daily">{% translate "days" %}</span><span class="unit unit-weekly">{% translate "weeks" %}</span><span class="unit unit-monthly">{% translate "months" %}</span></span>{{ form.interval.errors }}</div>
+  </div>
+  <div class="inline-fields" data-repeat-detail>
+    <div class="field"><label for="{{ form.until.id_for_label }}">{{ form.until.label }}{% include "core/_required_mark.html" with field=form.until %}</label>{{ form.until }}{{ form.until.errors }}</div>
+    <div class="field repeat-count"><label for="{{ form.count.id_for_label }}">{{ form.count.label }}{% include "core/_required_mark.html" with field=form.count %}</label><span class="with-unit">{{ form.count }}<span class="unit always">{% translate "times" %}</span></span>{{ form.count.errors }}</div>
+  </div>
+  <div class="field weekday-choice" data-repeat-weekdays>
+    <span class="label">{% translate "On these weekdays" %}</span>
+    <div class="weekday-boxes">{% for box in form.weekdays %}<label class="weekday-box" title="{{ box.choice_label }}">{{ box.tag }}<span aria-hidden="true">{{ box.choice_label|slice:":2" }}</span><span class="visually-hidden">{{ box.choice_label }}</span></label>{% endfor %}</div>
+    <div class="help">{% translate "None chosen: the weekday of the first day." %}</div>
+  </div>
+  <p class="help-line" data-repeat-detail>{% translate "The chosen days are the first time. The series reaches at most a year ahead. Each time replaces what was entered then, like any entry." %}</p>
+</fieldset>

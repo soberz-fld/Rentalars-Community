@@ -1,0 +1,12 @@
+{% load i18n rentalars %}
+{% comment %}
+  The answer to "what is the stock of the lines now?" of an open planning page (stock refresh; UIX-020; UIX-056): the
+  cell "Availability" of every line and the hints above the lines, each in a <template> that names where it belongs.
+  app.js (block "Pages that follow changes") puts them in place without touching anything else on the page – what the
+  user types, the scroll position and the open dialogs stay as they are.
+{% endcomment %}
+{% if can.special.availability %}
+{% translate "Wish" as t_wish %}{% translate "free" as t_free %}{% translate "tight" as t_tight %}{% translate "not checked" as t_not_checked %}{% translate "from supplier" as t_from_supplier %}{% translate "collides with an option of another project" as t_collides %}
+{% for planned in planning.all_lines %}{% if not planned.line.is_text and not planned.is_sub_row %}{% with line=planned.line %}<template data-stock-line="{{ line.pk }}"><div data-part="cell">{% include "projects/_line_availability.html" %}</div><div data-part="wish">{% include "projects/_line_wish.html" %}</div></template>{% endwith %}{% endif %}{% endfor %}
+<template data-stock-notes>{% include "projects/_planning_notes.html" %}</template>
+{% endif %}

@@ -1,0 +1,85 @@
+{% load i18n rentalars %}
+{% comment %}
+  MAT-040 (built-in quantity material): the box of an item's page for bulk material built into a case, rack or
+  vehicle. A container lists what is built into it with who and when, and builds in or takes out; a bulk row shows
+  where it is built in and how much of it is free. What is built in is no longer free stock (material.installations).
+{% endcomment %}
+{% if built_in_is_bulk %}
+<section class="panel" id="built-in">
+  <div class="panel-head"><h2>{% translate "Built into other items" %}</h2></div>
+  <div class="panel-body">
+    <dl class="facts">
+      <dt>{% translate "Free stock" %}</dt><dd>{{ item.quantity }}</dd>
+      <dt>{% translate "Built in" %}</dt><dd>{{ built_total }}</dd>
+      <dt>{% translate "Together" %}</dt><dd>{{ item.quantity|add:built_total }}</dd>
+    </dl>
+    {% if built_places %}
+    <table class="table stack">
+      <thead><tr><th>{% translate "Built into" %}</th><th class="num">{% translate "Quantity" %}</th><th>{% translate "Built in since" %}</th><th>{% translate "Built in by" %}</th>{% if can.write.material %}<th></th>{% endif %}</tr></thead>
+      <tbody>
+      {% for place in built_places %}
+        <tr>
+          <td><a class="tape" href="{% url 'material:item_detail' place.container_id %}">{{ place.container.display_id }}</a> {{ place.container.material_model.display_short_name }}</td>
+          <td class="num" data-label="{% translate 'Quantity' %}">{{ place.quantity }}</td>
+          <td data-label="{% translate 'Built in since' %}">{{ place.installed_at|date:"d.m.Y H:i" }}</td>
+          <td data-label="{% translate 'Built in by' %}">{{ place.installed_by|default:"–" }}</td>
+          {% if can.write.material %}<td class="actions"><form method="post" action="{% url 'material:built_in_remove' place.container_id item.pk %}" class="inline-form">{% csrf_token %}<button class="link-btn" type="submit" data-confirm="{% translate 'Take everything out of this item? It is free stock again.' %}">{% translate "take out" %}</button></form></td>{% endif %}
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}<p class="muted">{% translate "None of it is built into another item." %}</p>{% endif %}
+  </div>
+</section>
+{% elif built_in or can_build_in and can.write.material %}
+<section class="panel" id="built-in">
+  <div class="panel-head"><h2>{% translate "Built-in bulk material" %}</h2></div>
+  <div class="panel-body">
+    <p class="muted small">{% translate "Cable, connectors, screws … that stay in this item. They are no longer free stock, go out with the item and are listed on its packing list." %}</p>
+    {% if built_in %}
+    <table class="table stack">
+      <thead><tr><th>{% translate "Bulk material" %}</th><th class="num">{% translate "Quantity" %}</th><th>{% translate "Built in since" %}</th><th>{% translate "Built in by" %}</th>{% if can.write.material %}<th></th>{% endif %}</tr></thead>
+      <tbody>
+      {% for installed in built_in %}
+        <tr>
+          <td><a class="tape" href="{% url 'material:item_detail' installed.material_id %}">{{ installed.material.display_id }}</a> {{ installed.material.material_model.display_short_name }}{% if installed.note %} <span class="muted small">{{ installed.note }}</span>{% endif %}</td>
+          <td class="num" data-label="{% translate 'Quantity' %}">{{ installed.quantity }}{% with unit=installed.material.material_model.default_product.unit %}{% if unit %} {{ unit.abbreviation }}{% endif %}{% endwith %}</td>
+          <td data-label="{% translate 'Built in since' %}">{{ installed.installed_at|date:"d.m.Y H:i" }}</td>
+          <td data-label="{% translate 'Built in by' %}">{{ installed.installed_by|default:"–" }}</td>
+          {% if can.write.material %}<td class="actions built-in-actions">
+            <form method="post" action="{% url 'material:built_in_remove' item.pk installed.material_id %}" class="inline-form no-print">{% csrf_token %}
+              <label class="visually-hidden" for="built-out-{{ installed.pk }}">{% translate "Quantity to take out; empty: all" %}</label>
+              <input class="qty" type="text" inputmode="numeric" name="quantity" id="built-out-{{ installed.pk }}" placeholder="{{ installed.quantity }}" autocomplete="off">
+              <button class="link-btn" type="submit" data-confirm="{% translate 'Take this material out of the device again?' %}">{% translate "take out" %}</button>
+            </form></td>{% endif %}
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}<p class="muted">{% translate "Nothing is built into this item." %}</p>{% endif %}
+    {% if can.write.material and can_build_in %}
+    <form method="post" action="{% url 'material:built_in_add' item.pk %}" class="content-add no-print" autocomplete="off">
+      {% csrf_token %}{% include "core/_required_note.html" with form=built_in_form %}
+      <div class="inline-fields">
+        <div class="field grow">
+          <label for="built-in-material">{% translate "Build in" %}{% include "core/_required_mark.html" with field=built_in_form.material_number %}</label>
+          <div class="typeahead" data-typeahead data-typeahead-free data-url="{% url 'material:item_suggest' %}?kind=bulk">
+            <input type="search" data-typeahead-input id="built-in-material" autocomplete="off" placeholder="{% translate 'Search bulk material by ID or name' %}">
+            <input type="hidden" name="material_number" data-typeahead-value>
+          </div>
+        </div>
+        <div class="field">
+          <label for="built-in-quantity">{{ built_in_form.quantity.label }}{% include "core/_required_mark.html" with field=built_in_form.quantity %}</label>
+          <input class="qty" type="text" inputmode="numeric" name="quantity" id="built-in-quantity" value="1" autocomplete="off">
+        </div>
+        <div class="field grow">
+          <label for="built-in-note">{{ built_in_form.note.label }}</label>
+          <input type="text" name="note" id="built-in-note" maxlength="250" autocomplete="off">
+        </div>
+        <button class="btn secondary" type="submit">{% icon "plus" %}{% translate "Build in" %}</button>
+      </div>
+    </form>
+    {% endif %}
+  </div>
+</section>
+{% endif %}

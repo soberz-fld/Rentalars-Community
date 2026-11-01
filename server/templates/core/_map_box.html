@@ -1,0 +1,14 @@
+{% load i18n rentalars %}
+{% comment %}
+  UIX-034, NFA-050: the place of a map. Nothing leaves Rentalars before the click on "Show map" – then the server
+  looks up the positions and the browser loads the map pictures. With the setting "load maps at once" the map is
+  fetched right away. Rendered by {% map_box %} (core/templatetags/maps.py).
+{% endcomment %}
+<div class="map-box no-print" id="map-{{ target }}-{{ pk }}">
+  {% if at_once %}
+  <p class="muted small map-loading" hx-get="{{ url }}" hx-trigger="load" hx-target="closest .map-box" hx-swap="innerHTML">{% translate "Loading the map …" %}</p>
+  {% else %}
+  <button type="button" class="btn secondary small map-show" hx-get="{{ url }}" hx-target="closest .map-box" hx-swap="innerHTML">{% icon "map" %}{% translate "Show map" %}</button>
+  <p class="muted small map-hint">{% translate "Only with the click does the address go to OpenStreetMap, whose map is then shown." %}</p>
+  {% endif %}
+</div>

@@ -1,0 +1,8 @@
+{% extends "admin/change_form.html" %}
+{% load i18n %}
+{% comment %}
+  UIX-051 (UIX-035): the forms of the master data explain the asterisk of a required field once, at their
+  top, like every form of Rentalars. Django marks the label of a required field with the class "required"; admin.css
+  draws the asterisk behind it, hidden from screen readers, which hear "required" at the field itself.
+{% endcomment %}
+{% block form_top %}{{ block.super }}<p class="required-note" aria-hidden="true"><span class="required">*</span> {% translate "Required field" %}</p>{% endblock %}

@@ -1,0 +1,25 @@
+{% load i18n rentalars %}
+{# Answer of the quick entry after saving: a short confirmation in the same dialog (acceptance scenario 5). #}
+<div id="quick-entry">
+  <div class="dialog-head"><h2>{% translate "Time recorded" %}</h2><button type="button" class="icon-btn" data-close-dialog data-href="{% url 'timetracking:my_times' %}" aria-label="{% translate 'Close' %}">{% icon "close" %}</button></div>
+  <div class="dialog-body">
+    {% if parts|length > 1 %}
+    {# ZEI-025: a period divided into job functions, each with its hours. #}
+    <p class="message success">{% for part in parts %}<strong>{{ part.hours|number }} {% translate "h" %}</strong> {% translate "as" context "job function" %} {{ part.job_function.name }}{% if not forloop.last %}, {% endif %}{% endfor %} – {{ entry.project_label }}<br>
+    {% else %}
+    <p class="message success"><strong>{{ entry.hours|number }} {% translate "h" %}</strong> {% translate "as" context "job function" %} {{ entry.job_function.name }}, {{ entry.project_label }}<br>
+    {% endif %}
+      {{ entry.start|date:"D d.m.Y H:i" }} – {{ entry.end|date:"H:i" }}{% if entry.break_minutes %}, {% blocktranslate with minutes=entry.break_minutes %}{{ minutes }} min break{% endblocktranslate %}{% endif %}</p>
+    {% if not entry.project_id %}<p class="note">{% translate "Without project the time cannot be approved yet. Assign the project under “My times” as soon as you know it – or whoever approves does it." %}</p>{% endif %}
+    {# ZEI-018: conspicuous times are pointed out right away; the time is saved all the same. #}
+    {% if entry.hints %}<div class="note time-hint-note"><p><strong>{% translate "Please check:" %}</strong></p>{% include "timetracking/_hints.html" with hints=entry.hints %}<p class="small">{% translate "The time is saved. If it is right, nothing needs to be done." %}</p></div>{% endif %}
+    <p class="muted">{% if entry.status == "submitted" %}{% translate "Handed in for approval." %}{% else %}{% translate "Not handed in yet – you find it under “My times”." %}{% endif %}</p>
+  </div>
+  <div class="dialog-foot">
+    <a class="btn secondary" href="{% url 'timetracking:my_times' %}">{% translate "My times" %}</a>
+    {# ZEI-019: expenses of the same work are often entered right after the time. #}
+    {% if entry.project_id %}<a class="btn secondary" href="{% url 'timetracking:expense_new' %}?project={{ entry.project_id }}{% if person %}&amp;person={{ person.pk }}{% endif %}" hx-get="{% url 'timetracking:expense_new' %}?project={{ entry.project_id }}{% if person %}&amp;person={{ person.pk }}{% endif %}" hx-target="#quick-entry" hx-swap="outerHTML">{% translate "Record expenses" %}</a>{% endif %}
+    <a class="btn secondary" href="{% url 'timetracking:quick' %}{% if person %}?person={{ person.pk }}{% endif %}" hx-get="{% url 'timetracking:quick' %}{% if person %}?person={{ person.pk }}{% endif %}" hx-target="#quick-entry" hx-swap="outerHTML">{% translate "Another time" %}</a>
+    <button type="button" class="btn" data-close-dialog data-href="{% url 'timetracking:my_times' %}">{% translate "Done" %}</button>
+  </div>
+</div>

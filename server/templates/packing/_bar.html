@@ -1,0 +1,10 @@
+{% load i18n rentalars %}
+{% comment %}
+  PCK-029: the bar of a packlist – grey in the warehouse, green hatched ticked as packed, green issued, orange hatched
+  ticked as back, orange taken back – with its legend in words and numbers, so that it does not depend on colour.
+  Expects bar (packing.services.ProgressBar); small: the narrow bar of a part in the table of the whole project.
+{% endcomment %}
+{% if bar.total %}
+<div class="pack-progress{% if small %} is-small{% endif %}" aria-hidden="true">{% for segment in bar.segments %}<span class="is-{{ segment.name }}" style="width: {{ segment.width }}%"></span>{% endfor %}</div>
+<ul class="pack-legend{% if small %} is-small{% endif %}" aria-label="{% translate 'Where the pieces are' %}">{% for segment in bar.segments %}<li><span class="pack-swatch is-{{ segment.name }}" aria-hidden="true"></span>{{ segment.quantity|number }} {{ segment.label }}</li>{% endfor %}</ul>
+{% endif %}

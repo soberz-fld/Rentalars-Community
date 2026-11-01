@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}{% if venue %}{{ venue.name }}{% else %}{% translate "New venue" %}{% endif %}{% endblock %}
+{% block content %}
+<div class="page-head"><div><div class="breadcrumb"><a href="{% url 'customers:venue_list' %}">{% translate "Venues" %}</a></div><h1>{% if venue %}{{ venue.name }}{% else %}{% translate "New venue" %}{% endif %}</h1></div></div>
+<div class="panel"><div class="panel-body">
+  <form method="post" class="form wide" enctype="multipart/form-data" novalidate>
+    {% csrf_token %}
+    {% include "core/_form_errors.html" %}
+    <div class="form-grid">
+      {% include "core/_field.html" with field=form.name %}
+      {% include "core/_field.html" with field=form.street %}
+      {% include "core/_field.html" with field=form.postal_code %}
+      {% include "core/_field.html" with field=form.city %}
+      {% include "core/_field.html" with field=form.country %}
+      {% include "core/_field.html" with field=form.contact_name %}
+      {% include "core/_field.html" with field=form.contact_phone %}
+      {% include "core/_field.html" with field=form.contact_email %}
+    </div>
+    {% include "core/_field.html" with field=form.access_notes %}
+    {% include "core/_field.html" with field=form.power_notes %}
+    {% include "core/_field.html" with field=form.notes %}
+    {% include "core/_field.html" with field=form.hall_plan %}
+    {% include "core/_field.html" with field=form.is_active %}
+    <div class="btn-row"><button class="btn" type="submit">{% translate "Save venue" %}</button><a class="btn secondary" href="{% if venue %}{% url 'customers:venue_detail' venue.pk %}{% else %}{% url 'customers:venue_list' %}{% endif %}">{% translate "Cancel" %}</a></div>
+  </form>
+</div></div>
+{% endblock %}

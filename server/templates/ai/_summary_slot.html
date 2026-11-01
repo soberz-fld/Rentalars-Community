@@ -1,0 +1,5 @@
+{% load i18n %}{# EML-040, EML-044: the block "Zusammenfassung" of the correspondence (EML-050), loaded after the page – it reads every mail. #}
+{% if allowed %}<section class="panel ai-summary" id="ai-summary" aria-labelledby="ai-summary-title" hx-get="{% url 'ai:summary' project.pk %}" hx-trigger="load" hx-target="this" hx-swap="outerHTML">
+  <div class="panel-head"><h2 id="ai-summary-title">{% translate "Summary" %}</h2></div>
+  <div class="panel-body muted">{% translate "Loading the summary …" %}</div>
+</section>{% endif %}

@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Webhooks" %}{% endblock %}
+{% block content %}
+{% comment %}
+  API-012: addresses of other systems that Rentalars tells about events – a project changes its status, material
+  goes out or comes back, times are approved. Sending happens in the background, every minute.
+{% endcomment %}
+<div class="page-head"><div><div class="breadcrumb"><a href="{% url 'core:administration' %}">{% translate "Settings" %}</a></div><h1>{% translate "Webhooks" %}</h1>
+<p class="lead">{% translate "A webhook tells another system by HTTP when something happens in Rentalars – for example when a project is confirmed or material goes out. Each message is signed with the webhook's secret." %}</p></div>
+<div class="actions">{% if can_edit %}<a class="btn" href="{% url 'webhooks:create' %}">{% icon "plus" %}{% translate "New webhook" %}</a>{% endif %}<a class="btn secondary" href="{% url 'api:docs' %}" target="_blank" rel="noopener">{% translate "API documentation" %}</a></div></div>
+<div class="panel">
+  {% if rows %}
+  {# UIX-040: a table of core/tables.py (api/webhook_tables.py). #}
+  {% include "core/_table_tools.html" %}
+  {% include "core/_table.html" with stack=True %}
+  {% include "core/_pagination.html" %}
+  {% else %}
+  <div class="empty"><strong>{% translate "No webhooks yet." %}</strong>{% translate "With a webhook, an ERP, a chat or an automation tool such as n8n learns about changes at once, without asking again and again." %}</div>
+  {% endif %}
+</div>
+<p class="muted small section">{% blocktranslate count days=retention_days %}What failed is tried again after 1 minute, 5 minutes, 30 minutes, 2 hours and 12 hours. Deliveries are kept for {{ days }} day.{% plural %}What failed is tried again after 1 minute, 5 minutes, 30 minutes, 2 hours and 12 hours. Deliveries are kept for {{ days }} days.{% endblocktranslate %}</p>
+{% endblock %}

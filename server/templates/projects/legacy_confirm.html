@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Take over old projects" %}{% endblock %}
+{% block content %}
+{% comment %}
+  Legacy import: the confirmation – exactly what "Take over" will create, per project. Nothing was created before. (PRJ-130)
+  The page sends back the checksum of each proposal it shows (fp-<id>): a proposal changed in the meantime is not taken
+  over unseen. Expects: batch, plans (legacy_import.Plan), fingerprints, chosen.
+{% endcomment %}
+<div class="page-head">
+  <div><div class="breadcrumb"><a href="{% url 'projects:legacy' %}">{% translate "Import old projects" %}</a> / <a href="{% url 'projects:legacy_batch' batch.pk %}">{% translate "Check the old invoices" %}</a></div><h1>{% translate "Take over old projects" %}</h1>
+  <p class="lead">{% translate "This is exactly what will be created. No mail is sent, nothing is reserved, no task is made, and the numbers of your current invoices stay as they are." %}</p></div>
+</div>
+{% include "documents/_accounting_tabs.html" %}
+<form method="post" action="{% url 'projects:legacy_batch' batch.pk %}" class="form legacy-confirm" novalidate>
+  {% csrf_token %}
+  {% for pk in chosen %}<input type="hidden" name="take" value="{{ pk }}">{% endfor %}
+  {% for pk, value in fingerprints.items %}<input type="hidden" name="fp-{{ pk }}" value="{{ value }}">{% endfor %}
+  {% for plan in plans %}
+  <section class="panel" aria-labelledby="plan-{{ plan.head.pk }}">
+    <div class="panel-head"><h2 id="plan-{{ plan.head.pk }}">{{ plan.project_name }}</h2></div>
+    <div class="panel-body">
+      <dl class="legacy-plan">
+        <dt>{% translate "Customer" %}</dt><dd>{{ plan.customer_name }} {% if plan.customer_new %}<span class="badge yellow">{% translate "will be created" %}</span>{% else %}<span class="badge green">{% translate "existing customer" %}</span>{% endif %}</dd>
+        <dt>{% translate "Project" %}</dt><dd>{% translate "A closed project, numbered ALT-year-number" %} · {{ plan.period.0|date:"SHORT_DATE_FORMAT" }}{% if plan.period.1 != plan.period.0 %} – {{ plan.period.1|date:"SHORT_DATE_FORMAT" }}{% endif %}{% if plan.venue %} · {{ plan.venue }}{% endif %}</dd>
+        <dt>{% translate "Positions" %}</dt><dd>{% blocktranslate with free=plan.free_lines products=plan.product_lines texts=plan.text_lines crew=plan.crew_lines vehicles=plan.vehicle_lines %}{{ free }} free lines, {{ products }} lines of a product, {{ crew }} lines of personnel, {{ vehicles }} vehicle bookings, {{ texts }} text lines{% endblocktranslate %}</dd>
+      </dl>
+      <table class="table stack">
+        <caption class="visually-hidden">{% translate "Invoices that are registered with this project" %}</caption>
+        <thead><tr><th scope="col">{% translate "Invoice" %}</th><th scope="col">{% translate "Date" %}</th><th scope="col">{% translate "File" %}</th><th scope="col" class="num">{% translate "Net" %}</th><th scope="col" class="num">{% translate "Gross" %}</th><th scope="col">{% translate "State" %}</th></tr></thead>
+        <tbody>
+        {% for entry in plan.invoices %}
+          <tr>
+            <td><strong>{{ entry.number }}</strong></td>
+            <td data-label="{% translate 'Date' %}">{{ entry.date|date:"SHORT_DATE_FORMAT" }}</td>
+            <td data-label="{% translate 'File' %}">{{ entry.name }}</td>
+            <td class="num" data-label="{% translate 'Net' %}">{{ entry.net|money }}</td>
+            <td class="num" data-label="{% translate 'Gross' %}">{{ entry.gross|money }}</td>
+            <td data-label="{% translate 'State' %}">{% if entry.paid %}<span class="badge green">{% translate "paid" %}</span>{% if entry.paid_on %} {{ entry.paid_on|date:"SHORT_DATE_FORMAT" }}{% endif %}{% else %}<span class="badge">{% translate "open" %}</span>{% endif %}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      <p class="muted small">{% translate "Each invoice is stored as an issued invoice with its original PDF. It is not sent anywhere and is left out of the DATEV export unless you include it there." %}</p>
+      {% for report in plan.reports.values %}{% if report.warnings %}
+      <ul class="legacy-issues small">{% for issue in report.warnings %}<li><span class="badge yellow">{% translate "Check" %}</span> {{ issue.message }}</li>{% endfor %}</ul>
+      {% endif %}{% endfor %}
+    </div>
+  </section>
+  {% endfor %}
+  <div class="btn-row">
+    <button class="btn" type="submit" name="action" value="confirm">{% icon "check" %}{% blocktranslate count counter=plans|length %}Take over {{ counter }} project{% plural %}Take over {{ counter }} projects{% endblocktranslate %}</button>
+    <a class="btn secondary" href="{% url 'projects:legacy_batch' batch.pk %}">{% translate "Back to the preview" %}</a>
+  </div>
+</form>
+{% endblock %}

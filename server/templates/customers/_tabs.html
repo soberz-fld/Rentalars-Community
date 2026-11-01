@@ -1,0 +1,6 @@
+{% load i18n %}
+{# The tabs of the customers section: customers and venues (KND-009). #}
+<nav class="tabs" aria-label="{% translate 'Customers' %}">
+  <a href="{% url 'customers:list' %}"{% if tab == "customers" %} aria-current="page"{% endif %}>{% translate "Customers" %}</a>
+  <a href="{% url 'customers:venue_list' %}"{% if tab == "venues" %} aria-current="page"{% endif %}>{% translate "Venues" %}</a>
+</nav>

@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Import old projects" %}{% endblock %}
+{% block content %}
+{% comment %}
+  Legacy import: one upload of invoices. While they are read: the progress. Then one card per invoice to check (PRJ-130)
+  and correct (customer, invoice data, positions, totals), the plausibility checks next to the fields. Every button posts
+  to this page, which saves what was typed first; "Check and continue" shows the confirmation, only "Take over" there
+  creates the projects (rentalars/projects/legacy_views.py).
+{% endcomment %}
+<div class="page-head">
+  <div><div class="breadcrumb"><a href="{% url 'projects:legacy' %}">{% translate "Import old projects" %}</a></div><h1>{% translate "Check the old invoices" %}</h1>
+  <p class="lead">{% blocktranslate with date=batch.created_at|date:"SHORT_DATETIME_FORMAT" %}Uploaded {{ date }}.{% endblocktranslate %}{% if batch.used_ai %} <span class="badge accent">{% translate "read with AI" %}</span>{% endif %}</p></div>
+</div>
+{% include "documents/_accounting_tabs.html" %}
+
+{% if waiting %}
+<section class="panel" aria-labelledby="legacy-reading-title">
+  <div class="panel-head"><h2 id="legacy-reading-title">{% translate "Reading" %}</h2></div>
+  <div class="panel-body">
+    {% include "projects/_legacy_progress.html" %}
+    {% if stuck %}
+    <form method="post" class="btn-row">{% csrf_token %}<button class="btn secondary" type="submit" name="action" value="read">{% icon "refresh" %}{% translate "Read again" %}</button></form>
+    {% endif %}
+  </div>
+</section>
+{% endif %}
+
+{% if views %}
+<form method="post" class="form legacy-form" id="legacy-form" novalidate>
+  {% csrf_token %}
+  {# Enter in a field only saves – not the first button of the form. #}
+  <button type="submit" name="action" value="save" class="visually-hidden" tabindex="-1" aria-hidden="true">{% translate "Save" %}</button>
+  <p class="note">{% translate "Nothing is created yet. Check every invoice – the AI and the patterns can be wrong – correct what is marked, tick the invoices to take over and continue." %}</p>
+  {% for v in views %}{% include "projects/_legacy_item.html" %}{% endfor %}
+  <div class="btn-row legacy-actions">
+    <button class="btn" type="submit" name="action" value="review">{% icon "check" %}{% translate "Check and continue" %}</button>
+    <button class="btn secondary" type="submit" name="action" value="save">{% translate "Save changes" %}</button>
+    <a class="btn secondary" href="{% url 'projects:legacy' %}">{% translate "Back" %}</a>
+  </div>
+</form>
+{% endif %}
+
+{% if done_items %}
+<section class="panel" aria-labelledby="legacy-done-title">
+  <div class="panel-head"><h2 id="legacy-done-title">{% translate "Done" %}</h2></div>
+  <table class="table stack">
+    <thead><tr><th scope="col">{% translate "File" %}</th><th scope="col">{% translate "State" %}</th><th scope="col">{% translate "Invoice" %}</th><th scope="col">{% translate "Project" %}</th></tr></thead>
+    <tbody>
+    {% for item in done_items %}
+      <tr>
+        <td>{{ item.original_name }}</td>
+        <td data-label="{% translate 'State' %}">{% if item.state == "imported" %}<span class="badge green">{% translate "taken over" %}</span>{% elif item.state == "duplicate" %}<span class="badge yellow">{% translate "already imported" %}</span>{% elif item.state == "undone" %}<span class="badge">{% translate "undone" %}</span>{% else %}<span class="badge">{% translate "skipped" %}</span>{% endif %}{% if item.message %} <span class="muted small">{{ item.message }}</span>{% endif %}</td>
+        <td data-label="{% translate 'Invoice' %}">{% if item.state == "imported" and item.document %}<a href="{% url 'documents:file' item.document.pk %}">{{ item.invoice_number }}</a>{% else %}{{ item.invoice_number }}{% endif %}</td>
+        <td data-label="{% translate 'Project' %}">{% if item.state == "imported" and item.project %}<a href="{% url 'projects:detail' item.project.pk %}">{{ item.project.number }} {{ item.project.name }}</a>{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% if counts.imported %}
+  <div class="panel-body">
+    {% if undo_problems %}
+    <p class="muted small">{% translate "This import can no longer be undone:" %} {{ undo_problems|join:" " }}</p>
+    {% else %}
+    <form method="post" action="{% url 'projects:legacy_undo' batch.pk %}" class="btn-row">{% csrf_token %}
+      <button class="btn secondary" type="submit">{% icon "back" %}{% translate "Undo this import" %}</button>
+      <span class="muted small">{% translate "Removes the projects, invoices and new customers it created – possible while nothing was changed on them." %}</span>
+    </form>
+    {% endif %}
+  </div>
+  {% endif %}
+</section>
+{% endif %}
+{% endblock %}

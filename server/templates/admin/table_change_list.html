@@ -1,0 +1,54 @@
+{% extends "admin/change_list.html" %}
+{% load i18n rentalars %}
+{% comment %}
+  UIX-040: a list of the master data like every list of Rentalars – columns to choose, CSV of the view and with all
+  columns, groups (core/admin_tables.py). Sorting by a heading, the search and the folding filters are Django's.
+{% endcomment %}
+{% block search %}{{ block.super }}
+{% with tools=table_tools %}{% if tools %}
+<div class="table-tools admin-table-tools">
+  <details class="column-chooser">
+    <summary>{% translate "Columns" %}</summary>
+    <form method="get" class="column-chooser-panel">
+      {% for name, value in tools.kept %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}
+      {% if tools.group %}<input type="hidden" name="group" value="{{ tools.group }}">{% endif %}
+      <fieldset>
+        <legend>{% translate "Show these columns" %}</legend>
+        {% for name, label, shown, fixed in tools.columns %}
+        <label><input type="checkbox" name="cols" value="{{ name }}"{% if shown %} checked{% endif %}{% if fixed %} checked disabled{% endif %}> {{ label|capfirst }}</label>
+        {% endfor %}
+      </fieldset>
+      <button type="submit" class="button">{% translate "Apply" %}</button>
+    </form>
+  </details>
+  {% if tools.groups %}
+  <form method="get" class="group-chooser">
+    {% for name, value in tools.kept %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}
+    {% for name in tools.cols %}<input type="hidden" name="cols" value="{{ name }}">{% endfor %}
+    <label for="group-admin">{% translate "Group by" %}</label>
+    <select id="group-admin" name="group">
+      <option value="">{% translate "no grouping" %}</option>
+      {% for name, label, chosen in tools.groups %}<option value="{{ name }}"{% if chosen %} selected{% endif %}>{{ label|capfirst }}</option>{% endfor %}
+    </select>
+    <button type="submit" class="button">{% translate "Apply" %}</button>
+  </form>
+  {% endif %}
+  <span class="csv-links"><a href="{{ tools.csv_url }}">{% translate "CSV" %}</a> · <a href="{{ tools.csv_all_url }}">{% translate "CSV with all columns" %}</a></span>
+  {# UIX-050: above the list, because the foot of Django's list lies inside its form of actions. #}
+  {% with sizes=tools.page_size %}
+  <span class="page-sizes">{% translate "Per page" %}
+    {% for size, url, current in sizes.links %}
+    {% if current %}<strong aria-current="true">{{ size }}</strong>{% else %}<a href="{{ url }}" aria-label="{% blocktranslate %}{{ size }} entries per page{% endblocktranslate %}">{{ size }}</a>{% endif %}
+    {% endfor %}
+  </span>
+  <form method="get" class="page-size-form">
+    {% for name, value in sizes.kept %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}
+    <label for="per-page-admin">{% translate "Own number" %}</label>
+    <input type="number" id="per-page-admin" name="{{ sizes.param }}" min="{{ sizes.min }}" max="{{ sizes.max }}" step="1" inputmode="numeric" value="{{ sizes.typed }}" aria-describedby="per-page-admin-hint"{% if sizes.error %} aria-invalid="true"{% endif %}>
+    <button type="submit" class="button">{% translate "Show" %}</button>
+    {% if sizes.error %}<span id="per-page-admin-hint" class="error" role="alert">{{ sizes.error }}</span>{% else %}<span id="per-page-admin-hint" class="visually-hidden">{% blocktranslate with min=sizes.min max=sizes.max|thousands %}Entries per page, from {{ min }} to {{ max }}{% endblocktranslate %}</span>{% endif %}
+  </form>
+  {% endwith %}
+</div>
+{% endif %}{% endwith %}
+{% endblock %}

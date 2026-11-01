@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{{ item.display_id }} – {% translate "Files and defects" %}{% endblock %}
+{% block content %}
+{% include "material/_item_head.html" %}
+<div class="columns">
+<section class="panel">
+  <div class="panel-head"><h2>{% translate "Files" %}</h2></div>
+  {% include "material/_file_list.html" with files=files %}
+  {% if model_files %}
+  <div class="panel-body"><h3>{% blocktranslate with model=item.material_model.name %}Of the model {{ model }}{% endblocktranslate %}</h3></div>
+  {% include "material/_file_list.html" with files=model_files readonly=True %}
+  {% endif %}
+</section>
+{% if can.write.material %}
+<section class="panel">
+  <div class="panel-head"><h2>{% translate "Add a file" %}</h2></div>
+  <form method="post" enctype="multipart/form-data" class="panel-body">
+    {% csrf_token %}
+    {% include "core/_form_errors.html" %}
+    {% include "core/_field.html" with field=form.file %}
+    <div class="inline-fields">{% include "core/_field.html" with field=form.kind %}{% include "core/_field.html" with field=form.title %}</div>
+    <button class="btn" type="submit">{% icon "upload" %}{% translate "Upload" %}</button>
+  </form>
+</section>
+{% endif %}
+</div>
+<section class="panel">
+  <div class="panel-head"><h2>{% translate "Defect reports" %}</h2><div class="actions">{% if can.write.material and not item.is_archived %}<a class="btn secondary small" href="{% url 'material:item_defect' item.pk %}">{% icon "alert" %}{% translate "Report defect" %}</a>{% endif %}</div></div>
+  {% if defects %}
+  <ul class="defect-list">{% for report in defects %}
+    <li>
+      {% if report.photo %}<a href="{% url 'material:defect_photo' report.pk %}"><img src="{% url 'material:defect_photo' report.pk %}" alt="{% translate 'Photo of the defect' %}" class="thumb"></a>{% endif %}
+      <div><div class="muted small">{{ report.reported_at|date:"d.m.Y H:i" }}{% if report.reported_by %} · {{ report.reported_by }}{% endif %}{% if report.context %} · {{ report.context }}{% endif %}</div>
+      <div>{{ report.description|linebreaksbr }}</div>
+      {# MAT-057: the service case made of the report – by the automation or by hand. #}
+      {% with case=report.service_cases.all.0 %}
+      {% if case %}<div class="small">{% translate "Service case" %}: {% if can.read.projects %}<a href="{% url 'projects:case_detail' case.pk %}">{{ case.number }} {{ case.name }}</a>{% else %}{{ case.number }}{% endif %} <span class="badge">{{ case.case_status_label }}</span></div>
+      {% elif can.write.projects %}<div><a class="btn secondary small" href="{% url 'projects:case_create' %}?defect={{ report.pk }}">{% icon "plus" %}{% translate "As a service case" %}</a></div>{% endif %}
+      {% endwith %}</div>
+    </li>
+  {% endfor %}</ul>
+  {% else %}<div class="empty">{% translate "No defect reported." %}</div>{% endif %}
+</section>
+{% endblock %}

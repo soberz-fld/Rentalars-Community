@@ -1,0 +1,26 @@
+{% load i18n %}
+{% comment %}
+  PRJ-100 in the dialog of a move (schedule/_move_consequences.html): the phase then lies outside the rental period – the
+  box "extend" with what the longer period means for the material (PRJ-012), or why it cannot be extended. For a phase
+  dragged itself and – PRJ-121 – for a phase that follows its only person.
+  Expects: form, preview, move.
+{% endcomment %}
+    {% if preview.suggestion %}
+    <div class="field move-option move-extension">
+      <p>{% blocktranslate trimmed with start=move.project.start|date:"D d.m. H:i" end=move.project.end|date:"D d.m. H:i" %}
+        The phase then lies outside the rental period ({{ start }} – {{ end }}).
+      {% endblocktranslate %}</p>
+      {% if preview.suggestion.blocked_by %}
+      <p class="message warning">{% blocktranslate trimmed with number=preview.suggestion.blocked_by.number %}
+        A subproject lies within the rental period of its whole project {{ number }}. Extend that one first; then the rental period here can follow.
+      {% endblocktranslate %}</p>
+      {% elif preview.extension_error %}
+      <p class="message warning">{% translate "The rental period cannot be extended:" %} {{ preview.extension_error }}</p>
+      {% else %}
+      <div class="check">{{ form.extend }}<label for="{{ form.extend.id_for_label }}">{% blocktranslate trimmed with start=preview.suggestion.start|date:"D d.m. H:i" end=preview.suggestion.end|date:"D d.m. H:i" %}
+        Extend the rental period to {{ start }} – {{ end }}
+      {% endblocktranslate %}</label></div>
+      <div class="help" id="move-extend-help">{% if preview.material_note %}<span class="move-note {{ preview.material_note.0 }}">{{ preview.material_note.1 }}</span> {% endif %}{% translate "Material is reserved for the rental period. Without the tick only the phase moves." %}</div>
+      {% endif %}
+    </div>
+    {% endif %}

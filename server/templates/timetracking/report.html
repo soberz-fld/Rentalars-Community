@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Hours report" %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>{% if can.special.approve_times %}{% translate "Personnel" %}{% else %}{% translate "My area" %}{% endif %}</h1></div>
+  <div class="actions no-print">
+    <a class="btn secondary" href="?{{ query }}{% if query %}&amp;{% endif %}format=csv">{% translate "CSV" %}</a>
+    <a class="btn secondary" href="?{{ query }}{% if query %}&amp;{% endif %}format=pdf" target="_blank" rel="noopener">{% icon "print" %}{% translate "Timesheet (PDF)" %}</a>
+  </div>
+</div>
+{# UIX-026: with the right to approve, a tab of "Personnel"; otherwise the report of the own hours in "My area". #}
+{% if can.special.approve_times %}{% include "personnel/_tabs.html" with tab="report" %}{% else %}{% include "personnel/_my_tabs.html" with tab="report" %}{% endif %}
+<div class="panel" data-reload-after-times>
+  <form method="get" class="filters" novalidate>
+    {% filterpanel "time-report" %}
+    {% if form.fields.person.queryset|length > 1 %}<div class="field"><label for="{{ form.person.id_for_label }}">{{ form.person.label }}</label>{{ form.person }}</div>{% endif %}
+    <div class="field"><label for="{{ form.project.id_for_label }}">{{ form.project.label }}</label>{{ form.project }}</div>
+    <div class="field"><label for="{{ form.job_function.id_for_label }}">{{ form.job_function.label }}</label>{{ form.job_function }}</div>
+    <div class="field"><label for="{{ form.since.id_for_label }}">{{ form.since.label }}</label>{{ form.since }}</div>
+    <div class="field"><label for="{{ form.until.id_for_label }}">{{ form.until.label }}</label>{{ form.until }}</div>
+    <div class="field"><label for="{{ form.status.id_for_label }}">{{ form.status.label }}</label>{{ form.status }}</div>
+    <div class="field"><label for="{{ form.group_by.id_for_label }}">{{ form.group_by.label }}</label>{{ form.group_by }}</div>
+    {# ZEI-018: not when the hints are switched off #}{% if form.with_hints %}<div class="field"><div class="check">{{ form.with_hints }}<label for="{{ form.with_hints.id_for_label }}">{{ form.with_hints.label }}</label></div></div>{% endif %}
+    <button class="btn secondary" type="submit">{% translate "Show" %}</button>
+    {% endfilterpanel %}
+  </form>
+  {% if is_default_period %}<p class="panel-body muted small">{% translate "Without a filter: the current month." %}</p>{% endif %}
+  {# ZEI-018: how many entries are conspicuous – a long working day, a short break or rest. #}
+  {% if hinted %}<p class="panel-body time-hint-count">{% icon "alert" %}{% blocktranslate count count=hinted %}{{ count }} entry has a hint: a long working day, a short break or a short rest.{% plural %}{{ count }} entries have hints: long working days, short breaks or short rests.{% endblocktranslate %}{% if not form.cleaned_data.with_hints %} <a href="?{{ query }}{% if query %}&amp;{% endif %}with_hints=on">{% translate "Show only these" %}</a>{% endif %}</p>{% endif %}
+  {% if report.rows %}
+  <table class="table stack">
+    {# UIX-015: every heading sorts (sums_sort, timetracking/time_list_tables.py REPORT_SUM_TABLE); the total stays last. #}
+    <thead><tr>{% for header in sums.headers %}{% if header.column.key != "amount" or report.total_amount is not None %}<th{% if header.column.css %} class="{{ header.column.css }}"{% endif %}{% if header.is_active %} aria-sort="{% if header.descending %}descending{% else %}ascending{% endif %}"{% endif %} scope="col"><a href="{{ header.url }}">{% if header.column.key == "label" %}{% if report.group_by == "project" %}{% translate "Project" %}{% elif report.group_by == "job_function" %}{% translate "Job function" %}{% elif report.group_by == "day" %}{% translate "Day" %}{% else %}{% translate "Person" %}{% endif %}{% else %}{{ header.column.label }}{% endif %}{% if header.is_active %}<span class="sort" aria-hidden="true">{% if header.descending %}▼{% else %}▲{% endif %}</span>{% endif %}</a></th>{% endif %}{% endfor %}</tr></thead>
+    <tbody>
+    {% for row in sum_rows %}
+      <tr><td>{{ row.label }}</td><td class="num" data-label="{% translate 'Entries' %}">{{ row.entries|length }}</td><td class="num" data-label="{% translate 'Hours' %}">{{ row.hours|number }}</td>{% if report.total_amount is not None %}<td class="num" data-label="{% translate 'Amount' %}">{{ row.amount|money }}</td>{% endif %}</tr>
+    {% endfor %}
+      <tr class="sum"><td>{% translate "Total" %}</td><td class="num" data-label="{% translate 'Entries' %}">{{ report.entries|length }}</td><td class="num" data-label="{% translate 'Hours' %}">{{ report.total_hours|number }}</td>{% if report.total_amount is not None %}<td class="num" data-label="{% translate 'Amount' %}">{{ report.total_amount|money }}</td>{% endif %}</tr>
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty"><strong>{% translate "No times in this selection." %}</strong></div>
+  {% endif %}
+</div>
+
+{% if report.entries %}
+<div class="panel">
+  <div class="panel-head"><h2>{% translate "The entries" %}</h2></div>
+  {# UIX-040: a table of core/tables.py (timetracking/time_list_tables.py) with the prefix "entries_". #}
+  {% include "core/_table_tools.html" %}
+  {% include "core/_table.html" with stack=True %}
+  {% include "core/_pagination.html" %}
+</div>
+{% endif %}
+{% endblock %}

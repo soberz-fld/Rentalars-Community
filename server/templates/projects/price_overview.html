@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Price overview" %} {{ project.number }}{% endblock %}
+{% block content %}
+{% include "projects/_head.html" %}
+<div class="page-head">
+  <div>
+    <p class="note accent">{% translate "Internal working document: the basis for the quote you write elsewhere. Click an amount or a text to copy it." %}</p>
+  </div>
+  <div class="actions no-print">
+    {# PRJ-036: the level of detail; PRJ-088: the personnel by phase and job function – both kept across each other. #}
+    {% with crew_query=crew_by_phase|yesno:"&crew=phases," detail=with_lines|yesno:"lines,groups" %}
+    {% if with_lines %}<a class="btn secondary" href="?detail=groups{{ crew_query }}">{% translate "Groups with totals only" %}</a>{% else %}<a class="btn secondary" href="?detail=lines{{ crew_query }}">{% translate "Groups with all lines" %}</a>{% endif %}
+    {% if overview.has_crew %}{% if crew_by_phase %}<a class="btn secondary" href="?detail={{ detail }}">{% translate "Personnel as the other blocks" %}</a>{% else %}<a class="btn secondary" href="?detail={{ detail }}&amp;crew=phases">{% translate "Personnel by phase and function" %}</a>{% endif %}{% endif %}
+    <a class="btn secondary" href="{% url 'projects:price_overview_pdf' project.pk %}?detail={{ detail }}{{ crew_query }}" target="_blank" rel="noopener">{% icon "print" %}{% translate "PDF" %}</a>
+    <a class="btn secondary" href="{% url 'projects:price_overview_csv' project.pk %}?detail={{ detail }}{{ crew_query }}">{% icon "download" %}{% translate "CSV" %}</a>
+    {% endwith %}
+  </div>
+</div>
+
+{% if overview.is_part %}
+{# PRJ-046: a part shows just itself; the sum of all parts is in the whole project. #}
+<p class="note price-part-of">{% blocktranslate with number=project.parent.number name=project.parent.name %}Part of {{ number }} {{ name }}; the sum of all parts is in the whole project.{% endblocktranslate %}{% if whole_readable %} <a href="{% url 'projects:price_overview' project.parent_id %}{% if not with_lines %}?detail=groups{% endif %}">{% translate "Price overview of the whole project" %}</a>{% endif %}</p>
+{% endif %}
+{% if overview.hidden %}<p class="note">{% blocktranslate count count=overview.hidden %}{{ count }} subproject is not included: you may not read it. The sums are without it.{% plural %}{{ count }} subprojects are not included: you may not read them. The sums are without them.{% endblocktranslate %}</p>{% endif %}
+{% if overview.cancelled %}<p class="note">{% translate "Cancelled, therefore not included:" %} {% for part in overview.cancelled %}{{ part.number }} {{ part.name }}{% if not forloop.last %}, {% endif %}{% endfor %}</p>{% endif %}
+
+{% if overview.has_parts %}
+{# PRJ-046: the whole project's own lines, then every part as a block with its subtotal; the sum of all below. #}
+{% with own=overview.own %}{% if not own.is_empty %}
+<section class="price-block" data-price-block="{{ own.project.pk }}" aria-labelledby="price-block-{{ own.project.pk }}">
+  <div class="price-block-head">
+    <h2 id="price-block-{{ own.project.pk }}">{{ own.shared_heading }}</h2>
+    <strong class="num"><span class="copy" data-copy="{{ own.prices.net_total|money_plain }}">{{ own.prices.net_total|money }}</span></strong>
+  </div>
+  {% include "projects/_price_planning.html" with planning=own.planning heading_base=3 %}
+</section>
+{% endif %}{% endwith %}
+{% for part in overview.parts %}
+<section class="price-block is-part" data-price-block="{{ part.project.pk }}" aria-labelledby="price-block-{{ part.project.pk }}">
+  <div class="price-block-head">
+    <div>
+      <h2 id="price-block-{{ part.project.pk }}"><a href="{% url 'projects:price_overview' part.project.pk %}{% if not with_lines %}?detail=groups{% endif %}"><span class="copy" data-copy="{{ part.title }}">{{ part.title }}</span></a></h2>
+      <div class="muted small">{{ part.period }}{% if part.project.venue_label %} · {{ part.project.venue_label }}{% endif %} · <span class="badge {{ part.project.status|status_colour }}">{{ part.project.get_status_display }}</span></div>
+    </div>
+    <strong class="num"><span class="copy" data-copy="{{ part.prices.net_total|money_plain }}">{{ part.prices.net_total|money }}</span></strong>
+  </div>
+  {% if part.is_empty %}<div class="empty">{% translate "Nothing planned in this subproject yet." %}</div>{% else %}{% include "projects/_price_planning.html" with planning=part.planning heading_base=3 %}{% endif %}
+  <div class="price-block-total"><span>{% blocktranslate with title=part.title %}Total {{ title }}{% endblocktranslate %}</span><strong class="num"><span class="copy" data-copy="{{ part.prices.net_total|money_plain }}">{{ part.prices.net_total|money }}</span></strong></div>
+</section>
+{% endfor %}
+{% else %}
+{% include "projects/_price_planning.html" with planning=planning heading_base=2 %}
+{% endif %}
+
+{% with totals=overview.totals %}
+<section class="panel">
+  <div class="panel-head"><h2>{% if overview.has_parts %}{% translate "Totals of the whole project with all subprojects" %}{% else %}{% translate "Totals" %}{% endif %}</h2></div>
+  <div class="panel-body"><div class="totals"><table>
+    {% if overview.has_parts %}{# PRJ-046: what each block adds to the sum. #}
+    {% for entry in overview.blocks %}{% if not entry.is_whole or not entry.is_empty %}<tr class="price-family-row"><td>{% if entry.is_whole %}{{ entry.shared_heading }}{% else %}{{ entry.title }}{% endif %}</td><td class="num">{{ entry.prices.net_total|money }}</td></tr>{% endif %}{% endfor %}
+    {% endif %}
+    <tr{% if overview.has_parts %} class="price-family-sum"{% endif %}><td>{% translate "Total net" %}{% if totals.has_estimates %} <span class="badge yellow">{% translate "contains estimates" %}</span>{% endif %}</td><td class="num"><span class="copy" data-copy="{{ totals.net_total|money_plain }}">{{ totals.net_total|money }}</span></td></tr>
+    {% for tax in totals.tax_lines %}<tr><td>{% blocktranslate with name=tax.tax_rate.name net=tax.net|money %}Tax {{ name }} on {{ net }}{% endblocktranslate %}</td><td class="num"><span class="copy" data-copy="{{ tax.tax|money_plain }}">{{ tax.tax|money }}</span></td></tr>{% endfor %}
+    <tr class="grand"><td>{% translate "Total gross" %}</td><td class="num"><span class="copy" data-copy="{{ totals.gross_total|money_plain }}">{{ totals.gross_total|money }}</span></td></tr>
+    {% if totals.optional_total %}<tr><td class="muted">{% translate "Optional groups, not included" %}</td><td class="num muted">{{ totals.optional_total|money }}</td></tr>{% endif %}
+    {% if totals.optional_lines_total %}<tr><td class="muted">{% translate "Optional lines, not included" %}</td><td class="num muted"><span class="copy" data-copy="{{ totals.optional_lines_total|money_plain }}">{{ totals.optional_lines_total|money }}</span></td></tr>{% endif %}
+    {% if totals.alternative_lines_total %}<tr><td class="muted">{% translate "Alternative lines, not included" %}</td><td class="num muted"><span class="copy" data-copy="{{ totals.alternative_lines_total|money_plain }}">{{ totals.alternative_lines_total|money }}</span></td></tr>{% endif %}
+  </table></div></div>
+</section>
+{% endwith %}
+{% endblock %}

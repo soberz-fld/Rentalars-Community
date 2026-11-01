@@ -1,0 +1,8 @@
+{% load i18n rentalars %}
+{# The lines that belong to no group. Always on the page, so that lines can be added and dragged here. #}
+<section id="group-none"{% if oob %} hx-swap-oob="true"{% endif %} class="group">
+  <div class="group-head"><h3>{% translate "Without group" %}</h3></div>
+  {% translate "Subtotal" as subtotal_label %}{% translate "Choose all lines without group" as select_label %}
+  {% include "projects/_lines.html" with lines=planning.ungrouped group_id="" subtotal_amount=planning.prices.ungrouped_total select_label=select_label %}
+  {% if can_edit %}{% include "projects/_line_add.html" with group_id="" %}{% endif %}
+</section>

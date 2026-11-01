@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Audit due" %}{% endblock %}
+{% block content %}
+{% comment %}
+  MAT-070: Offene Punkte → Audit fällig – the items whose last audit lies an interval back (never audited: since
+  they were created in Rentalars), oldest first; archived items and bulk material are never due. A table of
+  core/tables.py (material/audit_tables.py); each row leads to the audit mode.
+{% endcomment %}
+<div class="page-head"><div><h1>{% translate "Material management" %}</h1></div><div class="actions">{% include "material/_item_jump.html" %}{% if can.write.material %}<a class="btn" href="{% url 'material:audit' %}">{% icon "inspection" %}{% translate "Start the audit" %}</a>{% endif %}</div></div>
+{% include "material/_tabs.html" %}
+{% include "material/_open_points_tabs.html" %}
+{% if settings_row.is_active %}
+<p class="note">{% blocktranslate count months=settings_row.interval_months %}An item is due one month after its last audit – one never audited, one month after it was entered in Rentalars.{% plural %}An item is due {{ months }} months after its last audit – one never audited, {{ months }} months after it was entered in Rentalars.{% endblocktranslate %}{% if can.write.administration %} <a href="{% url 'material:audit_settings' %}">{% translate "Change the interval" %}</a>{% endif %}</p>
+{% else %}
+<p class="note">{% translate "Audits are switched off: no audit becomes due." %}{% if can.write.administration %} <a href="{% url 'material:audit_settings' %}">{% translate "Switch them on under Settings → Audits" %}</a>{% endif %}</p>
+{% endif %}
+<div class="panel">
+  <form method="get" class="filters">
+    <div class="field grow"><label for="f-q">{% translate "Name, ID or serial number" %}</label><input type="search" id="f-q" name="q" value="{{ request.GET.q }}"></div>
+    {% filterpanel "material-audits" %}
+    <div class="field"><label for="f-category">{% translate "Category" %}</label>
+      <select id="f-category" name="category" data-autosubmit><option value="">{% translate "All" %}</option>{% for category in categories %}<option value="{{ category.pk }}"{% if request.GET.category == category.pk|stringformat:"s" %} selected{% endif %}>{{ category.path }}</option>{% endfor %}</select></div>
+    <button class="btn secondary" type="submit">{% translate "Filter" %}</button>
+    {% endfilterpanel %}
+  </form>
+  {% include "core/_table_tools.html" %}
+  {% if page.object_list %}
+  {% include "core/_table.html" with stack=True %}
+  {% elif settings_row.is_active %}
+  <div class="empty"><strong>{% translate "No audit is due." %}</strong></div>
+  {% endif %}
+  {% include "core/_pagination.html" %}
+</div>
+{% endblock %}

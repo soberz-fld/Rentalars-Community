@@ -1,0 +1,64 @@
+{% load i18n rentalars %}
+{% comment %}
+  MAT-069: the box "Audit und To-Dos" on the page of an item – last and next audit, the open to-dos with
+  "erledigt", "To-Do notieren" (typed or by quick pick), the to-dos done last and the audits so far. Plain forms:
+  Enter in the field notes the typed to-do; a quick pick is a button of its own. Expects: item, audit_state, open_todos,
+  done_todos, audits, quick_todos, todo_max_length (material.audit_views.audit_context).
+{% endcomment %}
+<section class="panel" id="audit" aria-labelledby="audit-box-title">
+  <div class="panel-head">
+    <h2 id="audit-box-title">{% translate "Audit and to-dos" %}</h2>
+    {% if can.write.material %}<a class="btn secondary small" href="{% url 'material:audit' %}?id={{ item.display_id }}">{% icon "inspection" %}{% translate "Record an audit" %}</a>{% endif %}
+  </div>
+  <div class="panel-body">
+    <dl class="facts">{% include "material/_audit_facts.html" with state=audit_state %}</dl>
+
+    <h3>{% translate "Open to-dos" %}</h3>
+    {% if open_todos %}
+    <ul class="plain-list audit-todo-list">
+      {% for todo in open_todos %}
+      <li><strong>{{ todo.text }}</strong> <span class="muted small">{% blocktranslate with day=todo.created_at|date:"d.m.Y" %}noted {{ day }}{% endblocktranslate %}{% if todo.created_by %} · {{ todo.created_by }}{% endif %}{% if todo.audit_id %} · {% translate "in the audit" %}{% endif %}</span>
+        {% if can.write.material %}<form method="post" action="{% url 'material:todo_done' todo.pk %}" class="inline-form">{% csrf_token %}<button class="btn secondary small" type="submit" aria-label="{% blocktranslate with text=todo.text %}“{{ text }}” done{% endblocktranslate %}">{% icon "check" %}{% translate "done" context "to-do" %}</button></form>{% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}<p class="muted">{% translate "No open to-dos." %}</p>{% endif %}
+
+    {% if can.write.material %}
+    <form method="post" action="{% url 'material:item_todo_add' item.pk %}" class="todo-add" autocomplete="off">
+      {% csrf_token %}
+      <div class="inline-fields">
+        <div class="field grow"><label for="todo-text">{% translate "Note a to-do" %}</label><input type="text" id="todo-text" name="text" maxlength="{{ todo_max_length }}" placeholder="{% translate 'e.g. Label missing' %}"></div>
+        <button class="btn secondary" type="submit">{% icon "plus" %}{% translate "Note" context "to-do" %}</button>
+      </div>
+      {% if quick_todos %}
+      <div class="audit-quick" role="group" aria-label="{% translate 'Quick picks' %}">
+        {% for pick in quick_todos %}<button class="btn secondary small" type="submit" name="pick" value="{{ pick }}">{{ pick }}</button>{% endfor %}
+      </div>
+      {% endif %}
+    </form>
+    {% endif %}
+
+    {% if done_todos %}
+    <details class="audit-done">
+      <summary>{% translate "Done lately" %}</summary>
+      <ul class="plain-list">{% for todo in done_todos %}<li><del>{{ todo.text }}</del> <span class="muted small">{% blocktranslate with day=todo.done_at|date:"d.m.Y" %}done {{ day }}{% endblocktranslate %}{% if todo.done_by %} · {{ todo.done_by }}{% endif %}</span></li>{% endfor %}</ul>
+    </details>
+    {% endif %}
+
+    {% if audits %}
+    <h3 class="spaced">{% translate "Audits so far" %}</h3>
+    <div class="table-scroll">
+    <table class="table dense stack">
+      <thead><tr><th scope="col">{% translate "Date" %}</th><th scope="col">{% translate "Audited by" %}</th><th scope="col">{% translate "Result" %}</th><th scope="col">{% translate "To-dos noted" %}</th><th scope="col">{% translate "Note" %}</th></tr></thead>
+      <tbody>{% for audit in audits %}
+        <tr><td>{{ audit.audited_at|date:"d.m.Y H:i" }}</td><td data-label="{% translate 'Audited by' %}">{{ audit.audited_by|default:"–" }}</td>
+          <td data-label="{% translate 'Result' %}"><span class="badge {% if audit.is_ok %}green{% else %}yellow{% endif %}">{{ audit.get_result_display }}</span></td>
+          <td data-label="{% translate 'To-dos noted' %}">{% for todo in audit.todos.all %}{{ todo.text }}{% if not forloop.last %}, {% endif %}{% empty %}–{% endfor %}</td>
+          <td data-label="{% translate 'Note' %}">{{ audit.note|default:"–" }}</td></tr>
+      {% endfor %}</tbody>
+    </table>
+    </div>
+    {% endif %}
+  </div>
+</section>

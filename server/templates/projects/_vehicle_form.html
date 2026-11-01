@@ -1,0 +1,21 @@
+{% load i18n rentalars %}
+{% comment %}
+  LOG-001: the dialog of a vehicle booking – vehicle, period, billing and rates (price right), supplier and
+  internal costs (purchase price right, LOG-010); see VehicleLineForm.LAYOUT for the rows. Also a page of its own
+  for a browser without scripts (vehicle_form.html).
+{% endcomment %}
+<form method="post" action="{{ action }}" hx-post="{{ action }}" hx-target="#dialog" novalidate autocomplete="off">
+  {% csrf_token %}
+  <div class="dialog-head"><h2>{{ line.label }}</h2><button type="button" class="icon-btn" data-close-dialog aria-label="{% translate 'Close' %}">{% icon "close" %}</button></div>
+  <div class="dialog-body form">
+    {% include "core/_form_errors.html" %}
+    {% for row in form.rows %}
+    <div class="form-row{% if row|length > 1 %} pair{% endif %}">{% for field in row %}{% include "core/_field.html" %}{% endfor %}</div>
+    {% endfor %}
+    <p class="muted small">{% translate "Rates and costs were taken from the product when the vehicle was booked. A change of the product later does not change this booking." %}</p>
+  </div>
+  <div class="dialog-foot">
+    <button type="button" class="btn secondary" data-close-dialog>{% translate "Cancel" %}</button>
+    <button type="submit" class="btn">{% translate "Save booking" %}</button>
+  </div>
+</form>

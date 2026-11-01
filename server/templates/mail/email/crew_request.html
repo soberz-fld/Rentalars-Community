@@ -1,0 +1,33 @@
+{% load i18n %}<!doctype html>
+{% comment %}
+  PER-032: the deployment request as a mail with the two answers as buttons – mailto links to a mailbox that
+  Rentalars fetches, so that answering needs no access to Rentalars. Inline styles: mail programs drop
+  style sheets. PER-034: asked again for new times, it names the times before.
+{% endcomment %}
+<html lang="{{ language }}">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>{{ subject }}</title></head>
+<body style="margin:0;padding:16px;background:#ffffff;color:#1f2328;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.5">
+<p style="margin:0 0 12px">{% blocktranslate %}Hello {{ name }},{% endblocktranslate %}</p>
+<p style="margin:0 0 12px">{% if previous_period %}{% translate "the times of your deployment have changed. Do you take it at the new times?" %}{% else %}{% translate "you are asked whether you take this deployment:" %}{% endif %}</p>
+<table style="border-collapse:collapse;margin:0 0 20px">
+  {% if company_name %}<tr><th scope="row" style="text-align:left;vertical-align:top;padding:2px 16px 2px 0;font-weight:600">{% translate "Company" %}</th><td style="padding:2px 0">{{ company_name }}</td></tr>{% endif %}
+  <tr><th scope="row" style="text-align:left;vertical-align:top;padding:2px 16px 2px 0;font-weight:600">{% translate "Project" %}</th><td style="padding:2px 0">{{ project_label }}</td></tr>
+  <tr><th scope="row" style="text-align:left;vertical-align:top;padding:2px 16px 2px 0;font-weight:600">{% translate "As" %}</th><td style="padding:2px 0">{{ function }}</td></tr>
+  {% if previous_period %}<tr><th scope="row" style="text-align:left;vertical-align:top;padding:2px 16px 2px 0;font-weight:600">{% translate "New times" %}</th><td style="padding:2px 0"><strong>{{ period }}</strong></td></tr>
+  <tr><th scope="row" style="text-align:left;vertical-align:top;padding:2px 16px 2px 0;font-weight:600">{% translate "Before" %}</th><td style="padding:2px 0;color:#57606a">{{ previous_period }}</td></tr>
+  {% else %}<tr><th scope="row" style="text-align:left;vertical-align:top;padding:2px 16px 2px 0;font-weight:600">{% translate "When" %}</th><td style="padding:2px 0">{{ period }}</td></tr>{% endif %}
+  {% if venue %}<tr><th scope="row" style="text-align:left;vertical-align:top;padding:2px 16px 2px 0;font-weight:600">{% translate "Where" %}</th><td style="padding:2px 0">{{ venue }}</td></tr>{% endif %}
+  {% if meeting_point %}<tr><th scope="row" style="text-align:left;vertical-align:top;padding:2px 16px 2px 0;font-weight:600">{% translate "Meeting point" %}</th><td style="padding:2px 0">{{ meeting_point }}</td></tr>{% endif %}
+  {% if note %}<tr><th scope="row" style="text-align:left;vertical-align:top;padding:2px 16px 2px 0;font-weight:600">{% translate "Note" %}</th><td style="padding:2px 0">{{ note|linebreaksbr }}</td></tr>{% endif %}
+  {% if asked_by %}<tr><th scope="row" style="text-align:left;vertical-align:top;padding:2px 16px 2px 0;font-weight:600">{% translate "Asked by" %}</th><td style="padding:2px 0">{{ asked_by }}</td></tr>{% endif %}
+</table>
+<p style="margin:0 0 16px">
+  <a href="{{ accept_url }}" style="display:inline-block;margin:0 8px 8px 0;padding:10px 22px;border:2px solid #1a7f37;border-radius:6px;background:#1a7f37;color:#ffffff;font-weight:700;text-decoration:none">{% translate "Accept" %}</a>
+  <a href="{{ decline_url }}" style="display:inline-block;margin:0 8px 8px 0;padding:10px 22px;border:2px solid #b42318;border-radius:6px;background:#ffffff;color:#b42318;font-weight:700;text-decoration:none">{% translate "Decline" %}</a>
+</p>
+<p style="margin:0 0 16px;color:#57606a;font-size:14px">{% blocktranslate %}“Accept” and “Decline” each open a prepared mail to {{ address }}. Simply send it and leave the subject as it is. Behind “Note:” you can add something for the planning.{% endblocktranslate %}</p>
+{% if link %}<p style="margin:0 0 16px">{% translate "Or answer in Rentalars:" %} <a href="{{ link }}" style="color:#0b5cad">{{ link }}</a></p>{% endif %}
+{% if offer_link %}<p style="margin:0 0 16px">{% translate "Want to name your own price? You can make an offer in Rentalars:" %} <a href="{{ offer_link }}" style="color:#0b5cad">{{ offer_link }}</a></p>{% endif %}
+{% if can_switch_off %}<p style="margin:24px 0 0;color:#57606a;font-size:13px">{% translate "You can switch these messages off under “My account” → “Notifications”." %}</p>{% endif %}
+</body>
+</html>

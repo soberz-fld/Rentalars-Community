@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{{ person.name }} – {% translate "Timeline" %}{% endblock %}
+{% block content %}
+{% include "personnel/_person_head.html" %}
+{% include "schedule/_timeline.html" with for_person=True %}
+{% endblock %}

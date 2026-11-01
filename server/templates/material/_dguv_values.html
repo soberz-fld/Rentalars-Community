@@ -1,0 +1,21 @@
+{% load i18n rentalars %}{# MAT-078: what an electrical inspection measured, with limits and verdicts, and its printable protocol. #}
+{% with evaluation=inspection.evaluation %}
+<details>
+  <summary>{% translate "Measured values" %}{% if evaluation.exceeded %} <span class="badge red">{% blocktranslate count count=evaluation.exceeded|length %}{{ count }} outside the limit{% plural %}{{ count }} outside the limit{% endblocktranslate %}</span>{% endif %}</summary>
+  <table class="table">
+    <caption class="visually-hidden">{% blocktranslate with date=inspection.date|date:"d.m.Y" %}Measured values of {{ date }}{% endblocktranslate %}</caption>
+    <thead><tr><th scope="col">{% translate "Check" context "inspection" %}</th><th scope="col">{% translate "Value" %}</th><th scope="col">{% translate "Limit" %}</th><th scope="col">{% translate "Verdict" %}</th></tr></thead>
+    <tbody>
+      <tr><td>{% translate "Protection class" %}</td><td>{{ inspection.protection_class }}</td><td></td><td></td></tr>
+      <tr><td>{% translate "Visual inspection" %}</td><td></td><td></td><td>{% if inspection.visual_check_passed %}<span class="badge green">{% translate "passed" %}</span>{% else %}<span class="badge red">{% translate "not passed" %}</span>{% endif %}</td></tr>
+      {% for check in evaluation.checks %}{% if check.applies or check.value is not None %}
+      <tr><td>{{ check.measurement.label }} {{ check.measurement.symbol_html }}</td><td>{{ check.value_text|default:"–" }}</td><td>{{ check.limit_text }}{% if check.limit_note and check.cord_length_m %} <span class="muted small">({{ check.limit_note }})</span>{% endif %}</td>
+        <td>{% if check.verdict == "ok" %}<span class="badge green">{{ check.verdict_text }}</span>{% elif check.verdict == "missing" and not check.required_missing %}<span class="muted">{{ check.verdict_text }}</span>{% else %}<span class="badge red">{{ check.verdict_text }}</span>{% endif %}</td></tr>
+      {% endif %}{% endfor %}
+      <tr><td>{% translate "Function test" %}</td><td></td><td></td><td>{% if inspection.function_test_passed is None %}<span class="muted">{% translate "does not apply" %}</span>{% elif inspection.function_test_passed %}<span class="badge green">{% translate "passed" %}</span>{% else %}<span class="badge red">{% translate "not passed" %}</span>{% endif %}</td></tr>
+    </tbody>
+  </table>
+  {% if inspection.test_device %}<p class="small">{% translate "Test device" %}: {{ inspection.test_device }}</p>{% endif %}
+</details>
+<a href="{% url 'material:inspection_report' inspection.pk %}">{% icon "print" %}{% translate "Test report (PDF)" %}</a>
+{% endwith %}

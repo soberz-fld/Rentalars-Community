@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% if mailbox %}{{ mailbox.name }}{% else %}{% translate "Add mailbox" %}{% endif %}{% endblock %}
+{% block content %}
+{% comment %}
+  EML-041: one mailbox with its roles. Correspondence: fetched and assigned by the tag; exactly one active
+  correspondence mailbox sends the mails of the projects. System: sends invitations and notifications.
+  Per mailbox: whether mails without tag are taken in as inquiries, and what becomes of assigned mails.
+  EML-002, EML-035: passwords are only written, never shown; sending may use the IMAP access data.
+{% endcomment %}
+<div class="page-head"><div><div class="breadcrumb"><a href="{% url 'core:administration' %}">{% translate "Settings" %}</a> / <a href="{% url 'mail:settings' %}">{% translate "Mailboxes and signature" %}</a></div>
+<h1>{% if mailbox %}{{ mailbox.name }}{% else %}{% translate "Add mailbox" %}{% endif %}</h1>
+<p class="lead">{% translate "An existing mailbox of any provider; Rentalars fetches by IMAP and sends by SMTP, always encrypted." %}</p></div>
+  {% if mailbox %}<div class="actions"><form method="post" action="{% url 'mail:mailbox_check' mailbox.pk %}" class="inline-form">{% csrf_token %}<input type="hidden" name="next" value="{{ request.path }}"><button class="btn secondary" type="submit">{% translate "Check connection" %}</button></form></div>{% endif %}
+</div>
+{% if not password_readable %}<p class="note accent">{% translate "The stored password cannot be read any more – the secret key of the configuration was changed. Enter the password again." %}</p>{% endif %}
+<form method="post" class="form wide" novalidate autocomplete="off">
+  {% csrf_token %}
+  {% include "core/_form_errors.html" %}
+  <div class="panel"><div class="panel-head"><h2>{% translate "Mailbox" %}</h2></div><div class="panel-body">
+    <div class="form-grid">
+      {% include "core/_field.html" with field=form.name %}
+      {% include "core/_field.html" with field=form.address %}
+    </div>
+    {% include "core/_field.html" with field=form.is_active %}
+  </div></div>
+  <div class="panel"><div class="panel-head"><h2>{% translate "Roles" %}</h2></div><div class="panel-body">
+    {% include "core/_field.html" with field=form.for_correspondence %}
+    {% include "core/_field.html" with field=form.is_outgoing %}
+    {% include "core/_field.html" with field=form.for_system %}
+    <p class="muted small">{% translate "Recipients see the name of the writer and the company as sender, e.g. “Max Mustermann | Company”, with the address of the mailbox." %}</p>
+    {# EML-052: who may choose the mailbox's address as sender – only a mailbox of the correspondence is offered. #}
+    <div data-show-if="for_correspondence=on">{% include "core/_field.html" with field=form.sender_roles %}</div>
+  </div></div>
+  <div class="panel"><div class="panel-head"><h2>{% translate "Receiving (IMAP)" %}</h2></div><div class="panel-body form-grid">
+    {% include "core/_field.html" with field=form.imap_host %}
+    {% include "core/_field.html" with field=form.imap_port %}
+    {% include "core/_field.html" with field=form.imap_security %}
+    {% include "core/_field.html" with field=form.imap_user %}
+    {% include "core/_field.html" with field=form.imap_password %}
+    {% include "core/_field.html" with field=form.inbox_folder %}
+  </div>
+  <div class="panel-body" data-show-if="for_correspondence=on">
+    {% include "core/_field.html" with field=form.process_untagged %}
+    {# EML-049: mails without tag only from a point in time, optionally only unread ones. #}
+    <div class="form-grid" data-show-if="process_untagged=on">
+      {% include "core/_field.html" with field=form.untagged_since %}
+      {% include "core/_field.html" with field=form.untagged_unread_only %}
+    </div>
+    <div class="form-grid">
+      {% include "core/_field.html" with field=form.after_assignment %}
+      <div data-show-if="after_assignment=move">{% include "core/_field.html" with field=form.done_folder %}</div>
+    </div>
+  </div></div>
+  <div class="panel"><div class="panel-head"><h2>{% translate "Sending (SMTP)" %}</h2></div><div class="panel-body form-grid">
+    {% include "core/_field.html" with field=form.smtp_host %}
+    {% include "core/_field.html" with field=form.smtp_port %}
+    {% include "core/_field.html" with field=form.smtp_security %}
+  </div>
+  <div class="panel-body">{% include "core/_field.html" with field=form.smtp_same_login %}</div>
+  {# EML-035: own access data for sending only when the box above is off. #}
+  <div class="panel-body form-grid" data-show-if="smtp_same_login=">
+    {% include "core/_field.html" with field=form.smtp_user %}
+    {% include "core/_field.html" with field=form.smtp_password %}
+  </div></div>
+  <div class="btn-row"><button class="btn" type="submit">{% translate "Save mailbox" %}</button><a class="btn secondary" href="{% url 'mail:settings' %}">{% translate "Cancel" %}</a></div>
+</form>
+{% if mailbox %}
+{# EML-047: further addresses that deliver into this mailbox, each with its rule for mails without project tag. #}
+<section class="panel" id="addresses" aria-labelledby="addresses-title">
+  <div class="panel-head"><h2 id="addresses-title">{% translate "Further addresses (aliases)" %}</h2>
+    <a class="btn secondary small" href="{% url 'mail:address_create' mailbox.pk %}">{% icon "plus" %}{% translate "Add address" %}</a></div>
+  <div class="panel-body"><p class="muted small">{% translate "When the mailbox receives the mails of several addresses, e.g. support@ and projekt@, each address can treat mails without project tag in its own way. Which address a mail went to is read from Delivered-To, X-Original-To, To and Cc. Mails to an address not listed here follow the setting of the mailbox above." %}</p></div>
+  {% if aliases %}
+  <table class="table stack alias-list">
+    <thead><tr><th scope="col">{% translate "Address" context "e-mail" %}</th><th scope="col">{% translate "Mails without project tag" %}</th><th scope="col">{% translate "Role" %}</th><th scope="col"><span class="visually-hidden">{% translate "Edit and remove" %}</span></th></tr></thead>
+    <tbody>
+    {% for alias in aliases %}
+      <tr>
+        <td><a href="{% url 'mail:address_edit' mailbox.pk alias.pk %}">{{ alias.address }}</a></td>
+        <td data-label="{% translate 'Mails without project tag' %}">{{ alias.get_untagged_display|capfirst }}{% if alias.untagged == "service_case" and alias.case_manager %}<div class="muted small">{% blocktranslate with person=alias.case_manager.get_full_name|default:alias.case_manager.username %}responsible: {{ person }}{% endblocktranslate %}</div>{% endif %}{% if alias.untagged != "ignore" %}{% include "mail/_untagged_since.html" with holder=alias %}{% endif %}</td>
+        <td data-label="{% translate 'Role' %}">{% if alias.for_service_cases %}<span class="badge accent">{% translate "only for service cases" %}</span>{% else %}–{% endif %}{% with roles=alias.sender_roles.all %}{% if roles %}<div class="muted small">{% translate "Sender for:" %} {{ roles|join:", " }}</div>{% endif %}{% endwith %}</td>
+        <td class="actions"><div class="cell-buttons">
+          <a class="btn secondary small" href="{% url 'mail:address_edit' mailbox.pk alias.pk %}">{% icon "edit" %}{% translate "Edit" %}</a>
+          <form method="post" action="{% url 'mail:address_delete' mailbox.pk alias.pk %}" class="inline-form">{% csrf_token %}<button class="icon-btn" type="submit" title="{% translate 'Remove address' %}" data-confirm="{% blocktranslate with address=alias.address %}Remove {{ address }} from the list? Its mails then follow the setting of the mailbox.{% endblocktranslate %}">{% icon "trash" %}<span class="visually-hidden">{% translate "Remove address" %}</span></button></form>
+        </div></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<div class="empty">{% translate "No further addresses. All mails follow the setting of the mailbox." %}</div>{% endif %}
+</section>
+{% endif %}
+{% if mailbox %}
+{# EML-026: a signature of its own for the mails sent from the mailbox's addresses; empty: the common one. #}
+<section class="panel" id="mailbox-signature" aria-labelledby="mailbox-signature-title">
+  <div class="panel-head"><h2 id="mailbox-signature-title">{% translate "Signature" context "mail" %}</h2>
+    {% if can_edit_signature %}<a class="btn secondary small" href="{% url 'mail:mailbox_signature' mailbox.pk %}">{% icon "edit" %}{% if mailbox.signature_html %}{% translate "Edit signature of the mailbox" %}{% else %}{% translate "Write a signature of its own" %}{% endif %}</a>{% endif %}</div>
+  <div class="panel-body"><p class="muted small">{% if mailbox.signature_html %}{% translate "Mails sent from the addresses of this mailbox carry its own signature." %}{% else %}{% translate "Mails sent from the addresses of this mailbox carry the common signature." %}{% endif %}</p></div>
+</section>
+{% endif %}
+{% if mailbox and can_delete %}
+{# EML-046: deleting asks first and says what follows; switching off stays possible there and above. #}
+<div class="section">
+  <a class="btn danger" href="{% url 'mail:mailbox_delete' mailbox.pk %}">{% icon "trash" %}{% translate "Delete mailbox" %}</a>
+  <p class="muted small">{% translate "The mails and the mail log keep the name of a deleted mailbox. The next page says what else follows." %}</p>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,15 @@
+{% extends "base_public.html" %}
+{% load i18n %}
+{% block title %}{% translate "Log in" %}{% endblock %}
+{% block content %}
+<h1>Rentalars</h1>
+<p class="lead">{% translate "Enter the code that your authenticator app shows for Rentalars." %}</p>
+<form method="post" class="form" novalidate>
+  {% csrf_token %}
+  {% if error %}<div class="form-errors" role="alert">{{ error }}</div>{% endif %}
+  <div class="field"><label for="f-code">{% translate "Code" %}{% include "core/_required_star.html" %}</label><input type="text" id="f-code" name="code" inputmode="numeric" autocomplete="one-time-code" autofocus required maxlength="20"></div>
+  <button type="submit" class="btn block">{% translate "Log in" %}</button>
+  <p class="small muted">{% translate "Phone lost? A recovery code works here, too." %}</p>
+  <p class="small"><a href="{% url 'accounts:login' %}">{% translate "Back to the login" %}</a></p>
+</form>
+{% endblock %}

@@ -1,0 +1,37 @@
+{% load i18n rentalars %}
+{% comment %}
+  The head of every page of an item: ID, model, status, and the tabs (data, timeline, inspections, files,
+  history). Expects: item, tab.
+{% endcomment %}
+<div class="page-head">
+  <div class="head-with-picture">
+    {% if picture %}<a href="{% url 'material:file' picture.pk %}"><img src="{% url 'material:file_small' picture.pk %}" alt="{{ item.material_model.name }}" class="thumb"></a>{% endif %}
+    <div>
+    <div class="breadcrumb"><a href="{% url 'material:item_list' %}">{% translate "Items" %}</a> / <a href="{% url 'material:model_detail' item.material_model_id %}">{{ item.material_model.name }}</a></div>
+    <h1><span class="tape">{{ item.display_id }}</span> {{ item.material_model.name }}</h1>
+    <p class="lead"><span class="badge {{ item.status|status_colour }}">{{ item.get_status_display }}</span>{% if item.status_reason %} <span class="status-reason">{{ item.status_reason }}</span>{% endif %}
+      {% with owner=item.product.owner %}{% if owner %}{# PRD-043 #} <span class="badge accent">{% blocktranslate with owner=owner.name %}Owned by {{ owner }}{% endblocktranslate %}</span>{% endif %}{% endwith %}
+      {% for due in inspection_dues %}{% if due.state != "ok" %} <a class="badge {% if due.state == 'overdue' %}red{% else %}yellow{% endif %}" href="{% url 'material:item_inspections' item.pk %}">{% icon "inspection" %}{{ due.inspection_type.name }}: {% if due.never_inspected %}{% translate "never inspected" %}{% else %}{{ due.state_label }} {{ due.due_date|date:"d.m.Y" }}{% endif %}</a>{% endif %}{% endfor %}
+      {% for problem in content_problems %} <span class="badge red" title="{% translate 'An item inside this one has a problem' %}">{{ problem }}</span>{% endfor %}
+      {# MAT-069: a due audit and the open to-dos lead to the box "Audit und To-Dos" of the item. #}
+      {% if audit_due_date %} <a class="badge red" href="{% url 'material:item_detail' item.pk %}#audit">{% icon "inspection" %}{% translate "Audit due" %}</a>{% endif %}
+      {% if open_todo_count %} <a class="badge yellow" href="{% url 'material:item_detail' item.pk %}#audit">{% blocktranslate count count=open_todo_count %}{{ count }} to-do{% plural %}{{ count }} to-dos{% endblocktranslate %}</a>{% endif %}
+    </p>
+    </div>
+  </div>
+  <div class="actions">
+    {% if can.write.material and not item.is_archived %}<a class="btn secondary" href="{% url 'material:item_defect' item.pk %}">{% icon "alert" %}{% translate "Report defect" %}</a>{% endif %}
+    {# MAT-066: a small dialog asks which label – the choice opens it ready to print #}
+    <a class="btn secondary" href="{% url 'material:item_labels' item.pk %}" hx-get="{% url 'material:item_labels' item.pk %}" hx-target="#dialog" aria-haspopup="dialog">{% icon "tag" %}{% translate "Label" %}</a>
+    {# MAT-064: new items on the basis of this one – its model, purchase data and storage location #}
+    {% if can.write.material %}<a class="btn secondary" href="{% url 'material:item_create' item.material_model_id %}?copy={{ item.pk }}">{% icon "duplicate" %}{% translate "Duplicate" %}</a>{% endif %}
+    {% if can.write.material %}<a class="btn" href="{% url 'material:item_edit' item.pk %}">{% icon "edit" %}{% translate "Edit item" %}</a>{% endif %}
+  </div>
+</div>
+<nav class="tabs" aria-label="{% translate 'Item' %}">
+  <a href="{% url 'material:item_detail' item.pk %}"{% if tab == "item" %} aria-current="page"{% endif %}>{% translate "Item" %}</a>
+  {% if can.special.availability %}<a href="{% url 'material:item_timeline' item.pk %}"{% if tab == "timeline" %} aria-current="page"{% endif %}>{% translate "Timeline" %}</a>{% endif %}{# AUT-032 #}
+  <a href="{% url 'material:item_inspections' item.pk %}"{% if tab == "inspections" %} aria-current="page"{% endif %}>{% translate "Inspections" %}</a>
+  <a href="{% url 'material:item_files' item.pk %}"{% if tab == "files" %} aria-current="page"{% endif %}>{% translate "Files and defects" %}</a>
+  <a href="{% url 'material:item_history' item.pk %}"{% if tab == "history" %} aria-current="page"{% endif %}>{% translate "History" %}</a>
+</nav>

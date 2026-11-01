@@ -1,0 +1,130 @@
+{% load i18n rentalars %}
+{% comment %}
+  Expects: lines (list of PlannedLine), group_id ("" for none), not_sortable (optional), select_label (optional), urls.
+  PRJ-082: with the right to edit, every line has a box to choose it, and the head of the table one for all lines of
+  the section; the boxes belong to the form of the bar "chosen lines" in _planning.html (form="line-selection").
+  PRJ-083: the buttons "optional" and "Alternative" stand next to edit, copy and delete.
+  PRJ-084: a subrental that covers a shortage of a line is shown right below it, as a part of it (planned.covering).
+{% endcomment %}
+{# Texts that repeat in every row are translated once here, not once per row: a project can have 500 rows. #}
+{% translate "Quantity" as t_quantity %}{% translate "Availability" as t_availability %}{% translate "Rental days" as t_days %}{% translate "factor" as t_factor %}{% translate "Wish" as t_wish %}{% translate "Unit price" as t_unit_price %}{% translate "Amount" as t_amount %}{% translate "free" as t_free %}{% translate "tight" as t_tight %}{% translate "not checked" as t_not_checked %}{% translate "from supplier" as t_from_supplier %}{% translate "Edit line" as t_edit %}{% translate "Delete line" as t_delete %}{% translate "Delete this line?" as t_confirm_delete %}{% translate "collides with an option of another project" as t_collides %}{% translate "Duplicate line" as t_duplicate %}{% translate "not in the total" as t_not_counted %}{% translate "Choose line" as t_choose %}{% translate "Optional" as t_optional %}{% translate "Optional: shown with its price, not part of the total" as t_optional_title %}{% translate "Alternative to another line …" as t_alternative %}{% translate "Edit subrental" as t_edit_subrental %}{% translate "Delete subrental" as t_delete_subrental %}{% translate "Delete this subrental?" as t_confirm_delete_subrental %}{% translate "no supplier yet" as t_no_supplier %}{% translate "purchase price" as t_purchase %}{% translate "per unit" as t_per_unit %}{% translate "customer material – taken along" as t_customer_material %}{% translate "The customer's own material: taken along, never charged" as t_customer_material_title %}{% translate "not charged" as t_not_charged %}{% translate "Open the product: availability for the period of this project" as t_to_product %}
+<table class="table stack lines{% if can_edit %} with-select{% endif %}">
+  <colgroup>
+    {% if can_edit %}<col class="c-select">{% endif %}<col class="c-drag"><col class="c-qty"><col><col class="c-avail">
+    {% if can_see_prices %}<col class="c-days"><col class="c-price"><col class="c-amount">{% endif %}
+    <col class="c-actions">
+  </colgroup>
+  <thead><tr>
+    {% if can_edit %}<th class="select no-print">{% if lines %}{% if not select_label %}{% translate 'Choose all lines of this group' as select_label %}{% endif %}<label class="select-all"><input type="checkbox" data-select-all aria-label="{{ select_label }}" title="{{ select_label }}"><span class="select-all-text" aria-hidden="true">{{ select_label }}</span></label>{% endif %}</th>{% endif %}
+    <th class="drag no-print"></th>
+    <th class="num">{{ t_quantity }}</th>
+    <th>{% translate "Line" %}</th>
+    {# AUT-032: the availability only with the special right; the column stays, empty, so that the layout holds. #}
+    <th>{% if can.special.availability %}{{ t_availability }}{% endif %}</th>
+    {% if can_see_prices %}<th class="num">{{ t_days }}</th><th class="num">{{ t_unit_price }}</th><th class="num">{{ t_amount }}</th>{% endif %}
+    <th class="no-print"></th>
+  </tr></thead>
+  <tbody{% if can_edit and not not_sortable %} data-sortable data-group="{{ group_id }}"{% endif %}>
+  {% for planned in lines %}{% if not planned.is_sub_row %}{% with line=planned.line price=planned.price %}
+    {% if line.is_text %}
+    {# A text line – a heading or a remark; no quantity, availability or price. It moves, is copied and deleted like a line. #}
+    <tr data-line="{{ line.pk }}" id="line-{{ line.pk }}" class="is-text">
+      {% if can_edit %}<td class="select no-print"><input type="checkbox" name="lines" value="{{ line.pk }}" form="line-selection" data-select-line aria-label="{{ t_choose }}: {{ line.title }}"></td>{% endif %}
+      <td class="drag no-print">{% if can_edit and not not_sortable %}<button type="button" class="drag-handle" aria-label="{% translate 'Move: drag, or the arrow keys' %}">{% icon "drag" %}</button>{% endif %}</td>
+      <td colspan="{% if can_see_prices %}6{% else %}3{% endif %}" class="text-line-cell"><span class="badge">{% translate "text" %}</span> <strong class="title">{{ line.title }}</strong>{% if line.note %}<div class="sub">{{ line.note|linebreaksbr }}</div>{% endif %}</td>
+      <td class="actions no-print">
+        {% if can_edit %}
+        <button class="icon-btn" type="button" hx-get="{{ urls.line_edit|fill:line.pk }}" hx-target="#dialog" aria-label="{{ t_edit }}" title="{{ t_edit }}">{% icon "edit" %}</button>
+        <button class="icon-btn" type="button" hx-post="{{ urls.line_duplicate|fill:line.pk }}" hx-target="#planning" hx-swap="outerHTML" aria-label="{{ t_duplicate }}" title="{{ t_duplicate }}">{% icon "copy" %}</button>
+        <form class="inline-form" hx-post="{{ urls.line_delete|fill:line.pk }}" hx-target="#planning" hx-swap="outerHTML"><button class="icon-btn" type="submit" aria-label="{{ t_delete }}" title="{{ t_delete }}" data-confirm="{{ t_confirm_delete }}">{% icon "trash" %}</button></form>
+        {% endif %}
+      </td>
+    </tr>
+    {% else %}
+    <tr data-line="{{ line.pk }}" id="line-{{ line.pk }}"{% if line.is_covering_subrental %} class="is-covering"{% elif line.variant %} class="is-variant"{% endif %}>
+      {% if can_edit %}<td class="select no-print"><input type="checkbox" name="lines" value="{{ line.pk }}" form="line-selection" data-select-line aria-label="{{ t_choose }}: {{ line.quantity_display }} × {{ line.title }}"></td>{% endif %}
+      <td class="drag no-print">{% if can_edit and not not_sortable %}<button type="button" class="drag-handle" aria-label="{% translate 'Move: drag, or the arrow keys' %}">{% icon "drag" %}</button>{% endif %}</td>
+      <td class="num" data-label="{{ t_quantity }}">{% if line.is_percent_surcharge %}{{ line.surcharge_percent|number }} %{% else %}{{ line.quantity_display }}{% if line.unit %} <span class="muted">{{ line.unit.abbreviation }}</span>{% endif %}{% endif %}</td>
+      <td>
+        {% if line.product %}{% if urls.product_page %}{# To the product, its availability preset to the period of this project. #}{% with number=line.product.article_number|urlencode:"" %}<a class="artno" href="{{ urls.product_page|fill:number }}?project={{ project.pk }}" title="{{ t_to_product }}">{{ line.product.article_number }}</a>{% endwith %}{% else %}<span class="artno">{{ line.product.article_number }}</span>{% endif %}{% endif %}
+        <span class="title">{{ line.title }}</span>
+        {% if line.is_sale %}<span class="badge solid">{% translate "sale" %}</span>{% endif %}
+        {% if line.is_subrental %}<span class="badge yellow">{% translate "subrental" %}</span>{% endif %}
+        {% if price.is_customer_material %}<span class="badge accent" title="{{ t_customer_material_title }}">{{ t_customer_material }}</span>{% endif %}
+        {% if line.quantity_is_estimate %}<span class="badge yellow">{% translate "estimate" %}</span>{% endif %}
+        {% if line.variant %}<span class="badge yellow" data-variant="{{ line.variant }}">{{ line.get_variant_display }}</span>{% endif %}
+        {% if line.taken_over_from_id %}<span class="badge accent">{% translate "taken over" %}</span>{% endif %}
+        {# PRD-044: a service planned as material earlier stays; new ones go under Personnel. #}
+        {% if line.product.kind == "service" %}<span class="badge yellow" data-service-line title="{% translate 'Services are planned under Personnel with their job function now. This line stays as it is; for new deployments plan the job function there.' %}">{% translate "service – plan under Personnel" %}</span>{% endif %}
+        {# PRJ-083: what an alternative could replace. #}
+        {% if planned.alternative_to %}<div class="sub alternative-of">{% blocktranslate with line=planned.alternative_label %}alternative to “{{ line }}”{% endblocktranslate %}</div>{% endif %}
+        {% if line.is_subrental %}<div class="sub">{% if line.supplier %}{# PRJ-106 #}<a href="{{ urls.subrental_page|fill:line.supplier_id }}">{{ line.supplier }}</a>{% else %}{{ t_no_supplier }}{% endif %}, {{ line.get_subrental_status_display }}{% if line.is_covering_subrental %}; {% blocktranslate with title=line.covers_line.title %}covers the shortage of “{{ title }}”{% endblocktranslate %}{% endif %}{% if can_see_purchase_prices and line.purchase_price is not None %}; {% translate "purchase" %} {{ price.purchase_cost|money }}{% endif %}</div>{% endif %}
+        {# PRJ-060: pieces that go straight from one subproject to the next. #}
+        {% if line.taken_over_from_id %}{% with source=line.taken_over_from %}<div class="sub takeover">{% blocktranslate with number=source.project.number name=source.project.name %}comes from {{ number }} {{ name }}, not from the warehouse{% endblocktranslate %}{% if source.end != line.start %} ({% translate "back there" %} {{ source.end|date:"d.m. H:i" }}){% endif %}</div>{% endwith %}{% endif %}
+        {% if planned.handed_to %}<div class="sub takeover">{% for taking in planned.handed_to %}{% blocktranslate with quantity=taking.quantity_display number=taking.project.number name=taking.project.name %}{{ quantity }} go on to {{ number }} {{ name }}{% endblocktranslate %}{% if not forloop.last %}, {% endif %}{% endfor %}</div>{% endif %}
+        {% if line.is_percent_surcharge %}<div class="sub">{% translate "refers to" %}: {% if price.surcharge_target_labels %}{{ price.surcharge_target_labels|join:", " }}{% else %}<strong>{% translate "nothing yet – edit the line to choose" %}</strong>{% endif %}{% if can_see_prices %} ({% translate "base" %} {{ price.surcharge_base|money }}){% endif %}</div>{% endif %}
+        {% if line.start != project.start or line.end != project.end %}{% if not line.is_percent_surcharge %}<div class="sub">{{ line.start|date:"d.m. H:i" }} – {{ line.end|date:"d.m. H:i" }}</div>{% endif %}{% endif %}
+        <div data-stock-wish>{% include "projects/_line_wish.html" %}</div>
+        {% if line.note %}<div class="sub">{{ line.note }}</div>{% endif %}
+        {% if planned.components %}
+        <details data-keep="components-{{ line.pk }}"><summary>{% blocktranslate count count=planned.components|length %}{{ count }} component{% plural %}{{ count }} components{% endblocktranslate %}</summary>
+          <ul class="components">{% for component, quantity in planned.components %}<li>{{ quantity }} × {{ component.article_number }} {{ component.name }}</li>{% endfor %}</ul>
+        </details>
+        {% endif %}
+      </td>
+      {# Stock refresh; UIX-020: the cell is replaced in place when the material changes (_planning_stock.html). #}
+      <td data-label="{{ t_availability }}" data-stock-cell>{% include "projects/_line_availability.html" %}</td>
+      {% if can_see_prices %}
+      <td class="num" data-label="{{ t_days }}">{% if price.rental_days %}<span title="{{ days_source_labels|get_item:price.rental_days_source }}">{{ price.rental_days|days }}</span><div class="sub">{{ t_factor }} {{ price.scale_factor|number }}</div>{% if price.scale_is_outdated %} <span class="badge yellow" title="{% translate 'Calculates with an older state of the rental scale' %}">{% translate "old scale" %}</span>{% endif %}{% elif line.hours is not None %}{{ line.hours|number }} {% translate "h" %}{% endif %}</td>
+      <td class="num" data-label="{{ t_unit_price }}">{% if line.is_covering_subrental or line.is_percent_surcharge or line.taken_over_from_id or price.is_customer_material %}{% else %}{{ line.unit_price|money }}{% if price.discount_percent %}<div class="sub">− {{ price.discount_percent|number }} %</div>{% endif %}{% endif %}{% if price.discount_is_capped %}<div class="sub capped">{% if line.product.max_discount_percent == price.max_discount_percent %}{# PRD-041 #}{% blocktranslate with percent=price.max_discount_percent|number %}at most {{ percent }} % (product){% endblocktranslate %}{% else %}{% blocktranslate with percent=price.max_discount_percent|number %}at most {{ percent }} % (job function){% endblocktranslate %}{% endif %}</div>{% endif %}</td>
+      <td class="num" data-label="{{ t_amount }}">{% if line.is_covering_subrental or price.is_customer_material %}<span class="muted">{{ t_not_charged }}</span>{% elif line.taken_over_from_id %}<span class="muted">{% translate "not charged" %}</span><div class="sub">{% blocktranslate with number=line.taken_over_from.project.number %}charged in {{ number }}{% endblocktranslate %}</div>{% else %}{{ price.amount|money }}{% if line.variant %}<div class="sub">{{ t_not_counted }}</div>{% endif %}{% endif %}</td>
+      {% endif %}
+      <td class="actions no-print">
+        {% if can_edit %}
+        {% if not line.is_covering_subrental and not price.is_customer_material %}
+        {# PRJ-083: optional switches on and off; "Alternative" asks which line this one could replace. #}
+        {# PRJ-096: customer material is taken along – never optional, never an alternative. #}
+        <button class="icon-btn toggle{% if line.variant == 'optional' %} is-on{% endif %}" type="button" hx-post="{{ urls.lines_bulk }}" hx-vals='{"lines": "{{ line.pk }}", "action": "{% if line.variant == 'optional' %}normal{% else %}optional{% endif %}"}' hx-target="#planning" hx-swap="outerHTML" aria-pressed="{% if line.variant == 'optional' %}true{% else %}false{% endif %}" aria-label="{{ t_optional }}" title="{{ t_optional_title }}">{% icon "optional" %}</button>
+        <button class="icon-btn toggle{% if line.variant == 'alternative' %} is-on{% endif %}" type="button" hx-get="{{ urls.lines_alternative }}?lines={{ line.pk }}" hx-target="#dialog" aria-haspopup="dialog" aria-label="{{ t_alternative }}" title="{{ t_alternative }}">{% icon "alternative" %}</button>
+        {% endif %}
+        <button class="icon-btn" type="button" hx-get="{{ urls.line_edit|fill:line.pk }}" hx-target="#dialog" aria-label="{{ t_edit }}" title="{{ t_edit }}">{% icon "edit" %}</button>
+        {% if not line.is_covering_subrental %}<button class="icon-btn" type="button" hx-post="{{ urls.line_duplicate|fill:line.pk }}" hx-target="#planning" hx-swap="outerHTML" aria-label="{{ t_duplicate }}" title="{{ t_duplicate }}">{% icon "copy" %}</button>{% endif %}
+        <form class="inline-form" hx-post="{{ urls.line_delete|fill:line.pk }}" hx-target="#planning" hx-swap="outerHTML"><button class="icon-btn" type="submit" aria-label="{{ t_delete }}" title="{{ t_delete }}" data-confirm="{{ t_confirm_delete }}">{% icon "trash" %}</button></form>
+        {% endif %}
+      </td>
+    </tr>
+    {% for sub in planned.covering %}{% with covering=sub.line %}
+    {# PRJ-084: the subrental is a part of the line above – no number, no price of its own. #}
+    <tr class="covering-row" data-covering="{{ covering.pk }}" data-covers="{{ line.pk }}">
+      {% if can_edit %}<td class="select no-print"></td>{% endif %}
+      <td class="drag no-print"></td>
+      <td class="num covering-qty"></td>
+      <td colspan="{% if can_see_prices %}5{% else %}2{% endif %}" class="covering-text">
+        <span class="covering-mark" aria-hidden="true">↳</span>
+        <strong>{% blocktranslate with quantity=covering.quantity_display %}{{ quantity }} of these are subrented{% endblocktranslate %}</strong>
+        {% if covering.supplier %}{# PRJ-106: the supplier leads to the page of its subrentals in this project. #}{% translate "from" context "supplier" %} <a href="{{ urls.subrental_page|fill:covering.supplier_id }}">{{ covering.supplier }}</a>{% else %}– {{ t_no_supplier }}{% endif %}
+        · {{ covering.get_subrental_status_display }}
+        {% if can_see_purchase_prices and covering.purchase_price is not None %}· {{ t_purchase }} {{ covering.purchase_price|money }} {% if covering.unit %}{% blocktranslate with unit=covering.unit.abbreviation %}per {{ unit }}{% endblocktranslate %}{% else %}{{ t_per_unit }}{% endif %} ({{ sub.price.purchase_cost|money }}){% endif %}
+        {% if covering.start != line.start or covering.end != line.end %}<div class="sub">{{ covering.start|date:"d.m. H:i" }} – {{ covering.end|date:"d.m. H:i" }}</div>{% endif %}
+        {% if covering.note %}<div class="sub">{{ covering.note }}</div>{% endif %}
+      </td>
+      <td class="actions no-print">
+        {% if can_edit %}
+        <button class="icon-btn" type="button" hx-get="{{ urls.line_edit|fill:covering.pk }}" hx-target="#dialog" aria-label="{{ t_edit_subrental }}" title="{{ t_edit_subrental }}">{% icon "edit" %}</button>
+        <form class="inline-form" hx-post="{{ urls.line_delete|fill:covering.pk }}" hx-target="#planning" hx-swap="outerHTML"><button class="icon-btn" type="submit" aria-label="{{ t_delete_subrental }}" title="{{ t_delete_subrental }}" data-confirm="{{ t_confirm_delete_subrental }}">{% icon "trash" %}</button></form>
+        {% endif %}
+      </td>
+    </tr>
+    {% endwith %}{% endfor %}
+    {% endif %}
+  {% endwith %}{% endif %}{% empty %}
+    <tr><td colspan="{% if can_edit %}9{% else %}8{% endif %}" class="muted">{% translate "No lines yet." %}</td></tr>
+  {% endfor %}
+  </tbody>
+  {% if can_see_prices and subtotal_label %}
+  <tfoot>
+    {% if discount_label %}<tr><td colspan="{% if can_edit %}7{% else %}6{% endif %}" class="num muted">{{ discount_label }}</td><td class="num muted">− {{ discount_amount|money }}</td><td></td></tr>{% endif %}
+    <tr class="subtotal-row"><td colspan="{% if can_edit %}7{% else %}6{% endif %}" class="num">{{ subtotal_label }}</td><td class="num">{{ subtotal_amount|money }}</td><td></td></tr>
+  </tfoot>
+  {% endif %}
+</table>

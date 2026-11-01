@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}{{ line.title }} {{ project.number }}{% endblock %}
+{% block content %}
+{# LOG-001: the dialog of a vehicle booking on a page of its own, for a browser without scripts. #}
+<div class="page-head"><div><div class="breadcrumb"><a href="{% url 'projects:detail' project.pk %}#planning-logistics">{{ project.number }} {{ project.name }}</a></div><h1>{{ line.label }}</h1></div></div>
+<div class="panel dialog-page">{% include "projects/_vehicle_form.html" %}</div>
+{% endblock %}

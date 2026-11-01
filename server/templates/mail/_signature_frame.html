@@ -1,0 +1,4 @@
+{% load i18n %}{% comment %}
+  EML-026: the preview of the signature for the sender chosen while writing – the signature of the mailbox
+  the address belongs to, else the common one. Replaced by htmx when the sender changes (mail:compose_signature).
+{% endcomment %}<iframe id="signature-frame" class="signature-frame compact" sandbox referrerpolicy="no-referrer" title="{% translate 'Preview of the signature' %}" src="{% url 'mail:signature_preview' %}{% if signature_mailbox %}?mailbox={{ signature_mailbox.pk }}{% endif %}"></iframe>

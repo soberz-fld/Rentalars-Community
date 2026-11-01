@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% comment %}
+  Einstellungen → Benachrichtigungen (VFG-036): when, how often and how far ahead shortages are reported, and
+  whether known ones are reported again; the reminders of invoices not written yet (DOK-015) and of the times
+  waiting for approval (ZEI-029). What each person gets, and how, stays under Mein Konto → Benachrichtigungen.
+{% endcomment %}
+{% block title %}{% translate "Notifications of the company" %}{% endblock %}
+{% block content %}
+<div class="page-head"><div><div class="breadcrumb"><a href="{% url 'core:administration' %}">{% translate "Settings" %}</a></div><h1>{% translate "Notifications of the company" %}</h1><p class="lead">{% translate "What Rentalars reports on its own, and when – the same for everybody. Whether a person gets it in Rentalars, by e-mail or in the app, each person chooses under My account → Notifications." %}</p></div></div>
+<form method="post" class="form" novalidate id="notification-settings">
+  {% csrf_token %}
+  {% include "core/_form_errors.html" %}
+  <section class="panel" id="shortage-notifications" aria-labelledby="shortage-notifications-title">
+    <div class="panel-head"><h2 id="shortage-notifications-title">{% translate "Shortages" %}</h2></div>
+    <div class="panel-body">
+      <p class="muted small">{% translate "Shortages of the coming weeks go to the project manager and the members who may edit the project; a project without them to everybody who may change projects." %}</p>
+      <div class="form-grid">
+        {% include "core/_field.html" with field=form.shortage_interval %}
+        <div data-show-if="shortage_interval=weekly"{% if not weekly %} class="hidden"{% endif %}>{% include "core/_field.html" with field=form.shortage_weekday %}</div>
+        {% include "core/_field.html" with field=form.shortage_time %}
+        {% include "core/_field.html" with field=form.shortage_lead_weeks %}
+        {% include "core/_field.html" with field=form.shortage_repeat %}
+      </div>
+      <dl class="facts" id="shortage-check-times">
+        <dt>{% translate "Last check" %}</dt>
+        <dd>{% if settings.shortage_checked_at %}{{ settings.shortage_checked_at|date:"D d.m.Y H:i" }} – {% blocktranslate count count=settings.shortage_reported %}{{ count }} shortage reported{% plural %}{{ count }} shortages reported{% endblocktranslate %}{% else %}{% translate "not yet" %}{% endif %}</dd>
+        <dt>{% translate "Next check" %}</dt>
+        <dd>{% if next_run %}{{ next_run|date:"D d.m.Y H:i" }}{% else %}{% translate "none – switched off" %}{% endif %}</dd>
+      </dl>
+    </div>
+  </section>
+  {# DOK-015: closed projects without invoice are reminded of until the invoice is there. #}
+  <section class="panel" id="invoice-reminders" aria-labelledby="invoice-reminders-title">
+    <div class="panel-head"><h2 id="invoice-reminders-title">{% translate "Invoices" %}</h2></div>
+    <div class="panel-body">
+      <p class="muted small">{% if invoices_on %}{% translate "A closed project is reminded of until its invoice is made in Rentalars or it is marked “No invoice”. The reminder goes to the project manager and to the person below – if they may see prices." %}{% else %}{% translate "Invoices are written in another program: a closed project is reminded of until “Invoice issued” is ticked in it, or it is marked “No invoice”. The reminder goes to the project manager and to the person below – if they may see prices." %}{% endif %}</p>
+      <div class="form-grid">
+        {% include "core/_field.html" with field=form.invoice_reminders %}
+        {% include "core/_field.html" with field=form.invoice_time %}
+        {% include "core/_field.html" with field=form.invoice_first_days %}
+        {% include "core/_field.html" with field=form.invoice_every_days %}
+        {% include "core/_field.html" with field=form.invoice_user %}
+        {% include "core/_field.html" with field=form.invoice_service_cases %}
+      </div>
+      <dl class="facts" id="invoice-check-times">
+        <dt>{% translate "Last check" %}</dt>
+        <dd>{% if settings.invoice_checked_at %}{{ settings.invoice_checked_at|date:"D d.m.Y H:i" }} – {% blocktranslate count count=settings.invoice_reminded %}{{ count }} project reminded of{% plural %}{{ count }} projects reminded of{% endblocktranslate %}{% else %}{% translate "not yet" %}{% endif %}</dd>
+        <dt>{% translate "Next check" %}</dt>
+        <dd>{% if invoice_next_run %}{{ invoice_next_run|date:"D d.m.Y H:i" }}{% else %}{% translate "none – switched off" %}{% endif %}</dd>
+        {% if settings.invoice_reminders_since %}<dt>{% translate "Projects closed since" %}</dt><dd>{{ settings.invoice_reminders_since|date:"d.m.Y H:i" }}</dd>{% endif %}
+        {# DOK-015: service cases only once done after "service cases too" was switched on. #}
+        {% if settings.invoice_service_cases and settings.invoice_cases_since %}<dt>{% translate "Service cases done since" %}</dt><dd>{{ settings.invoice_cases_since|date:"d.m.Y H:i" }}</dd>{% endif %}
+      </dl>
+    </div>
+  </section>
+  {# ZEI-029: who may approve times is reminded of those waiting in Personal → Freigeben. #}
+  <section class="panel" id="approval-reminders" aria-labelledby="approval-reminders-title">
+    <div class="panel-head"><h2 id="approval-reminders-title">{% translate "Times to approve" %}</h2></div>
+    <div class="panel-body">
+      <p class="muted small">{% translate "Everybody with the right to approve times is reminded of the times and expenses waiting in Personnel → Approve – each only of those they may approve. The reminder is repeated as long as something waits." %}</p>
+      <div class="form-grid">
+        {% include "core/_field.html" with field=form.approval_reminders %}
+        {% include "core/_field.html" with field=form.approval_time %}
+        {% include "core/_field.html" with field=form.approval_first_days %}
+        {% include "core/_field.html" with field=form.approval_every_days %}
+      </div>
+      <dl class="facts" id="approval-check-times">
+        <dt>{% translate "Last check" %}</dt>
+        <dd>{% if settings.approval_checked_at %}{{ settings.approval_checked_at|date:"D d.m.Y H:i" }} – {% blocktranslate count count=settings.approval_reminded %}{{ count }} person reminded{% plural %}{{ count }} people reminded{% endblocktranslate %}{% else %}{% translate "not yet" %}{% endif %}</dd>
+        <dt>{% translate "Next check" %}</dt>
+        <dd>{% if approval_next_run %}{{ approval_next_run|date:"D d.m.Y H:i" }}{% else %}{% translate "none – switched off" %}{% endif %}</dd>
+      </dl>
+    </div>
+  </section>
+  {% if can_write %}<div><button class="btn" type="submit">{% translate "Save settings" %}</button></div>{% endif %}
+</form>
+{% endblock %}

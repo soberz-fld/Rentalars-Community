@@ -1,0 +1,38 @@
+{% load i18n rentalars discount_tags %}
+{# The totals of the project (PRJ-024, PRJ-034). Only for users who may see prices (AUT-019). #}
+{% if can_see_prices %}
+<section id="planning-totals"{% if oob %} hx-swap-oob="true"{% endif %} class="panel section">
+  <div class="panel-head"><h2>{% translate "Totals" %}</h2></div>
+  <div class="panel-body">
+    <div class="totals">
+      <table>
+        {% if planning.groups %}<tr><td>{% translate "Groups" %}</td><td class="num">{{ planning.prices.groups_total|money }}</td></tr>{% endif %}
+        <tr><td>{% translate "Without group" %}</td><td class="num">{{ planning.prices.ungrouped_total|money }}</td></tr>
+        {% if planning.prices.crew %}<tr><td>{% translate "Personnel" %}</td><td class="num">{{ planning.prices.personnel_total|money }}</td></tr>{% endif %}
+        {% if planning.prices.logistics %}<tr><td>{% translate "Logistics" %}</td><td class="num">{{ planning.prices.logistics_total|money }}</td></tr>{% endif %}
+        {% if planning.prices.surcharges_total %}<tr><td>{% translate "Surcharges" %}</td><td class="num">{{ planning.prices.surcharges_total|money }}</td></tr>{% endif %}
+        {% if planning.prices.discount_total %}<tr><td class="muted">{% translate "Discounts included" %}</td><td class="num muted">− {{ planning.prices.discount_total|money }}</td></tr>{% endif %}
+        {# PRJ-123: the overall discount on the whole sum. #}
+        {% if planning.prices.overall_discount %}<tr><td>{% translate "Sum before the overall discount" %}</td><td class="num">{{ planning.prices.net_before_overall_discount|money }}</td></tr>
+        <tr class="overall-discount"><td>{% translate "Overall discount" %}{% if project.overall_discount_percent %} {{ project.overall_discount_percent|percent_places }} %{% endif %}</td><td class="num">− {{ planning.prices.overall_discount|money }}</td></tr>{% endif %}
+        <tr><td><strong>{% translate "Total net" %}</strong>{% if planning.prices.has_estimates %} <span class="badge yellow">{% translate "contains estimates" %}</span>{% endif %}</td><td class="num"><strong>{{ planning.prices.net_total|money }}</strong></td></tr>
+        {% for tax in planning.prices.tax_lines %}<tr><td>{% blocktranslate with name=tax.tax_rate.name net=tax.net|money %}Tax {{ name }} on {{ net }}{% endblocktranslate %}</td><td class="num">{{ tax.tax|money }}</td></tr>{% endfor %}
+        <tr class="grand"><td>{% translate "Total gross" %}</td><td class="num">{{ planning.prices.gross_total|money }}</td></tr>
+        {% if planning.prices.optional_total %}<tr><td class="muted">{% translate "Optional groups, not included" %}</td><td class="num muted">{{ planning.prices.optional_total|money }}</td></tr>{% endif %}
+        {% if planning.prices.optional_lines_total %}<tr><td class="muted">{% translate "Optional lines, not included" %}</td><td class="num muted">{{ planning.prices.optional_lines_total|money }}</td></tr>{% endif %}
+        {% if planning.prices.alternative_lines_total %}<tr><td class="muted">{% translate "Alternative lines, not included" %}</td><td class="num muted">{{ planning.prices.alternative_lines_total|money }}</td></tr>{% endif %}
+        {# PRJ-025: costs and what remains. Each cost needs its own right; the margin would give away a cost, so it needs all of them (AUT-019). PRJ-087: the margin is called "Gewinn aus dem Projekt". #}
+        {% if show_costs and planning.prices.subrental_cost %}<tr><td class="muted">{% translate "Costs of subrentals" %}</td><td class="num muted">{{ planning.prices.subrental_cost|money }}</td></tr>{% endif %}
+        {% if show_personnel_costs and planning.prices.crew %}<tr><td class="muted">{% translate "Costs of personnel (planned)" %}</td><td class="num muted">{{ planning.prices.personnel_cost|money }}</td></tr>
+        {% if planning.prices.personnel_actual_cost %}<tr><td class="muted">{% translate "Costs of personnel from approved times" %}</td><td class="num muted">{{ planning.prices.personnel_actual_cost|money }}</td></tr>{% endif %}{% endif %}
+        {# LOG-010: the internal costs of the vehicles – with the right to see purchase prices. #}
+        {% if show_logistics_costs and planning.prices.logistics %}<tr><td class="muted">{% translate "Costs of the vehicles" %}</td><td class="num muted">{{ planning.prices.logistics_cost|money }}</td></tr>{% endif %}
+        {# ZEI-019: the approved expenses and travel costs of the crew – costs like the personnel, subtracted from the margin. #}
+        {% if show_personnel_costs and planning.prices.expenses_cost %}<tr class="expense-costs"><td class="muted">{% if can.read.time_tracking %}<a href="{% url 'timetracking:expense_report' %}?project={{ project.pk }}">{% translate "Expenses and travel costs (approved)" %}</a>{% else %}{% translate "Expenses and travel costs (approved)" %}{% endif %}</td><td class="num muted">{{ planning.prices.expenses_cost|money }}</td></tr>{% endif %}
+        {% if show_margin %}<tr><td class="muted">{% translate "Contribution margin" %}</td><td class="num muted">{{ planning.prices.contribution_margin|money }}</td></tr>{% endif %}
+      </table>
+      {% if can_edit %}<p class="overall-discount-link no-print"><button class="link-btn" type="button" hx-get="{% url 'projects:overall_discount' project.pk %}" hx-target="#dialog">{% if project.overall_discount_percent or project.overall_discount_amount %}{% translate "Change the overall discount" %}{% else %}{% translate "Set an overall discount" %}{% endif %}</button></p>{% endif %}
+    </div>
+  </div>
+</section>
+{% endif %}

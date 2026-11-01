@@ -1,0 +1,23 @@
+{% load i18n rentalars %}
+{% comment %}
+  The sub-tabs above a packlist (PCK-008, PCK-030): the packlists of the project and – in a whole project with
+  parts – every other part and all parts together, so that one can switch quickly. Expects packlist_tabs
+  (packing.views.packlist_tabs); can_pack and packlist_form offer a further packlist of the project.
+{% endcomment %}
+{% if packlist_tabs|length > 1 or can_pack %}
+<nav class="tabs sub no-print pack-tabs" aria-label="{% if project.is_in_family %}{% translate 'Packing lists of the whole project and its parts' %}{% else %}{% translate 'Packing lists' %}{% endif %}">
+  {% for tab in packlist_tabs %}
+  <a href="{{ tab.url }}"{% if tab.current %} aria-current="page"{% endif %}>{{ tab.label }}{% if tab.packlist %} <span class="badge {{ tab.packlist.status|status_colour }}">{{ tab.packlist.get_status_display }}</span>{% endif %}</a>
+  {% endfor %}
+  {% if can_pack and project.status != "returned" and project.status != "closed" and project.status != "cancelled" %}
+  <details class="tab-add">
+    <summary>{% icon "plus" %}{% translate "Packing list" %}</summary>
+    <form method="post" action="{% url 'packing:packlist_create' project.pk %}" class="panel-body form-grid" novalidate>
+      {% csrf_token %}{% include "core/_required_note.html" with form=packlist_form %}
+      {% for field in packlist_form %}{% include "core/_field.html" %}{% endfor %}
+      <div class="field"><span class="label">&nbsp;</span><button class="btn" type="submit">{% translate "Create packing list" %}</button></div>
+    </form>
+  </details>
+  {% endif %}
+</nav>
+{% endif %}

@@ -1,0 +1,3 @@
+{% load i18n %}
+{# PRJ-066: without lines, one sentence tells the customer roughly what the block contains. Copyable like every text here. #}
+{% if summary %}<div class="panel-body price-summary">{% blocktranslate asvar text with items=summary %}Contains: {{ items }}{% endblocktranslate %}<span class="copy" data-copy="{{ text }}">{{ text }}</span></div>{% endif %}

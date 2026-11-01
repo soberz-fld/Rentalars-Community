@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Project templates" %}{% endblock %}
+{% block content %}
+<div class="page-head"><div><div class="breadcrumb"><a href="{% url 'projects:list' %}">{% translate "Projects" %}</a></div><h1>{% translate "Project templates" %}</h1>
+<p class="lead">{% translate "A new project can start from a template: choose it in the form for a new project. Templates are made on a project page with “Save as template”." %}</p></div></div>
+<section class="panel">
+  {% if templates %}
+  {# UIX-040: a table of core/tables.py (projects/template_tables.py). #}
+  {% include "core/_table_tools.html" %}
+  {% include "core/_table.html" with stack=True %}
+  {% if can.delete.projects %}{% for template in templates %}<form id="delete-template-{{ template.pk }}" method="post" action="{% url 'projects:template_delete' template.pk %}" hidden>{% csrf_token %}</form>{% endfor %}{% endif %}
+  {% include "core/_pagination.html" %}
+  {% else %}
+  <div class="empty"><strong>{% translate "No templates yet." %}</strong>{% translate "Open a project and choose “Save as template”." %}</div>
+  {% endif %}
+</section>
+{% endblock %}

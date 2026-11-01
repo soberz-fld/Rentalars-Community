@@ -1,0 +1,19 @@
+{% load i18n rentalars %}
+{% comment %}
+  The bar of a table under the list (core/_table.html): shown while rows are ticked, docked at the lower edge.
+  One POST form; its default action downloads the ticked rows as CSV (core:bulk_csv – a redirect to the list's own CSV
+  with ?only=). A page adds actions with ``bulk_extra`` (a template with fields and buttons, each button with its own
+  ``formaction``); the boxes are named ``table.bulk_name`` and belong to this form.
+{% endcomment %}
+<form method="post" action="{% url 'core:bulk_csv' %}" id="{{ table.bulk_form }}" class="bulk-bar no-print" autocomplete="off" data-bulk-bar="{{ table.bulk_name }}" aria-label="{% translate 'Chosen rows' %}" hidden>
+  {% csrf_token %}
+  <input type="hidden" name="next" value="{{ request.get_full_path }}">
+  <input type="hidden" name="table" value="{{ table.key }}">
+  <input type="hidden" name="prefix" value="{{ table.definition.prefix }}">
+  <span class="count"><span data-chosen-count="{{ table.bulk_name }}">0</span> {% translate "chosen" %}</span>
+  {% if bulk_extra %}{% include bulk_extra %}{% endif %}
+  <span class="bulk-buttons">
+    <button class="btn secondary small" type="submit" name="action" value="csv" formnovalidate>{% icon "download" %}{% translate "Download chosen as CSV" %}</button>
+    <button class="btn secondary small" type="button" data-bulk-clear="{{ table.bulk_name }}">{% translate "Clear choice" %}</button>
+  </span>
+</form>

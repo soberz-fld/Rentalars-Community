@@ -1,0 +1,31 @@
+{% extends base_template %}
+{% load i18n %}
+{% block title %}{% translate "About Rentalars" %}{% endblock %}
+{% block card_class %} wide{% endblock %}
+{% block content %}
+{# UIX-062: the Appropriate Legal Notices of the GPL (section 5 d) – for anybody, also without login. #}
+<div class="page-head"><div><h1>{% translate "About Rentalars" %}</h1><p class="lead">Rentalars {{ rentalars_version }} · {% include "core/_credit.html" %}</p></div></div>
+<section class="{% if public %}about-plain{% else %}panel{% endif %} about-text" aria-labelledby="about-licence">
+  <div class="panel-head"><h2 id="about-licence">{% translate "Licence" %}</h2></div>
+  <div class="panel-body">
+    <p>{{ copyright }}</p>
+    <p>{% translate "Rentalars is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version." %}</p>
+    <p>{% translate "Rentalars is distributed in the hope that it will be useful, but without any warranty; without even the implied warranty of merchantability or fitness for a particular purpose. See the GNU General Public License for more details." %}</p>
+    <p>{% translate "Whoever conveys Rentalars must keep the author attribution “by fld-vt.de” with its link where the interface shows it (an additional term under section 7 b of the GPL). Whoever only runs Rentalars is not affected." %}</p>
+  </div>
+</section>
+{% if texts %}
+<section class="{% if public %}about-plain{% else %}panel{% endif %} about-text" aria-labelledby="about-texts">
+  <div class="panel-head"><h2 id="about-texts">{% translate "The full texts" %}</h2></div>
+  <div class="panel-body">
+    <ul>
+      {% for key, label in texts %}
+      <li><a href="{% url 'core:about_page' key %}">{% if key == "license" %}{% translate "GNU General Public License, version 3 (LICENSE)" %}{% elif key == "additional-terms" %}{% translate "Additional terms (ADDITIONAL-TERMS.md)" %}{% else %}{% translate "Libraries and programs of others, with their licences (THIRD-PARTY.md)" %}{% endif %}</a> <span class="muted small">(<a href="{% url 'core:about_text' key %}">{% translate "plain text" %}</a>)</span></li>
+      {% endfor %}
+    </ul>
+    <p class="muted small">{% translate "The source code is part of every package of Rentalars." %}</p>
+  </div>
+</section>
+{% endif %}
+{% if public %}<p class="about-back"><a class="btn secondary" href="{% url 'accounts:login' %}">{% translate "To the login" %}</a></p>{% endif %}
+{% endblock %}

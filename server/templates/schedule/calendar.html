@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Calendar" %}{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>{% translate "Planning" %}</h1></div></div>
+{% include "schedule/_tabs.html" %}
+{% comment %}
+  PRJ-028, PRJ-067: the projects of a month or of a week; the switch is remembered for the session.
+  VFG-028: "Week" comes first and is the view the calendar opens with.
+  VFG-020: the month draws a project as one bar over its days, broken at the end of a week, with a legend of the
+  colours. VFG-021: the week is a time grid with an all-day strip; see schedule/calendars.py.
+{% endcomment %}
+<div class="filters calendar-nav">
+  <div class="segmented" role="group" aria-label="{% translate 'View' %}">
+    <a class="btn secondary small{% if view == 'week' %} is-active{% endif %}" href="?view=week{% if month %}&amp;week={% if month == this_month %}{% now 'Y-m-d' %}{% else %}{{ month|date:'Y-m-d' }}{% endif %}{% endif %}"{% if view == "week" %} aria-current="true"{% endif %}>{% translate "Week" %}</a>
+    <a class="btn secondary small{% if view == 'month' %} is-active{% endif %}" href="?view=month{% if monday %}&amp;month={{ monday|date:'Y-m' }}{% endif %}"{% if view == "month" %} aria-current="true"{% endif %}>{% translate "Month" %}</a>
+  </div>
+  {% if view == "week" %}
+  <a class="btn secondary small" href="?view=week&amp;week={{ previous|date:'Y-m-d' }}">‹ {% translate "earlier" %}<span class="visually-hidden"> – {% translate 'previous week' %}</span></a>
+  <strong class="calendar-title">{% blocktranslate with number=week_number %}Week {{ number }}{% endblocktranslate %} <span class="muted">{{ monday|date:"d.m." }} – {{ sunday|date:"d.m.Y" }}</span></strong>
+  <a class="btn secondary small" href="?view=week&amp;week={{ following|date:'Y-m-d' }}">{% translate "later" %} ›<span class="visually-hidden"> – {% translate 'next week' %}</span></a>
+  {% if monday != this_week %}<a class="btn secondary small" href="?view=week">{% translate "this week" %}</a>{% endif %}
+  {% else %}
+  <a class="btn secondary small" href="?view=month&amp;month={{ previous|date:'Y-m' }}">‹ {{ previous|date:"F" }}</a>
+  <strong class="calendar-title">{{ month|date:"F Y" }}</strong>
+  <a class="btn secondary small" href="?view=month&amp;month={{ following|date:'Y-m' }}">{{ following|date:"F" }} ›</a>
+  {% if month != this_month %}<a class="btn secondary small" href="?view=month">{% translate "today" %}</a>{% endif %}
+  {% endif %}
+  {% comment %}
+    VFG-039: whether the phases of the projects and the follow-ups are shown – a GET form, so the
+    choice is part of the address; a hidden 0 before each tick box says "off" when it is not ticked. Remembered.
+  {% endcomment %}
+  <form method="get" class="calendar-options">
+    <input type="hidden" name="view" value="{{ view }}">
+    {% if view == "week" %}<input type="hidden" name="week" value="{{ monday|date:'Y-m-d' }}">{% else %}<input type="hidden" name="month" value="{{ month|date:'Y-m' }}">{% endif %}
+    {% if request.GET.all %}<input type="hidden" name="all" value="1">{% endif %}
+    <fieldset>
+      <legend class="visually-hidden">{% translate "Also show in the calendar" %}</legend>
+      <input type="hidden" name="phases" value="0"><label class="check"><input type="checkbox" name="phases" value="1"{% if options.phases %} checked{% endif %} data-autosubmit> {% translate "Phases of the projects" %}</label>
+      <input type="hidden" name="follow_ups" value="0"><label class="check"><input type="checkbox" name="follow_ups" value="1"{% if options.follow_ups %} checked{% endif %} data-autosubmit> {% translate "Follow-ups" %}</label>
+      <noscript><button class="btn secondary small" type="submit">{% translate "Apply" %}</button></noscript>
+    </fieldset>
+  </form>
+</div>
+<div class="cal-layout">
+  {% if view == "week" %}{% include "schedule/_week.html" %}{% else %}{% include "schedule/_month.html" %}{% endif %}
+  {% include "schedule/_calendar_legend.html" %}
+</div>
+<p class="muted small">{% translate "Cancelled projects are not shown." %} <a href="?view={{ view }}{% if view == 'week' %}&amp;week={{ monday|date:'Y-m-d' }}{% else %}&amp;month={{ month|date:'Y-m' }}{% endif %}&amp;all=1">{% translate "Show them too" %}</a></p>
+{% endblock %}

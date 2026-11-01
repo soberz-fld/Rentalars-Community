@@ -1,0 +1,3 @@
+{% load i18n %}{% comment %}
+  DOK-011: what became of an invoice or cancellation in Lexware Office – noted on the document.
+{% endcomment %}{% if transfer %}<div class="small lexware-state lexware-{{ transfer.state }}">{% if transfer.state == "done" %}{% blocktranslate with moment=transfer.transferred_at|date:"d.m.Y H:i" %}In Lexware Office since {{ moment }}{% endblocktranslate %}{% elif transfer.state == "failed" %}{% translate "Not handed to Lexware Office:" %} {{ transfer.error }}{% else %}{% translate "Being handed to Lexware Office …" %}{% endif %}</div>{% endif %}

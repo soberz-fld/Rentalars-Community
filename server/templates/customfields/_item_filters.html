@@ -1,0 +1,2 @@
+{% load customfields %}{# MAT-073: a text filter per custom field marked "in lists" (?cf<id>=…), in the filters of the item list. #}{% custom_list_filters as custom_filters %}{% for filter in custom_filters %}
+<div class="field"><label for="f-{{ filter.name }}">{{ filter.label }}</label><input type="search" id="f-{{ filter.name }}" name="{{ filter.name }}" value="{{ filter.value }}"></div>{% endfor %}

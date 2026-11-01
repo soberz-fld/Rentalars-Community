@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{{ model.name }} – {% translate "Files" %}{% endblock %}
+{% block content %}
+{% include "material/_model_head.html" %}
+<div class="columns">
+<section class="panel">
+  <div class="panel-head"><h2>{% translate "Files" %}</h2></div>
+  {% include "material/_file_list.html" with files=files %}
+</section>
+{% if can.write.material %}
+<section class="panel">
+  <div class="panel-head"><h2>{% translate "Add a file" %}</h2></div>
+  <form method="post" enctype="multipart/form-data" class="panel-body">
+    {% csrf_token %}
+    {% include "core/_form_errors.html" %}
+    {% include "core/_field.html" with field=form.file %}
+    <div class="inline-fields">{% include "core/_field.html" with field=form.kind %}{% include "core/_field.html" with field=form.title %}</div>
+    <p class="help">{% translate "Photos belong on the page of the model. Manuals and data sheets belong here; the invoice of a single purchase belongs to the item." %}</p>
+    <button class="btn" type="submit">{% icon "upload" %}{% translate "Upload" %}</button>
+  </form>
+</section>
+{% endif %}
+</div>
+{% endblock %}

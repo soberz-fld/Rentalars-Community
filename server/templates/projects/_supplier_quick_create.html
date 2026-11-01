@@ -1,0 +1,16 @@
+{% load i18n rentalars %}
+{# PRJ-101: a new supplier without leaving the subrental – in a dialog over the dialog of the line. #}
+<form hx-post="{{ action }}" hx-target="this" hx-swap="outerHTML" novalidate autocomplete="off">
+  <div class="dialog-head"><h2 id="supplier-dialog-title">{% translate "New supplier" %}</h2><button type="button" class="icon-btn" data-close-dialog aria-label="{% translate 'Close' %}">{% icon "close" %}</button></div>
+  <div class="dialog-body form">
+    {% include "core/_form_errors.html" %}
+    {% include "core/_field.html" with field=form.name %}
+    {% include "core/_field.html" with field=form.contact %}
+    <div class="form-row pair">{% include "core/_field.html" with field=form.email %}{% include "core/_field.html" with field=form.phone %}</div>
+    {% include "core/_field.html" with field=form.customer_number %}
+  </div>
+  <div class="dialog-foot">
+    <button type="button" class="btn secondary" data-close-dialog>{% translate "Cancel" %}</button>
+    <button type="submit" class="btn">{% translate "Save supplier" %}</button>
+  </div>
+</form>

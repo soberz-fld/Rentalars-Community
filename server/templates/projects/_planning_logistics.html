@@ -1,0 +1,138 @@
+{% load i18n rentalars %}
+{% comment %}
+  LOG-001 ff.: the block "Logistik" of the planning, below the personnel – the vehicles and trailers booked for
+  the project (never in groups), with what they cost the customer (price right) and the company (purchase price right,
+  LOG-010), and the trips of the project with the vehicles on them: motor vehicle, trailer, planned and driven
+  kilometres, what is charged (LOG-006, LOG-007). Warnings: booked elsewhere at the same time, not fit for use,
+  inspection due, seats, driving licence, towing (LOG-004, LOG-008, LOG-012 to LOG-014). Expects: planning; oob.
+{% endcomment %}
+<section id="planning-logistics"{% if oob %} hx-swap-oob="true"{% endif %} class="group logistics-block" aria-labelledby="logistics-title">
+  <div class="group-head">
+    <h3 id="logistics-title">{% translate "Logistics" %}</h3>
+  </div>
+  {% if planning.logistics %}
+  <table class="table stack lines logistics">
+    <colgroup>
+      <col><col class="c-period"><col class="c-hours">
+      {% if can_see_prices %}<col class="c-price"><col class="c-amount">{% endif %}
+      {% if show_logistics_costs %}<col class="c-amount">{% endif %}
+      <col class="c-actions">
+    </colgroup>
+    <thead><tr>
+      <th scope="col">{% translate "Vehicle" %}</th>
+      <th scope="col">{% translate "Period" %}</th>
+      <th scope="col" class="num">{% translate "Charged" %}</th>
+      {% if can_see_prices %}<th scope="col" class="num">{% translate "Price" %}</th><th scope="col" class="num">{% translate "Amount" %}</th>{% endif %}
+      {% if show_logistics_costs %}<th scope="col" class="num">{% translate "Costs" %}</th>{% endif %}
+      <th scope="col" class="no-print"><span class="visually-hidden">{% translate "Actions" %}</span></th>
+    </tr></thead>
+    <tbody>
+    {% for planned in planning.logistics %}{% with line=planned.line price=planned.price %}
+      <tr data-vehicle-line="{{ line.pk }}">
+        <td>
+          {% if can.read.products %}<a class="artno" href="{% url 'products:detail' line.product_id %}">{{ line.product.article_number }}</a>{% else %}<span class="artno">{{ line.product.article_number }}</span>{% endif %}
+          <span class="title">{{ line.title }}</span>
+          <span class="badge">{{ line.product.get_vehicle_type_display }}</span>
+          {% if line.item %}<div class="sub">{% if can.read.material %}<a class="tape" href="{% url 'material:item_detail' line.item_id %}">{{ line.item.display_id }}</a>{% else %}<span class="tape">{{ line.item.display_id }}</span>{% endif %}{% if line.item.vehicle.licence_plate %} {{ line.item.vehicle.licence_plate }}{% endif %}</div>
+          {% elif line.supplier %}<div class="sub"><span class="badge">{% blocktranslate with supplier=line.supplier.name %}from {{ supplier }}{% endblocktranslate %}</span></div>
+          {% else %}<div class="sub"><span class="badge yellow">{% translate "vehicle still open" %}</span></div>{% endif %}
+          {% if line.note %}<div class="sub">{{ line.note }}</div>{% endif %}
+          {% with travelling=planned.crew %}{% if travelling %}<div class="sub logistics-crew">{% translate "With it:" %} {% for crew_line in travelling %}{% if crew_line.person %}{{ crew_line.person.name }}{% else %}{{ crew_line.title }} ({% translate "open" context "crew" %}){% endif %}{% if crew_line.is_driver %} <span class="badge">{% translate "driver" %}</span>{% endif %}{% if not forloop.last %}, {% endif %}{% endfor %}</div>{% endif %}{% endwith %}
+          {% for warning in planned.warnings %}<div class="sub wish-warning">{% icon "alert" %}{{ warning }}</div>{% endfor %}
+        </td>
+        <td data-label="{% translate 'Period' %}">{{ line.start|date:"D d.m. H:i" }} –<br>{{ line.end|date:"D d.m. H:i" }}{% if line.phase %}<div class="sub">{% blocktranslate with phase=line.phase.label %}Phase: {{ phase }}{% endblocktranslate %}</div>{% endif %}</td>
+        <td class="num" data-label="{% translate 'Charged' %}">
+          {% if price.days is not None %}{% blocktranslate count days=price.days %}{{ days }} day{% plural %}{{ days }} days{% endblocktranslate %}<div class="sub">{% if price.days_source == "trips" %}{% translate "days with trips" %}{% elif price.days_source == "line" %}{% translate "typed in" %}{% else %}{% translate "rental days" %}{% endif %}</div>
+          {% else %}{{ price.km_total|number }} km<div class="sub">{% blocktranslate count count=price.charges|length %}{{ count }} trip{% plural %}{{ count }} trips{% endblocktranslate %}</div>{% endif %}
+        </td>
+        {% if can_see_prices %}
+        <td class="num" data-label="{% translate 'Price' %}">
+          {% if line.is_billed_per_day %}{{ line.price_per_day|money }}<div class="sub">{% translate "per day" %}{% if price.scale_factor and price.scale_factor != 1 %} · {% translate "factor" %} {{ price.scale_factor|number }}{% endif %}</div>
+          {% else %}{{ line.price_per_km|money }}<div class="sub">{% translate "per km" %}</div>{% if line.trailer_surcharge_per_km %}<div class="sub">{% blocktranslate with surcharge=line.trailer_surcharge_per_km|money %}+ {{ surcharge }} per km with a trailer{% endblocktranslate %}</div>{% endif %}{% endif %}
+          {% if price.discount_percent %}<div class="sub">− {{ price.discount_percent|number }} %</div>{% endif %}
+          {% if price.discount_is_capped %}<div class="sub capped">{% blocktranslate with percent=price.max_discount_percent|number %}at most {{ percent }} % (product){% endblocktranslate %}</div>{% endif %}
+        </td>
+        <td class="num" data-label="{% translate 'Amount' %}">{{ price.amount|money }}{% if price.is_estimate %} <span class="badge yellow">{% translate "estimate" %}</span>{% endif %}{% if price.surcharge_total %}<div class="sub">{% blocktranslate with amount=price.surcharge_total|money %}of which trailer surcharge {{ amount }}{% endblocktranslate %}</div>{% endif %}</td>
+        {% endif %}
+        {% if show_logistics_costs %}
+        <td class="num" data-label="{% translate 'Costs' %}">{{ price.cost|money }}<div class="sub">{% if line.supplier %}{% translate "supplier" %}{% elif not price.cost_is_known %}{% translate "no rate" %}{% elif line.is_billed_per_day %}{{ line.cost_per_day|money }} / {% translate "day" %}{% else %}{{ line.cost_per_km|money }} / km{% endif %}</div></td>
+        {% endif %}
+        <td class="actions no-print">
+          {% if can_plan_logistics %}
+          <button class="icon-btn" type="button" hx-get="{% url 'projects:vehicle_edit' project.pk line.pk %}" hx-target="#dialog" aria-haspopup="dialog" aria-label="{% blocktranslate with vehicle=line.label %}Edit booking “{{ vehicle }}”{% endblocktranslate %}" title="{% translate 'Edit booking' %}">{% icon "edit" %}</button>
+          <form class="inline-form" hx-post="{% url 'projects:vehicle_delete' project.pk line.pk %}" hx-target="#planning" hx-swap="outerHTML"><button class="icon-btn" type="submit" aria-label="{% blocktranslate with vehicle=line.label %}Remove booking “{{ vehicle }}”{% endblocktranslate %}" title="{% translate 'Remove booking' %}" data-confirm="{% translate 'Remove this booking with its trips?' %}">{% icon "trash" %}</button></form>
+          {% endif %}
+        </td>
+      </tr>
+    {% endwith %}{% endfor %}
+    </tbody>
+    {% if can_see_prices or show_logistics_costs %}
+    <tfoot>
+      <tr class="subtotal-row"><td colspan="3" class="num">{% translate "Subtotal logistics" %}</td>{% if can_see_prices %}<td></td><td class="num" data-label="{% translate 'Amount' %}">{{ planning.prices.logistics_total|money }}</td>{% endif %}{% if show_logistics_costs %}<td class="num" data-label="{% translate 'Costs' %}">{{ planning.prices.logistics_cost|money }}</td>{% endif %}<td></td></tr>
+    </tfoot>
+    {% endif %}
+  </table>
+
+  {% comment %} LOG-007: the trips of the project – determined from the phases or added by hand on "Zeitplanung" – with their vehicles. {% endcomment %}
+  <div class="logistics-trips">
+    <h4>{% translate "Trips" %}</h4>
+    {% if planning.trip_rows %}
+    <table class="table stack trips-vehicles">
+      <thead><tr><th scope="col">{% translate "When" %}</th><th scope="col">{% translate "Trip" %}</th><th scope="col">{% translate "Vehicles" %}</th><th scope="col" class="no-print"><span class="visually-hidden">{% translate "Actions" %}</span></th></tr></thead>
+      <tbody>
+      {% for row in planning.trip_rows %}
+        <tr data-trip="{{ row.key }}">
+          <td class="nowrap">{% if row.trip %}{{ row.trip.start|date:"D d.m. H:i" }}{% else %}–{% endif %}</td>
+          <td data-label="{% translate 'Trip' %}">{% if row.trip %}<strong>{{ row.trip.title }}</strong><div class="sub">{% for place in row.trip.places %}{{ place.label }}{% if not forloop.last %} → {% endif %}{% endfor %}</div>{% else %}<span class="wish-warning">{% icon "alert" %}{% translate "A trip that is gone" %}</span>{% endif %}</td>
+          <td data-label="{% translate 'Vehicles' %}">
+            {% for item in row.uses %}
+            <div class="trip-vehicle">
+              <span class="title">{{ item.vehicle.label }}</span>{% if item.trailer %} <span class="muted">+</span> {{ item.trailer.label }}{% endif %}
+              <div class="sub">
+                {% translate "planned" %} {% if item.use.planned_km is not None %}{{ item.use.planned_km|number }} km{% else %}–{% endif %} ·
+                {% translate "driven" %} {% if item.use.driven_km is not None %}{{ item.use.driven_km|number }} km{% else %}–{% endif %}
+                {% if can_see_prices %} · {% if item.use.billing == "flat" %}<span class="badge">{% translate "flat rate" %}</span>{% elif item.use.billing == "planned" %}{% translate "planned km charged" %}{% else %}{% translate "driven km charged" %}{% if item.use.km_is_estimate %} <span class="badge yellow">{% translate "estimate" %}</span>{% endif %}{% endif %} · {% if row.trip %}{{ item.amount|money }}{% else %}{% translate "not charged" %}{% endif %}{% endif %}
+              </div>
+              {% if item.use.note %}<div class="sub">{{ item.use.note }}</div>{% endif %}
+              {% if can_plan_logistics %}
+              <span class="trip-vehicle-actions no-print">
+                <button class="link-btn small" type="button" hx-get="{% url 'projects:trip_vehicle_edit' project.pk item.use.pk %}" hx-target="#dialog" aria-haspopup="dialog">{% translate "Change" %}<span class="visually-hidden"> {{ item.vehicle.label }}</span></button>
+                <form class="inline-form" hx-post="{% url 'projects:trip_vehicle_delete' project.pk item.use.pk %}" hx-target="#planning" hx-swap="outerHTML"><button class="link-btn small" type="submit" data-confirm="{% translate 'Take this vehicle off the trip?' %}">{% translate "Take off" %}<span class="visually-hidden"> {{ item.vehicle.label }}</span></button></form>
+              </span>
+              {% endif %}
+            </div>
+            {% empty %}<span class="muted">{% translate "no vehicle yet" %}</span>
+            {% endfor %}
+          </td>
+          <td class="actions no-print">{% if can_plan_logistics and row.trip and planning.has_cars %}<button class="btn secondary small" type="button" hx-get="{% url 'projects:trip_vehicle_add' project.pk %}?trip={{ row.key }}" hx-target="#dialog" aria-haspopup="dialog">{% icon "plus" %}{% translate "Vehicle" %}<span class="visually-hidden"> {% blocktranslate with trip=row.trip.title %}for “{{ trip }}”{% endblocktranslate %}</span></button>{% endif %}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="muted small">{% translate "The project has no trips yet. They come from the phases setup and teardown with their place, or are added on “Zeitplanung”." %}</p>
+    {% endif %}
+  </div>
+  {% else %}
+  <p class="group-desc muted">{% translate "No vehicle is booked yet." %}</p>
+  {% endif %}
+
+  {% if can_plan_logistics and vehicle_add_form %}
+  {% if vehicle_add_form.has_fleet %}
+  {# Add forms of the planning: the layout of .add-row – fields on one line, then the group of buttons (.add-actions), the help below. #}
+  <form class="line-add add-row vehicle-add no-print" hx-post="{% url 'projects:vehicle_add' project.pk %}" hx-target="#planning" hx-swap="outerHTML" autocomplete="off">
+    <div class="field grow"><label for="{{ vehicle_add_form.vehicle.id_for_label }}">{% translate "Vehicle or trailer" %}</label>{{ vehicle_add_form.vehicle }}</div>
+    {% if vehicle_add_form.has_phases or vehicle_add_form.offers_new_phase %}<div class="field"{% if not vehicle_add_form.has_phases %} data-new-phase-field hidden{% endif %}><label for="{{ vehicle_add_form.phase.id_for_label }}">{% translate "Phase" %}</label>{{ vehicle_add_form.phase }}</div>{% endif %}
+    <div class="field when"><label for="{{ vehicle_add_form.start.id_for_label }}">{% translate "From" %}</label>{{ vehicle_add_form.start }}</div>
+    <div class="field when"><label for="{{ vehicle_add_form.end.id_for_label }}">{% translate "Until" %}</label>{{ vehicle_add_form.end }}</div>
+    <div class="add-actions">
+      <span class="range-slot" data-range-slot="start"></span>{# app.js puts "Zeitraum im Kalender wählen" here #}
+      <button class="btn secondary" type="submit">{% icon "plus" %}{% translate "Book" %}</button>
+    </div>
+    {% if vehicle_add_form.has_phases or vehicle_add_form.offers_new_phase %}{% if vehicle_add_form.phase.help_text %}<div class="add-help" id="{{ vehicle_add_form.phase.auto_id }}_helptext">{{ vehicle_add_form.phase.help_text }}</div>{% endif %}{% endif %}
+  </form>
+  {% else %}
+  <p class="muted small no-print">{% translate "The fleet is empty: create a product of the kind “vehicle” and its vehicles under Material → Fleet." %}</p>
+  {% endif %}
+  {% endif %}
+</section>

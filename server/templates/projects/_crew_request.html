@@ -1,0 +1,32 @@
+{% load i18n rentalars price_offers %}
+{% comment %}
+  Where the deployment request of a crew line stands (PER-016), with the buttons of the planner:
+  ask, and – for a person without account, asked by phone – enter the answer.
+  PER-033: "ask again" only once the times differ from those the person was asked for; the line
+  then says so and names the times asked for. Without such a change an answered line offers nothing.
+  PER-041 (firm planning): "planned firmly" – told, not asked; "plan firmly" for a line not asked, asked or declined.
+{% endcomment %}
+<div class="sub request">
+  {% if line.request_status == "requested" %}<span class="badge yellow" title="{{ line.requested_at|date:'d.m.Y H:i' }}">{% translate "asked" %}</span>
+  {% elif line.request_status == "accepted" %}<span class="badge green" title="{{ line.answered_at|date:'d.m.Y H:i' }}">{% translate "accepted" %}</span>
+  {% elif line.request_status == "declined" %}<span class="badge red" title="{{ line.answered_at|date:'d.m.Y H:i' }}">{% translate "declined" %}</span>
+  {% elif line.request_status == "firm" %}<span class="badge green" title="{{ line.requested_at|date:'d.m.Y H:i' }}">{% translate "planned firmly" %}</span>{% endif %}
+  {% if line.answer_note %}<span class="muted">„{{ line.answer_note }}“</span>{% endif %}
+  {% if line.times_changed_since_request %}
+  <div class="request-changed">{% if line.request_status == "accepted" %}{% translate "Times changed since the acceptance" %}{% elif line.request_status == "declined" %}{% translate "Times changed since the refusal" %}{% else %}{% translate "Times changed since the request" %}{% endif %}{% if line.requested_start and line.requested_end %} – {% blocktranslate with since=line.requested_start|date:"D d.m. H:i" until=line.requested_end|date:"D d.m. H:i" %}asked for: {{ since }} – {{ until }}{% endblocktranslate %}{% endif %}</div>
+  {% endif %}
+  {% if can_plan_crew %}
+    {% if not line.request_status %}
+    <form class="inline-form" hx-post="{% url 'projects:crew_request' project.pk line.pk %}" hx-target="#planning" hx-swap="outerHTML"><button class="link-btn" type="submit">{% translate "ask" %}</button></form>
+    {% elif line.times_changed_since_request %}
+    <form class="inline-form" hx-post="{% url 'projects:crew_request' project.pk line.pk %}" hx-target="#planning" hx-swap="outerHTML"><button class="link-btn" type="submit">{% translate "ask again" %}</button></form>
+    {% endif %}
+    {% if line.request_status != "firm" and line.request_status != "accepted" %}
+    <form class="inline-form" method="post" action="{% url 'projects:crew_bulk' project.pk %}" hx-post="{% url 'projects:crew_bulk' project.pk %}" hx-target="#planning" hx-swap="outerHTML">{% csrf_token %}<input type="hidden" name="crew_lines" value="{{ line.pk }}"><button class="link-btn" type="submit" name="action" value="firm" title="{% translate 'Without request; the person is told' %}">{% translate "plan firmly" %}</button></form>
+    {% endif %}
+    {% if line.request_status == "requested" %}
+    <form class="inline-form" hx-post="{% url 'projects:crew_answer' project.pk line.pk %}" hx-target="#planning" hx-swap="outerHTML"><button class="link-btn" name="answer" value="accept" type="submit">{% translate "enter: accepted" %}</button> · <button class="link-btn" name="answer" value="decline" type="submit">{% translate "declined" %}</button></form>
+    {% endif %}
+  {% endif %}
+</div>
+{% comment %}PER-038: the price offer of a freelancer for this request – only where there is one.{% endcomment %}{% offer_planning line %}

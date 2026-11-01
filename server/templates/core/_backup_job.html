@@ -1,0 +1,28 @@
+{% load i18n rentalars %}
+{% comment %}
+  ADM-010: one backup made in the browser. While it is written, the block asks again every two seconds (htmx);
+  when it is ready, it offers the file and – for an encrypted backup – the key of this backup.
+{% endcomment %}
+<div class="backup-job" id="backup-{{ job.pk }}"{% if not job.is_finished %} hx-get="{% url 'core:backup_job' job.pk %}" hx-trigger="every 2s" hx-target="this" hx-swap="outerHTML"{% endif %} aria-live="polite">
+  <div class="backup-job-head">
+    <span class="nowrap">{{ job.created_at|date:"d.m.Y H:i" }}</span>
+    <span class="badge {% if job.status == 'done' %}green{% elif job.status == 'failed' %}red{% else %}yellow{% endif %}">{{ job.get_status_display }}</span>
+    {% if job.status == "done" and job.result.size %}<span class="muted small">{{ job.result.size|filesizeformat }}</span>{% endif %}
+    {% if job.result.encrypted or key %}<span class="badge outline">{% icon "lock" %}{% translate "encrypted" %}</span>{% endif %}
+  </div>
+  {% if not job.is_finished %}
+  <div class="progress" role="progressbar" aria-valuenow="{{ job.progress }}" aria-valuemin="0" aria-valuemax="100" aria-label="{% translate 'Progress' %}"><span style="width: {{ job.progress }}%"></span></div>
+  {% if job.message %}<p class="muted small">{{ job.message }}</p>{% endif %}
+  {% elif job.status == "failed" %}
+  <p class="small">{{ job.message }}</p>
+  {% elif job.result_file %}
+  <p><a class="btn small" href="{% url 'core:job_result' job.pk %}" download>{% icon "download" %}{{ job.result_name|default:_("Download") }}</a></p>
+  {% if key %}
+  <div class="backup-key">
+    <span class="muted small">{% translate "Key of this backup – click to copy:" %}</span>
+    <code class="command copy" data-copy="{{ key }}">{{ key }}</code>
+    <span class="muted small">{% translate "Keep it apart from the file. Without it the backup cannot be opened, by nobody." %}</span>
+  </div>
+  {% endif %}
+  {% endif %}
+</div>

@@ -1,0 +1,14 @@
+# Runs rentalars-ai-refresh once, about a minute after it was switched on – at every start of the server,
+# and when an update switches the timers of a new version on (EML-040). So an update by a version
+# whose update script does not know "ai refresh" yet, and a changed processor type of a virtual
+# machine, are taken over as well.
+
+[Unit]
+Description=Rentalars – Einstellungen der lokalen KI übernehmen (nach Start und Update)
+
+[Timer]
+OnActiveSec=1min
+AccuracySec=10s
+
+[Install]
+WantedBy=timers.target

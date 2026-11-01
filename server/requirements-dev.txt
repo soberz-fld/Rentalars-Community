@@ -1,0 +1,20 @@
+# Rentalars – additional libraries for development and testing.
+# Install with:  pip install -r requirements-dev.txt
+
+-r requirements.txt
+
+ruff==0.17.0                        # style, docstrings, likely bugs (NFA-062)
+coverage==7.16.2                    # which lines the tests reach
+polib==1.2.0                        # reading the language files in tests (NFA-026)
+pip-audit==2.10.1                     # known vulnerabilities of the libraries (scripts/check.sh)
+
+# Optional: static type check. The code is annotated throughout; the check is
+# not yet free of findings and therefore not part of scripts/check.sh.
+mypy==2.4.0
+django-stubs==6.1.2
+djangorestframework-stubs==3.18.1
+
+# Optional: tests in a real browser (tests/browser). Not installed by default,
+# because Playwright downloads a browser of its own:
+#     pip install playwright && playwright install chromium
+# Without it those tests are skipped.

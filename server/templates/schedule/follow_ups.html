@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Follow-ups" %}{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>{% translate "Planning" %}</h1></div></div>
+{% include "schedule/_tabs.html" %}
+{% comment %}
+  VFG-034: every follow-up of projects and service cases as a table (core.tables: columns, sorting, CSV, grouping).
+  "Move" opens the dialog of the project, "Done" removes the follow-up – the same rules as on the project.
+{% endcomment %}
+<p class="tab-lead">{% if show_everybody %}{% translate "Every project and service case with a follow-up – who is to do what, and when." %}{% else %}{% translate "Your follow-ups of projects and service cases." %}{% endif %}</p>
+<div class="panel">
+  <form method="get" class="filters">
+    {% filterpanel "follow_ups" %}
+    {% if show_everybody %}<div class="field"><label for="f-who">{% translate "For" context "follow-up" %}</label>
+      <select id="f-who" name="who" data-autosubmit>{% for value, label in who_choices %}<option value="{{ value }}"{% if filters.who == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>{% endif %}
+    <div class="field"><label for="f-since">{% translate "From" %}</label><input type="date" id="f-since" name="since" value="{{ filters.since }}"></div>
+    <div class="field"><label for="f-until">{% translate "Until" %}</label><input type="date" id="f-until" name="until" value="{{ filters.until }}"></div>
+    <div class="field"><div class="check"><input type="checkbox" id="f-due" name="due" value="1"{% if filters.due %} checked{% endif %} data-autosubmit><label for="f-due">{% translate "Only due ones" %}</label></div></div>
+    {# PRJ-112: service cases in the backlog show here once their follow-up is due – or with this. #}
+    <div class="field"><div class="check"><input type="checkbox" id="f-backlog" name="backlog" value="1"{% if filters.backlog %} checked{% endif %} data-autosubmit><label for="f-backlog">{% translate "Also the backlog" %}</label></div></div>
+    <button class="btn secondary" type="submit">{% translate "Filter" %}</button>
+    {% endfilterpanel %}
+  </form>
+  {% include "core/_table_tools.html" %}
+  {% if page.object_list %}
+  {% include "core/_table.html" with stack=True %}
+  {% else %}
+  <div class="empty"><strong>{% translate "No follow-ups match." %}</strong>{% translate "A follow-up is set in the head of a project or service case." %}</div>
+  {% endif %}
+  {% include "core/_pagination.html" %}
+</div>
+{# The buttons "Done" of the rows belong to this form; each names the address of its project. #}
+<form method="post" id="follow-up-done">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"></form>
+{% endblock %}

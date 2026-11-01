@@ -1,0 +1,29 @@
+{% load i18n rentalars %}
+{% comment %}
+  MAT-062 (purchase entry): the AI reads the invoice in the background. While it runs the block asks again every two
+  seconds; without the page script "Check again" does. When it is done, "Fill in the AI proposal" sends the form with
+  what was typed so far – the proposal fills only empty fields and adds rows. Expects: job. Inside the purchase form.
+  MAT-075 (the button says it fills in a proposal, so it is clear that nothing is saved yet): a short preview of what was found – positions, invoice number, total – and next to the button
+  that it only fills the form.
+{% endcomment %}
+<div class="purchase-reading" id="purchase-reading" aria-live="polite"{% if not job.is_finished %} hx-get="{% url 'material:purchase_reading' job.pk %}" hx-trigger="every 2s" hx-target="this" hx-swap="outerHTML"{% endif %}>
+  <input type="hidden" name="job" value="{{ job.pk }}">
+  {% if not job.is_finished %}
+  <p><span class="badge yellow">{{ job.get_status_display }}</span> {% translate "The AI reads the invoice …" %}{% if job.message %}<span class="muted"> – {{ job.message }}</span>{% endif %}</p>
+  <div class="progress" role="progressbar" aria-valuenow="{{ job.progress }}" aria-valuemin="0" aria-valuemax="100" aria-label="{% translate 'Progress' %}"><span style="width: {{ job.progress }}%"></span></div>
+  <p class="muted small">{% translate "You can go on typing meanwhile: the proposal fills only empty fields and adds rows." %}</p>
+  <button class="btn secondary small" type="submit" name="action" value="apply">{% icon "refresh" %}{% translate "Check again" %}</button>
+  {% elif job.status == "done" %}
+  {% if job.result.error %}<p class="note">{{ job.result.error }}</p>{% else %}<p><span class="badge accent">{% translate "made by AI" %}</span> {{ job.message }}{% if job.result.ai %} <span class="muted small">{% blocktranslate with model=job.result.ai.model provider=job.result.ai.provider %}Read by the model {{ model }} ({{ provider }}).{% endblocktranslate %}</span>{% endif %}</p>{% endif %}
+  {% with proposal=job.result.proposal %}{% if proposal %}
+  <p class="purchase-found small"><strong>{% translate "Found:" %}</strong> {% blocktranslate count counter=proposal.positions|length %}{{ counter }} position{% plural %}{{ counter }} positions{% endblocktranslate %}{% if proposal.invoice_number %} · {% blocktranslate with number=proposal.invoice_number %}invoice {{ number }}{% endblocktranslate %}{% endif %}{% if proposal.total_gross %} · {% blocktranslate with total=proposal.total_gross|money %}total {{ total }} gross{% endblocktranslate %}{% elif proposal.total_net %} · {% blocktranslate with total=proposal.total_net|money %}total {{ total }} net{% endblocktranslate %}{% endif %}</p>
+  {% if proposal.note %}<p class="note small">{{ proposal.note }}</p>{% endif %}{# Review: e.g. the end of a long invoice was not read #}
+  <div class="btn-row purchase-apply">
+    <button class="btn small" type="submit" name="action" value="apply" aria-describedby="purchase-apply-help">{% icon "check" %}{% if job.result.ai %}{% translate "Fill in the AI proposal" %}{% else %}{% translate "Fill in what was found" %}{% endif %}</button>
+    <span class="muted small" id="purchase-apply-help">{% translate "Fills the empty fields and adds the positions as rows – nothing is saved before “Create items”." %}</span>
+  </div>
+  {% endif %}{% endwith %}
+  {% else %}
+  <p class="note red">{{ job.message }}</p>
+  {% endif %}
+</div>

@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}{% translate "Number ranges" %}{% endblock %}
+{% block content %}
+<div class="page-head"><div><div class="breadcrumb"><a href="{% url 'core:administration' %}">{% translate "Settings" %}</a></div><h1>{% translate "Number ranges" %}</h1><p class="lead">{% translate "A number consists of the prefix and the counter, filled with leading zeros to the minimum number of digits." %}</p></div></div>
+{% for number_range, form in ranges %}
+<section class="panel">
+  <div class="panel-head"><h2>{{ number_range }}</h2><span class="muted">{% translate "Next number:" %} <strong>{{ number_range.preview }}</strong></span></div>
+  <div class="panel-body">
+    <form method="post" class="form wide" novalidate>
+      {% csrf_token %}<input type="hidden" name="range" value="{{ number_range.pk }}">
+      {% include "core/_form_errors.html" %}
+      <div class="form-grid">{% for field in form %}{% include "core/_field.html" %}{% endfor %}</div>
+      {% if can.write.administration %}<div><button class="btn secondary" type="submit">{% translate "Save" %}</button></div>{% endif %}
+    </form>
+  </div>
+</section>
+{% endfor %}
+{% endblock %}

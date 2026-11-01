@@ -1,0 +1,16 @@
+{% load i18n rentalars %}
+{% comment %}
+  One group of the price overview (PRJ-035, PRJ-036). Expects: group (PlannedGroup), with_lines. PRJ-037: the
+  subgroups stand inside the panel of their parent, and the amount of the parent includes them – the subgroups'
+  amounts are a breakdown of it, not to be added to it.
+{% endcomment %}
+<section class="panel{% if not group.prices.counts_toward_total %} is-optional{% endif %}" data-price-group="{{ group.group.pk }}">
+  <div class="panel-head">
+    <h{{ group.depth|add:heading_base }}><span class="copy" data-copy="{{ group.group.name }}">{{ group.group.name }}</span>{% if group.group.kind != "normal" %} <span class="badge yellow">{{ group.group.get_kind_display }}</span>{% elif group.group.kind_is_inherited %} <span class="badge yellow">{% blocktranslate with kind=group.group.effective_kind_label %}{{ kind }}, like the group above{% endblocktranslate %}</span>{% endif %}{% if group.alternative_to %} <span class="muted small">{% blocktranslate with name=group.alternative_to.name %}alternative to “{{ name }}”{% endblocktranslate %}</span>{% endif %}</h{{ group.depth|add:heading_base }}>
+    <strong class="num">{% if group.children %}<span class="price-with-subgroups">{% translate "with subgroups" %}</span> {% endif %}<span class="copy" data-copy="{{ group.prices.subtotal|money_plain }}">{{ group.prices.subtotal|money }}</span></strong>
+  </div>
+  {% if group.group.description %}<div class="panel-body"><span class="copy" data-copy="{{ group.group.description }}">{{ group.group.description|linebreaksbr }}</span></div>{% endif %}
+  {% if with_lines %}{% if group.lines or not group.children %}{% include "projects/_price_lines.html" with lines=group.lines %}{% endif %}{% else %}{% include "projects/_price_summary.html" with summary=group.summary %}{% endif %}
+  {% if group.children %}<div class="price-children">{% for child in group.children %}{% include "projects/_price_group.html" with group=child %}{% endfor %}</div>{% endif %}
+  {% if group.prices.discount and with_lines %}<div class="panel-body muted">{% if group.group.flat_price is not None %}{% translate "Flat price instead of" %} {{ group.prices.lines_total|money }}{% else %}{% translate "Discount" %} − {{ group.prices.discount|money }}{% endif %}</div>{% endif %}
+</section>

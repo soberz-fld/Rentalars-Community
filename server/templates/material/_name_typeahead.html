@@ -1,0 +1,15 @@
+{% load i18n rentalars %}
+{% comment %}
+  A name typed with suggestions (MAT-048, MAT-050): the text field itself is the value, so it works without the page
+  script as well; the suggestions only help to write a known name the same way. A name that is not known yet is
+  created when the form is saved. Parameters: field (a text field of the form), url (JSON suggestions), placeholder.
+{% endcomment %}
+<div class="field{% if field.errors %} has-error{% endif %}">
+  <label for="{{ field.auto_id }}">{{ field.label }}{% include "core/_required_mark.html" %}</label>
+  <div class="typeahead" data-typeahead data-typeahead-free data-url="{{ url }}">
+    <input type="search" name="{{ field.html_name }}" id="{{ field.auto_id }}" data-typeahead-input value="{{ field.value|default_if_none:'' }}" maxlength="{{ field.field.max_length }}" autocomplete="off"{% if field|required_condition == "always" %} aria-required="true"{% endif %}{% if placeholder %} placeholder="{{ placeholder }}"{% endif %}{% if field.help_text %} aria-describedby="{{ field.auto_id }}_help"{% endif %}>
+    <input type="hidden" data-typeahead-value value="{{ field.value|default_if_none:'' }}">
+  </div>
+  {% if field.help_text %}<div class="help" id="{{ field.auto_id }}_help">{{ field.help_text }}</div>{% endif %}
+  {{ field.errors }}
+</div>

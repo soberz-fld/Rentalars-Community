@@ -1,0 +1,5 @@
+{% load i18n %}{# MAT-071, MAT-072: the two pages of Einstellungen → Eigene Felder. Expects: tab. #}
+<nav class="tabs" aria-label="{% translate 'Custom fields' %}">
+  <a href="{% url 'customfields:field_list' %}"{% if tab == "fields" %} aria-current="page"{% endif %}>{% translate "Custom fields" %}</a>
+  <a href="{% url 'customfields:fieldset_list' %}"{% if tab == "fieldsets" %} aria-current="page"{% endif %}>{% translate "Fieldsets" %}</a>
+</nav>

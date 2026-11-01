@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Data of a development installation: database, uploads, collected static files
+var/
+
+# Built packages
+dist/
+wheels/
+
+# Editors
+.idea/
+.vscode/
+*.swp
+
+# Signing keys, packaged apps and local environment files: never part of a publication
+*.apk
+*.keystore
+*.jks
+*.p12
+*.pem
+.env
+.env.*
+!.env.example

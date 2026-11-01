@@ -1,0 +1,13 @@
+{% load i18n rentalars %}
+{# PRJ-070: a new venue from the project form. #}
+<form hx-post="{{ action }}" hx-target="#dialog" hx-encoding="multipart/form-data" novalidate autocomplete="off">
+  <div class="dialog-head"><h2>{% translate "New venue" %}</h2><button type="button" class="icon-btn" data-close-dialog aria-label="{% translate 'Close' %}">{% icon "close" %}</button></div>
+  <div class="dialog-body form">
+    {% include "core/_form_errors.html" %}
+    <div class="form-grid">{% for field in form %}{% include "core/_field.html" %}{% endfor %}</div>
+  </div>
+  <div class="dialog-foot">
+    <button type="button" class="btn secondary" data-close-dialog>{% translate "Cancel" %}</button>
+    <button type="submit" class="btn">{% translate "Save venue" %}</button>
+  </div>
+</form>

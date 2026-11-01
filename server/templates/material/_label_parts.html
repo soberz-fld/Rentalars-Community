@@ -1,0 +1,8 @@
+{% comment %}
+  MAT-056: the parts of one label of material/label_layouts.py, each placed in millimetres. Used for the
+  printed labels (labels_layout.html) and the preview under Einstellungen → Etiketten. Expects: label.
+{% endcomment %}{% for part in label.parts %}{% if part.kind == "logo" %}<div class="part logo" style="{{ part.style }}"><img src="{{ part.content }}" alt=""></div>
+{% elif part.kind == "qr" %}<div class="part qr" style="{{ part.style }}">{{ part.content }}</div>
+{% elif part.kind == "pair" %}<div class="part pair" style="{{ part.style }}"><span>{{ part.text }}</span><span>{{ part.right }}</span></div>
+{% elif part.kind == "lines" %}<div class="part lines {{ part.align }}" style="{{ part.style }}">{% for line in part.lines %}<div class="line">{{ line }}</div>{% endfor %}</div>
+{% else %}<div class="part text {{ part.align }}" style="{{ part.style }}">{{ part.text }}</div>{% endif %}{% endfor %}

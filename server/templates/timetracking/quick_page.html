@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}{% translate "Record time" %}{% endblock %}
+{% block content %}
+{# The quick entry on a page of its own: for a direct link, a bookmark on the phone, or a browser without scripts. #}
+<div class="page-head"><div><h1>{% translate "Time tracking" %}</h1></div></div>
+<div class="panel dialog-page">{% include fragment %}</div>
+{% endblock %}

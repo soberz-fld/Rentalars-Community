@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% load i18n rentalars maps %}
+{% block title %}{% blocktranslate with name=supplier.name %}Subrental at {{ name }}{% endblocktranslate %} {{ project.number }}{% endblock %}
+{% block content %}
+{% include "projects/_head.html" %}
+{% comment %}
+  PRJ-106: what is subrented from one supplier for this project, in one place – the lines with status and purchase
+  prices, the supplier's documents (also among the files of the project) and the correspondence with the supplier.
+  Reached from the subrental in the planning, from Planung → Fehlbestände and from the supplier in the master data.
+{% endcomment %}
+<div class="page-head subrental-head">
+  <div>
+    <div class="breadcrumb"><a href="{% url 'projects:detail' project.pk %}">{% translate "Planning" %}</a></div>
+    <h2>{% blocktranslate with name=supplier.name %}Subrental at {{ name }}{% endblocktranslate %}{% if not supplier.is_active %} <span class="badge">{% translate "deactivated" %}</span>{% endif %}</h2>
+    <p class="supplier-contact muted">
+      {% if supplier.contact %}<span>{{ supplier.contact }}</span>{% endif %}
+      {% if supplier.email %}<span><a href="mailto:{{ supplier.email }}">{{ supplier.email }}</a></span>{% endif %}
+      {% if supplier.phone %}<span><a href="tel:{{ supplier.phone }}">{{ supplier.phone }}</a></span>{% endif %}
+      {% if supplier.customer_number %}<span>{% blocktranslate with number=supplier.customer_number %}our customer number {{ number }}{% endblocktranslate %}</span>{% endif %}
+      {% if not supplier.contact and not supplier.email and not supplier.phone %}<span>{% translate "No contact data yet." %}</span>{% endif %}
+    </p>
+    {# UIX-033, UIX-034: where the supplier is – the route from where the viewer is, and the map after a click. #}
+    {% if supplier.address_one_line %}<p class="supplier-address">{{ supplier.address_one_line }} <span class="no-print">{% route_link supplier.address_one_line %}</span></p>{% endif %}
+  </div>
+  {% if can_edit_supplier %}<div class="actions no-print"><a class="btn secondary" href="{% url 'admin:masterdata_supplier_change' supplier.pk %}">{% icon "edit" %}{% translate "Edit supplier" %}</a></div>{% endif %}
+</div>
+
+{% if supplier.address_one_line %}{% map_box "supplier" supplier.pk %}{% endif %}
+
+<section class="panel" id="lines">
+  <div class="panel-head"><h2>{% translate "Subrented" %}</h2>
+    {% if page.rows %}<div class="actions">{% for label, count in page.status_counts %}<span class="badge">{{ count }} {{ label }}</span>{% endfor %}</div>{% endif %}
+  </div>
+  {% if page.rows %}
+  {% if lines_form %}<form method="post" action="{% url 'projects:subrental_lines' project.pk supplier.pk %}" novalidate autocomplete="off">{% csrf_token %}{% include "core/_form_errors.html" with form=lines_form %}{% endif %}
+  <table class="table stack subrental-lines">
+    <thead><tr>
+      <th>{% translate "What" %}</th><th>{% translate "Period" %}</th><th>{% translate "Status" %}</th><th>{% translate "Picked up" %}</th>
+      {% if with_prices %}<th class="num">{% translate "Purchase price per unit" %}</th><th class="num">{% translate "Purchase" %}</th>{% endif %}
+    </tr></thead>
+    <tbody>
+    {% for row in page.rows %}{% with line=row.line %}
+      <tr id="subrental-{{ line.pk }}">
+        <td><a href="{% url 'projects:detail' project.pk %}#line-{{ line.covers_line_id|default:line.pk }}">{{ line.quantity_display }}{% if line.unit %} {{ line.unit.abbreviation }}{% endif %} × {{ line.title }}</a>
+          {% if line.covers_line_id %}<div class="muted small">{% blocktranslate with title=line.covers_line.title %}covers the shortage of “{{ title }}”{% endblocktranslate %}</div>{% endif %}
+          {% if line.variant %}<span class="badge yellow">{{ line.get_variant_display }}</span>{% endif %}
+          {% if line.note %}<div class="muted small">{{ line.note }}</div>{% endif %}</td>
+        <td class="nowrap" data-label="{% translate 'Period' %}">{{ line.start|date:"d.m.Y H:i" }} – {{ line.end|date:"d.m.Y H:i" }}</td>
+        <td data-label="{% translate 'Status' %}">{% if lines_form %}{{ row.status_field }}{{ row.status_field.errors }}{% else %}<span class="badge {{ line.subrental_status|status_colour }}">{{ line.get_subrental_status_display|default:"–" }}</span>{% endif %}</td>
+        {# PRJ-097: fetched at the supplier and brought back – then it is a trip of the project. #}
+        <td data-label="{% translate 'Picked up' %}">{% if lines_form %}<span class="check">{{ row.pickup_field }}</span>{% elif line.picked_up_at_supplier %}{% translate "picked up at the supplier" %}{% else %}<span class="muted">{% translate "delivered" context "subrental" %}</span>{% endif %}</td>
+        {% if with_prices %}
+        <td class="num" data-label="{% translate 'Purchase price per unit' %}">{% if lines_form %}{{ row.price_field }}{{ row.price_field.errors }}{% else %}{{ line.purchase_price|money }}{% endif %}</td>
+        <td class="num" data-label="{% translate 'Purchase' %}">{% if row.purchase_cost is not None %}{{ row.purchase_cost|money }}{% else %}–{% endif %}</td>
+        {% endif %}
+      </tr>
+    {% endwith %}{% endfor %}
+    </tbody>
+    {% if with_prices %}<tfoot><tr class="subtotal-row"><td colspan="5" class="num">{% translate "Purchase in total" %}</td><td class="num">{{ page.purchase_total|money }}</td></tr></tfoot>{% endif %}
+  </table>
+  {% if lines_form %}<div class="panel-body btn-row"><button class="btn" type="submit">{% translate "Save status, pickup and prices" %}</button></div></form>{% endif %}
+  {% else %}
+  <div class="empty"><strong>{% translate "Nothing is subrented from this supplier for the project." %}</strong>{% translate "Choose the supplier for a subrental in the planning – then it is listed here." %}</div>
+  {% endif %}
+</section>
+
+<section class="panel" id="documents">
+  <div class="panel-head"><h2>{% translate "Documents of the supplier" %}</h2></div>
+  {% if page.files %}
+  <table class="table stack">
+    <thead><tr><th>{% translate "File" %}</th><th>{% translate "Kind of document" %}</th><th>{% translate "Uploaded" %}</th><th class="num">{% translate "Size" %}</th><th></th></tr></thead>
+    <tbody>
+    {% for item in page.files %}
+      <tr>
+        <td><a href="{% url 'projects:file_download' project.pk item.pk %}" target="_blank" rel="noopener">{% icon "file" %}{{ item.label }}</a>{% if item.title %}<div class="muted small">{{ item.original_name }}</div>{% endif %}</td>
+        <td data-label="{% translate 'Kind of document' %}">{{ item.get_supplier_document_kind_display|default:"–" }}</td>
+        <td data-label="{% translate 'Uploaded' %}">{{ item.uploaded_at|date:"d.m.Y H:i" }}{% if item.uploaded_by %}<div class="muted small">{{ item.uploaded_by }}</div>{% endif %}</td>
+        <td class="num" data-label="{% translate 'Size' %}">{{ item.size|filesizeformat }}</td>
+        <td class="actions">{% if can_edit %}<a class="icon-btn" href="{% url 'projects:file_edit' project.pk item.pk %}" aria-label="{% translate 'Edit' %}: {{ item.label }}">{% icon "edit" %}</a>{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<div class="empty"><strong>{% translate "No documents of the supplier yet." %}</strong>{% translate "Offers, order confirmations, delivery notes and invoices – kept here and among the files of the project." %}</div>{% endif %}
+  {% if document_form %}
+  <div class="panel-body">
+    <h3>{% translate "Add a document" %}</h3>
+    <form method="post" action="{% url 'projects:subrental_document_add' project.pk supplier.pk %}" enctype="multipart/form-data" class="form wide" novalidate>
+      {% csrf_token %}
+      {% include "core/_form_errors.html" with form=document_form %}
+      <div class="form-grid">
+        {% include "core/_field.html" with field=document_form.file %}
+        {% include "core/_field.html" with field=document_form.kind %}
+        {% include "core/_field.html" with field=document_form.title %}
+      </div>
+      <div class="btn-row"><button class="btn" type="submit">{% icon "upload" %}{% translate "Upload" %}</button></div>
+    </form>
+  </div>
+  {% endif %}
+</section>
+
+{% if page.mails is not None %}
+<section class="panel" id="mails">
+  <div class="panel-head"><h2>{% translate "Correspondence" %}</h2>
+    {% if can_write_mail %}<div class="actions"><a class="btn small" href="{% url 'mail:compose' project.pk %}?supplier={{ supplier.pk }}">{% icon "mail" %}{% translate "Write mail" %}</a></div>{% endif %}
+  </div>
+  {% if page.mails %}
+  <table class="table stack mails">
+    <thead><tr><th></th><th>{% translate "Subject" %}</th><th>{% translate "From / to" %}</th><th>{% translate "Date" %}</th></tr></thead>
+    <tbody>
+    {% for mail in page.mails %}
+      <tr>
+        <td class="nowrap">{% if mail.direction == "out" %}<span class="badge">{% translate "sent" %}</span>{% else %}<span class="badge accent">{% translate "received" %}</span>{% endif %}</td>
+        <td><a href="{% url 'mail:detail' project.pk mail.pk %}">{{ mail.subject|default:_("(no subject)") }}</a></td>
+        <td data-label="{% translate 'From / to' %}">{% if mail.direction == "out" %}{% translate "to" %} {{ mail.to_addresses|truncatechars:60 }}{% if mail.sent_by %}<div class="muted small">{% blocktranslate with who=mail.sent_by %}by {{ who }}{% endblocktranslate %}</div>{% endif %}{% else %}{{ mail.sender_label }}{% endif %}</td>
+        <td class="nowrap" data-label="{% translate 'Date' %}">{{ mail.date|date:"d.m.Y H:i" }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty"><strong>{% translate "No mails with this supplier yet." %}</strong>{% if supplier.email %}{% blocktranslate with address=supplier.email tag=project.mail_tag %}Mails of the project from and to {{ address }} appear here – write with {{ tag }} in the subject, and the answers come back.{% endblocktranslate %}{% else %}{% translate "Enter the e-mail address of the supplier in the master data: then the mails of the project from and to it appear here." %}{% endif %}</div>
+  {% endif %}
+</section>
+{% endif %}
+{% endblock %}

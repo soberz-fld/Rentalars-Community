@@ -1,0 +1,14 @@
+{% load i18n rentalars %}
+{# PRJ-070: a new customer without leaving the project form – the same questions as in the customer management. #}
+<form hx-post="{{ action }}" hx-target="#dialog" novalidate autocomplete="off">
+  <div class="dialog-head"><h2>{% translate "New customer" %}</h2><button type="button" class="icon-btn" data-close-dialog aria-label="{% translate 'Close' %}">{% icon "close" %}</button></div>
+  <div class="dialog-body form">
+    <p class="muted small">{% translate "The customer number is assigned automatically." %}</p>
+    {% include "core/_form_errors.html" %}
+    {% include "customers/_form_fields.html" %}
+  </div>
+  <div class="dialog-foot">
+    <button type="button" class="btn secondary" data-close-dialog>{% translate "Cancel" %}</button>
+    <button type="submit" class="btn">{% translate "Save customer" %}</button>
+  </div>
+</form>

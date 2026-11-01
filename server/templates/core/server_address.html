@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Server address and certificate" %}{% endblock %}
+{% block content %}
+{% comment %}
+  ADM-016: the address of the installation and its certificate. The page prepares a change and shows the one
+  command that applies it on the server ("Nur Befehl anzeigen"); there is no button that changes the server.
+{% endcomment %}
+<div class="page-head"><div><div class="breadcrumb"><a href="{% url 'core:administration' %}">{% translate "Settings" %}</a></div><h1>{% translate "Server address and certificate" %}</h1>
+<p class="lead">{% translate "The address under which Rentalars is reached, and the certificate for HTTPS." %}</p></div></div>
+<div class="columns server-address">
+  <section class="panel" aria-labelledby="current-title">
+    <div class="panel-head"><h2 id="current-title">{% translate "Current address" %}</h2></div>
+    <div class="panel-body settings-stack">
+      <dl class="facts">
+        <dt>{% translate "Address" context "web address" %}</dt>
+        <dd>{{ current.url }}</dd>
+        <dt>{% translate "Name in NGINX" %}</dt>
+        <dd>{% if current.site.found %}{{ current.site.server_names|join:", "|default:"–" }}{% else %}<span class="muted">{% translate "no NGINX site of the installation" %}</span>{% endif %}</dd>
+        <dt>{% translate "Certificate" context "TLS" %}</dt>
+        <dd>{{ current.kind_label }}</dd>
+        {% if certificate %}
+        <dt>{% translate "Valid for" %}</dt>
+        <dd>{{ certificate.names|join:", "|default:certificate.subject }}</dd>
+        <dt>{% translate "Valid until" %}</dt>
+        <dd>{{ certificate.not_after_moment|date:"SHORT_DATE_FORMAT" }}
+          {% if certificate.days_left < 0 %}<span class="badge red">{% translate "expired" %}</span>
+          {% elif certificate.days_left < 30 %}<span class="badge yellow">{% blocktranslate count days=certificate.days_left %}{{ days }} day left{% plural %}{{ days }} days left{% endblocktranslate %}</span>
+          {% else %}<span class="badge green">{% blocktranslate count days=certificate.days_left %}{{ days }} day left{% plural %}{{ days }} days left{% endblocktranslate %}</span>{% endif %}</dd>
+        <dt>{% translate "Issued by" %}</dt>
+        <dd>{{ certificate.issuer }}</dd>
+        {% endif %}
+      </dl>
+      {% if current.note %}<p class="muted small">{{ current.note }}</p>{% endif %}
+    </div>
+  </section>
+
+  {% if change %}
+  <section class="panel" id="prepared" aria-labelledby="prepared-title">
+    <div class="panel-head"><h2 id="prepared-title">{% translate "Prepared change" %}</h2>
+      <span class="badge{% if change.status == statuses.APPLIED %} green{% elif change.status == statuses.FAILED %} red{% elif not change.is_open %} outline{% endif %}">{{ change.get_status_display }}</span></div>
+    <div class="panel-body settings-stack">
+      <dl class="facts">
+        <dt>{% translate "New address" %}</dt>
+        <dd>{{ change.url }}</dd>
+        <dt>{% translate "Certificate" context "TLS" %}</dt>
+        <dd>{{ change.get_certificate_kind_display }}{% if change.email %} <span class="muted small">({{ change.email }})</span>{% endif %}</dd>
+        <dt>{% translate "Old address" %}</dt>
+        <dd>{{ change.previous_url|default:"–" }}{% if change.redirect_old %} <span class="muted small">{% translate "redirected to the new one" %}</span>{% endif %}</dd>
+        <dt>{% translate "Prepared" %}</dt>
+        <dd>{{ change.prepared_at|date:"SHORT_DATETIME_FORMAT" }}{% if change.prepared_by %} {% blocktranslate with user=change.prepared_by %}by {{ user }}{% endblocktranslate %}{% endif %}</dd>
+      </dl>
+
+      {% if change.status == statuses.APPLIED %}
+      <p class="note accent" role="status">{% blocktranslate with date=change.applied_at|date:"SHORT_DATETIME_FORMAT" user=change.applied_by %}Applied on {{ date }} by {{ user }}.{% endblocktranslate %}{% if change.result_message %} {{ change.result_message }}{% endif %}</p>
+      {% elif change.status == statuses.FAILED %}
+      <p class="note red" role="status">{% blocktranslate with date=change.applied_at|date:"SHORT_DATETIME_FORMAT" user=change.applied_by %}The command failed on {{ date }} (run by {{ user }}); everything was put back as it was.{% endblocktranslate %} {{ change.result_message }}</p>
+      {% endif %}
+
+      {% if change.is_open %}
+      {% if change.checks %}
+      <h3>{% translate "What Rentalars could check" %}</h3>
+      <table class="table address-checks"><tbody>
+        {% for check in change.checks %}
+        <tr><td class="check-title"><span class="check-state is-{{ check.state }}" aria-hidden="true">{% if check.state == "ok" %}✓{% elif check.state == "note" %}i{% elif check.state == "warning" %}!{% else %}✗{% endif %}</span>
+          <span class="visually-hidden">{% if check.state == "ok" %}{% translate "in order:" %}{% elif check.state == "note" %}{% translate "note:" %}{% elif check.state == "warning" %}{% translate "warning:" %}{% else %}{% translate "error:" %}{% endif %}</span> {{ check.title }}</td>
+          <td class="check-detail">{{ check.detail }}</td></tr>
+        {% endfor %}
+      </tbody></table>
+      {% endif %}
+
+      <h3>{% translate "The command" %}</h3>
+      <p>{% translate "Nothing has changed yet. Run this command on the server, as root via SSH:" %}</p>
+      <div class="address-command" data-copy-scope>
+        <code class="command block" id="address-command">{{ change.command }}</code>
+        <button class="btn secondary" type="button" data-copy-block="{{ change.command }}" data-copied-text="{% translate 'Copied' %}" data-failed-text="{% translate 'Copying did not work.' %}" aria-describedby="address-command">{% icon "copy" %}{% translate "Copy" %}</button>
+        <span class="visually-hidden" role="status" data-copy-status></span>
+      </div>
+      <p class="muted small">{% translate "To see first what it would do, without changing anything:" %} <code class="command">{{ change.command }} --dry-run</code></p>
+      <h3>{% translate "What the command does" %}</h3>
+      <ol class="settings-steps">{% for step in steps %}<li>{{ step }}</li>{% endfor %}</ol>
+      <p class="muted small">{% translate "Afterwards links in e-mails – invitations, password resets, deployment requests – use the new address. Everybody logs in again at the new address. Calendar subscriptions and printed QR codes keep the old address; they work as long as the old name is redirected." %}</p>
+      {% if can_prepare %}
+      <form method="post" action="{% url 'core:server_address_discard' change.token %}" class="btn-row">
+        {% csrf_token %}
+        <button class="btn secondary" type="submit">{% translate "Discard this change" %}</button>
+      </form>
+      {% endif %}
+      {% endif %}
+    </div>
+  </section>
+  {% endif %}
+
+  {% if can_prepare %}
+  <section class="panel" aria-labelledby="prepare-title">
+    <div class="panel-head"><h2 id="prepare-title">{% translate "Prepare a change" %}</h2></div>
+    <div class="panel-body">
+      <form method="post" enctype="multipart/form-data" class="form" novalidate>
+        {% csrf_token %}
+        {% include "core/_form_errors.html" with form=form %}
+        <div class="form-grid">
+          {% include "core/_field.html" with field=form.host %}
+          {% with field=form.certificate_kind %}
+          <fieldset class="field address-kinds{% if field.errors %} has-error{% endif %}">
+            <legend>{{ field.label }}{% include "core/_required_mark.html" %}</legend>
+            {% for choice in field %}
+            <div class="check">{{ choice.tag }}<label for="{{ choice.id_for_label }}">{{ choice.choice_label }}<span class="help">{% for value, text in kind_help.items %}{% if value == choice.data.value %}{{ text }}{% endif %}{% endfor %}</span></label></div>
+            {% endfor %}
+            {{ field.errors }}
+          </fieldset>
+          {% endwith %}
+          {% include "core/_field.html" with field=form.email %}
+          {% include "core/_field.html" with field=form.certificate %}
+          {% include "core/_field.html" with field=form.private_key %}
+          {% include "core/_field.html" with field=form.redirect_old %}
+        </div>
+        <div class="btn-row"><button class="btn" type="submit">{% translate "Check and prepare" %}</button></div>
+        <p class="muted small">{% translate "Nothing changes on the server until the command is run there. A newer preparation replaces the previous one." %}</p>
+      </form>
+    </div>
+  </section>
+  {% endif %}
+
+  {% if earlier %}
+  <section class="panel" aria-labelledby="earlier-title">
+    <div class="panel-head"><h2 id="earlier-title">{% translate "Earlier changes" %}</h2></div>
+    <table class="table"><thead><tr><th scope="col">{% translate "Prepared" %}</th><th scope="col">{% translate "New address" %}</th><th scope="col">{% translate "Status" %}</th></tr></thead><tbody>
+      {% for item in earlier %}
+      <tr><td>{{ item.prepared_at|date:"SHORT_DATETIME_FORMAT" }}</td><td>{{ item.host }}</td><td>{{ item.get_status_display }}{% if item.applied_at %} <span class="muted small">{{ item.applied_at|date:"SHORT_DATETIME_FORMAT" }}{% if item.applied_by %}, {{ item.applied_by }}{% endif %}</span>{% endif %}</td></tr>
+      {% endfor %}
+    </tbody></table>
+  </section>
+  {% endif %}
+
+  <section class="panel" aria-labelledby="why-title">
+    <div class="panel-head"><h2 id="why-title">{% translate "Why there is no button for it" %}</h2></div>
+    <div class="panel-body">
+      <p>{% translate "Changing the address changes the web server, requests or installs certificates and restarts Rentalars. That needs root on the server. Rentalars runs without these rights on purpose and never stores access data for root: even someone who took over an administrator account cannot change the server." %}</p>
+      <p class="muted small">{% translate "More in the operations guide: docs/betrieb/betrieb.md." %}</p>
+    </div>
+  </section>
+</div>
+{% endblock %}

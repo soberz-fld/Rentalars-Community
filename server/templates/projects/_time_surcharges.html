@@ -1,0 +1,5 @@
+{% load i18n rentalars %}{% comment %}
+  PER-009: the surcharges for night, Sunday and holidays of a crew line under an amount or a cost – the sum, then one
+  kind per line: "inkl. Zuschläge 126,00 €" / "Nacht 25 % auf 4 Std." / "Sonntag 50 % auf 2 Std.". Expects: parts,
+  amount.
+{% endcomment %}{% if parts %}<div class="sub time-surcharges" data-time-surcharges>{% blocktranslate with amount=amount|money %}incl. surcharges {{ amount }}{% endblocktranslate %}<span class="visually-hidden">:</span>{% for part in parts %} <span class="time-surcharge-part">{% blocktranslate with kind=part.short_label percent=part.percent|number hours=part.hours|number %}{{ kind }} {{ percent }} % on {{ hours }} h{% endblocktranslate %}{% if not forloop.last %}<span class="visually-hidden">,</span>{% endif %}</span>{% endfor %}</div>{% endif %}

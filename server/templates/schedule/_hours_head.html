@@ -1,0 +1,5 @@
+{# VFG-022: the head of a timeline in hour columns – the days above, their hours below. Expects: scale. #}
+<div class="tl-head tl-hours-head" style="{{ scale.row_style }}">
+  {% for day, css in scale.day_heads %}<div class="tl-dayname {{ css }}" style="grid-column: span {{ scale.per_day }}">{{ day|date:"D d.m." }}</div>{% endfor %}
+  {% for head in scale.hour_heads %}<div class="tl-hour {{ head.css }}" title="{{ head.title }}">{{ head.label }}</div>{% endfor %}
+</div>

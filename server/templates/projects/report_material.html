@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Material" %} – {% translate "Reports" %}{% endblock %}
+{% block content %}
+{% comment %}
+  MAT-053: per product – how many items, what they cost (purchase prices, a set's price spread over its items,
+  MAT-054) and what the lines of the product earned in projects whose material went out; a kit's line shared out to its
+  components by their prices. All time, or one year by the day the material came back.
+{% endcomment %}
+{% include "projects/_report_tabs.html" %}
+<div class="panel">
+  <form method="get" class="filters">
+    <div class="field"><label for="f-year">{% translate "Earned in" %}</label>
+      <select id="f-year" name="year" data-autosubmit><option value="">{% translate "All time" %}</option>{% for value in years %}<option value="{{ value }}"{% if year == value|stringformat:"d" %} selected{% endif %}>{{ value }}</option>{% endfor %}</select></div>
+  </form>
+  <p class="panel-body muted small">{% translate "What the lines of each product brought in, after discounts, against what its items cost. Each item shows its own share on its page (box “Earnings”)." %}</p>
+  {% if rows %}
+  <div class="table-scroll">
+  <table class="table stack report-table" data-sort-table>
+    <thead><tr><th scope="col">{% translate "Product" %}</th><th scope="col" class="num">{% translate "Items" %}</th><th scope="col" class="num">{% translate "Purchase prices" %}</th><th scope="col" class="num">{% translate "Earned" %}</th><th scope="col" class="num">{% translate "Share of the purchase price" %}</th></tr></thead>
+    <tbody>
+    {% for row in rows %}
+      <tr><td><a class="artno" href="{% url 'products:detail' row.product.pk %}">{{ row.product.article_number }}</a> {{ row.product.name }}</td><td class="num" data-label="{% translate 'Items' %}">{{ row.items }}</td><td class="num" data-label="{% translate 'Purchase prices' %}">{{ row.purchase_total|money }}</td><td class="num" data-label="{% translate 'Earned' %}">{{ row.revenue|money }}</td><td class="num" data-label="{% translate 'Share of the purchase price' %}">{% if row.share_percent is not None %}<span class="badge {% if row.share_percent >= 100 %}green{% elif row.share_percent >= 50 %}yellow{% endif %}">{{ row.share_percent|number }} %</span>{% else %}<span class="muted">–</span>{% endif %}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}<div class="empty">{% translate "No product with purchase prices or revenue yet." %}</div>{% endif %}
+</div>
+{% endblock %}

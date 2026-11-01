@@ -1,0 +1,25 @@
+{% load i18n rentalars %}
+{% comment %}
+  PRJ-117 (crew planning): the dialog "Werte setzen" for the crew lines chosen on the planning – one value for all of
+  them; what is left empty stays as it is. Also a page of its own for a browser without scripts
+  (crew_bulk_form.html), so the form posts normally as well. Expects: form (CrewBulkForm), lines, labels, project,
+  action.
+{% endcomment %}
+<form method="post" action="{{ action }}" hx-post="{{ action }}" hx-target="#dialog" novalidate autocomplete="off">
+  {% csrf_token %}
+  <div class="dialog-head"><h2>{% translate "Set values of the chosen crew lines" %}</h2><button type="button" class="icon-btn" data-close-dialog data-href="{% url 'projects:detail' project.pk %}#planning-crew" aria-label="{% translate 'Close' %}">{% icon "close" %}</button></div>
+  <div class="dialog-body form">
+    {% include "core/_form_errors.html" %}
+    {% for line in lines %}<input type="hidden" name="crew_lines" value="{{ line.pk }}">{% endfor %}
+    <p>{% blocktranslate count count=lines|length %}For this crew line:{% plural %}For these {{ count }} crew lines:{% endblocktranslate %}</p>
+    <ul class="chosen-lines">{% for label in labels %}<li>{{ label }}</li>{% endfor %}</ul>
+    <p class="muted small">{% translate "Only what you fill in is set; everything else stays as it is on each line. The people concerned are told once – a person asked or accepted is asked again for new times." %}</p>
+    {% for row in form.rows %}
+    <div class="form-row{% if row|length > 1 %} pair{% endif %}">{% for field in row %}{% include "core/_field.html" %}{% endfor %}</div>
+    {% endfor %}
+  </div>
+  <div class="dialog-foot">
+    <button type="button" class="btn secondary" data-close-dialog data-href="{% url 'projects:detail' project.pk %}#planning-crew">{% translate "Cancel" %}</button>
+    <button type="submit" class="btn">{% translate "Set for the chosen lines" %}</button>
+  </div>
+</form>

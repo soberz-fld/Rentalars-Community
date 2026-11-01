@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% blocktranslate with name=mailbox.name %}Delete mailbox “{{ name }}”{% endblocktranslate %}{% endblock %}
+{% block content %}
+{% comment %}
+  EML-046: deleting a mailbox, after saying what follows – the mails and the mail log keep its name, waiting
+  inquiries leave the list, no mailbox has its roles afterwards. Switching it off stays possible instead.
+{% endcomment %}
+<div class="page-head"><div><div class="breadcrumb"><a href="{% url 'core:administration' %}">{% translate "Settings" %}</a> / <a href="{% url 'mail:settings' %}">{% translate "Mailboxes and signature" %}</a> / <a href="{% url 'mail:mailbox_edit' mailbox.pk %}">{{ mailbox.name }}</a></div>
+<h1>{% blocktranslate with name=mailbox.name %}Delete mailbox “{{ name }}”{% endblocktranslate %}</h1></div></div>
+{% if error %}<p class="note red" role="alert">{{ error }}</p>{% endif %}
+<form method="post" class="panel mailbox-delete">
+  {% csrf_token %}
+  <div class="panel-body">
+    <h2>{% translate "What follows" %}</h2>
+    <ul class="consequences">
+      {% if deletion.mails %}<li>{% blocktranslate with name=mailbox.name count count=deletion.mails %}{{ count }} mail of the projects came in or went out through it. It stays and keeps naming “{{ name }}”.{% plural %}{{ count }} mails of the projects came in or went out through it. They stay and keep naming “{{ name }}”.{% endblocktranslate %}</li>{% endif %}
+      {% if deletion.log_entries %}<li>{% blocktranslate count count=deletion.log_entries %}The mail log names it in {{ count }} entry; it stays as well.{% plural %}The mail log names it in {{ count }} entries; they stay as well.{% endblocktranslate %}</li>{% endif %}
+      {% if not deletion.mails and not deletion.log_entries %}<li>{% translate "No mail came in or went out through it so far." %}</li>{% endif %}
+      {% if deletion.waiting %}<li>{% blocktranslate count count=deletion.waiting %}{{ count }} inquiry or mail with an unknown tag waits in it under Projects → Inquiries. It leaves the list; on the server it stays in the mailbox.{% plural %}{{ count }} inquiries or mails with an unknown tag wait in it under Projects → Inquiries. They leave the list; on the server they stay in the mailbox.{% endblocktranslate %}</li>{% endif %}
+      {% if deletion.roles %}<li>{% blocktranslate with roles=deletion.roles|join:", " %}Afterwards no mailbox has its roles ({{ roles }}).{% endblocktranslate %}
+        {% if mailbox.for_correspondence and mailbox.is_active %}{% translate "Its new mails are no longer fetched." %}{% endif %}
+        {% if mailbox.is_outgoing and mailbox.is_active and not deletion.needs_successor and not deletion.blocked %}{% translate "Mails can no longer be written in the projects until another mailbox sends the correspondence." %}{% endif %}
+        {% if mailbox.for_system and mailbox.is_active %}{% translate "Invitations, password links and notifications then go out through the mail server in the configuration of the installation." %}{% endif %}
+      </li>{% endif %}
+      {% if deletion.takes_crew_answers %}<li>{% translate "Answers to deployment requests by mail go to this mailbox: answers to requests sent so far no longer arrive. New requests name another mailbox, or carry only the link." %}</li>{% endif %}
+    </ul>
+    {% if deletion.blocked %}
+      <p class="note red">{{ deletion.blocked }}</p>
+    {% elif deletion.needs_successor %}
+      {% if deletion.successors|length == 1 %}
+        {% with successor=deletion.successors.0 %}<input type="hidden" name="successor" value="{{ successor.pk }}"><p class="note accent">{% blocktranslate with name=successor.name %}This mailbox sends the correspondence. Afterwards “{{ name }}” does.{% endblocktranslate %}</p>{% endwith %}
+      {% else %}
+        <div class="field">
+          <label for="id_successor">{% translate "Sends the correspondence from now on" %}</label>
+          <select id="id_successor" name="successor" required aria-describedby="id_successor_help">
+            {% for successor in deletion.successors %}<option value="{{ successor.pk }}">{{ successor.name }}{% if successor.address %} ({{ successor.address }}){% endif %}</option>{% endfor %}
+          </select>
+          <div class="help" id="id_successor_help">{% translate "This mailbox sends the correspondence; one of the other mailboxes of the correspondence takes that over." %}</div>
+        </div>
+      {% endif %}
+    {% endif %}
+  </div>
+  <div class="panel-body">
+    <div class="btn-row">
+      <button class="btn danger" type="submit"{% if deletion.blocked %} disabled{% endif %}>{% icon "trash" %}{% translate "Delete mailbox" %}</button>
+      {% if mailbox.is_active %}<button class="btn secondary" type="submit" name="action" value="switch_off">{% translate "Only switch off" %}</button>{% endif %}
+      <a class="btn secondary" href="{% url 'mail:mailbox_edit' mailbox.pk %}">{% translate "Cancel" %}</a>
+    </div>
+    {% if mailbox.is_active %}<p class="muted small">{% translate "Switched off, the mailbox stays in the list and can be switched on again; it is neither fetched nor used for sending." %}</p>{% endif %}
+  </div>
+</form>
+{% endblock %}

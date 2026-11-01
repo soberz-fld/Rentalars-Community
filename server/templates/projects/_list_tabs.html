@@ -1,0 +1,13 @@
+{% load i18n %}
+{# The tabs of the projects section: the list, the open items (PRJ-059) and the inquiries of the module E-mail (EML-042). #}
+<nav class="tabs" aria-label="{% translate 'Projects' %}">
+  {% if can.read.projects %}
+  <a href="{% url 'projects:list' %}"{% if tab == "list" %} aria-current="page"{% endif %}>{% translate "Projects" %}</a>
+  {# AUT-031: not for a role with the overview only (the role "Crew") – the page sums up the planning. #}
+  {% if can.planning %}<a href="{% url 'projects:open_items' %}"{% if tab == "open_items" %} aria-current="page"{% endif %}>{% translate "Open items" %}</a>{% endif %}
+  {# PRJ-090: service cases have a list of their own. #}
+  <a href="{% url 'projects:cases' %}"{% if tab == "cases" %} aria-current="page"{% endif %}>{% translate "Service cases" %}</a>
+  {# DOK-016: the monthly statement of the service cases is a tab of "Buchhaltung" (DOK-019, documents/_accounting_tabs.html). #}
+  {% endif %}
+  {% if can.read.email %}<a href="{% url 'mail:unknown_list' %}"{% if tab == "inquiries" %} aria-current="page"{% endif %}>{% translate "Inquiries" %}</a>{% endif %}
+</nav>

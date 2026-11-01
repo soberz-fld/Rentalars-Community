@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "My times" %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>{% translate "My area" %}</h1></div>
+  <div class="actions">{% if can_record %}<a class="btn secondary" href="{% url 'timetracking:expense_new' %}" hx-get="{% url 'timetracking:expense_new' %}" hx-target="#dialog">{% icon "plus" %}{% translate "Record expenses" %}</a>{% endif %}{% if can_record or may_manage %}<a class="btn" href="{% url 'timetracking:quick' %}" hx-get="{% url 'timetracking:quick' %}" hx-target="#dialog">{% icon "clock" %}{% translate "Record time" %}</a>{% endif %}</div>
+</div>
+{% include "personnel/_my_tabs.html" with tab="times" %}
+{% include "timetracking/_my_times.html" %}
+{% endblock %}

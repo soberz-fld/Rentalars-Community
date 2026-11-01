@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% load i18n static %}
+{% block title %}{% translate "Manual" %}{% endblock %}
+{% block content %}
+{# UIX-029 (manual chapters): the table of contents of the user manual – one page per chapter, /manual/<n>/. (UIX-057) #}
+<div class="page-head"><div><h1>{% translate "Manual" %}</h1><p class="lead">{% translate "How to work with Rentalars – the user manual of this version." %}</p></div></div>
+{% if manual.fallback %}<div class="note" role="note" lang="en-GB">{% translate "The English manual is not available yet. Here is the German one." %}</div>{% endif %}
+<form class="searchbar manual-search" method="get" action="{% url 'core:manual' %}" role="search" aria-label="{% translate 'Search the manual' %}">
+  <input type="search" name="q" value="{{ query }}" maxlength="100" aria-label="{% translate 'Search the manual' %}" placeholder="{% translate 'Search the manual' %}">
+  <button class="btn" type="submit">{% translate "Search" %}</button>
+</form>
+<div class="manual-body" lang="{% if manual.language == 'en' %}en-GB{% else %}de{% endif %}">
+{% if results is not None %}
+<section class="panel manual-results" aria-labelledby="manual-results-title">
+  <div class="panel-head"><h2 id="manual-results-title">{% blocktranslate count counter=results|length %}{{ counter }} section for “{{ query }}”{% plural %}{{ counter }} sections for “{{ query }}”{% endblocktranslate %}</h2></div>
+  {% if results %}
+  <ol class="manual-hits">
+    {% for hit in results %}<li>
+      <a href="{% url 'core:manual_chapter' hit.chapter.number %}#{{ hit.anchor }}">{{ hit.heading }}</a>
+      <span class="muted small">{{ hit.chapter.title }}</span>
+      <p class="small">{% for text, matched in hit.snippet %}{% if matched %}<mark>{{ text }}</mark>{% else %}{{ text }}{% endif %}{% endfor %}</p>
+    </li>{% endfor %}
+  </ol>
+  {% else %}
+  <div class="empty"><strong>{% translate "No section of the manual contains all these words." %}</strong>{% translate "Search for fewer or shorter words, or choose a chapter below." %}</div>
+  {% endif %}
+</section>
+{% endif %}
+<section class="panel manual-intro" aria-labelledby="manual-contents-title">
+  <div class="panel-head"><h2 id="manual-contents-title">{% translate "Contents" %}</h2></div>
+  <div class="panel-body">
+    <ol class="manual-chapters">
+      {% for chapter in manual.chapters %}
+      <li><a class="manual-chapter-link" href="{% url 'core:manual_chapter' chapter.number %}">{{ chapter.title }}</a>{% if chapter.description %}<p class="muted">{{ chapter.description }}</p>{% endif %}{% if chapter.section_names %}<p class="muted small">{{ chapter.section_names|join:" · " }}</p>{% endif %}</li>
+      {% endfor %}
+    </ol>
+  </div>
+</section>
+{% if guides %}
+<section class="panel manual-guides" aria-labelledby="manual-guides-title">
+  <div class="panel-head"><h2 id="manual-guides-title">{% translate "Operating guides" %}</h2></div>
+  <div class="panel-body">
+    <p class="muted">{% translate "Installation, operation, updates, backup, encryption and the import of material lists – for whoever runs Rentalars." %}</p>
+    <ul class="manual-chapters">{% for guide in guides %}<li><a class="manual-guide-link" href="{% url 'core:manual_guide' guide.key %}">{{ guide.title }}</a></li>{% endfor %}</ul>
+  </div>
+</section>
+{% endif %}
+<article class="manual panel manual-intro-text">
+  <div class="panel-body">{{ manual.introduction_html|safe }}</div>
+</article>
+</div>
+<script src="{% static 'js/manual.js' %}" data-anchors="{% url 'core:manual_anchors' %}" data-chapter-base="{% url 'core:manual' %}" defer></script>
+{% endblock %}

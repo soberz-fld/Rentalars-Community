@@ -1,0 +1,35 @@
+{% load i18n rentalars %}
+{% comment %}
+  The foot of a list: how many entries, which page, and (UIX-012) how many entries per page. The choice is
+  a plain link, so it works without scripts and can be shared like every other state of a list (UIX-004).
+  It starts the list at page 1 again: "page 3" means other rows with another page length.
+  UIX-050: besides 25, 50, 100 and 200 a field takes any number from 5 to 1,000 – a GET
+  form that keeps the rest of the address; a refused number is said next to the field. The choice is remembered
+  per user and list (core.listing.paginate, which also builds every link used here).
+{% endcomment %}
+{% with paginator=page.paginator %}
+<div class="pagination">
+  <span>{% blocktranslate count counter=paginator.count with total=paginator.count|thousands %}{{ total }} entry{% plural %}{{ total }} entries{% endblocktranslate %}{% if paginator.num_pages > 1 %}, {% blocktranslate with number=page.number pages=paginator.num_pages %}page {{ number }} of {{ pages }}{% endblocktranslate %}{% endif %}</span>
+  {% if paginator.offers_sizes %}
+  <span class="page-sizes">{% translate "Per page" %}
+    {# One item per line: the line break keeps the numbers apart even where the style sheet is missing. #}
+    {% for size, url, current in paginator.size_links %}
+    {% if current %}<strong aria-current="true">{{ size }}</strong>{% else %}<a href="{{ url }}" aria-label="{% blocktranslate %}{{ size }} entries per page{% endblocktranslate %}">{{ size }}</a>{% endif %}
+    {% endfor %}
+  </span>
+  <form method="get" class="page-size-form">
+    {% for name, value in paginator.kept_parameters %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}
+    <label for="{{ paginator.size_field_id }}">{% translate "Own number" %}</label>
+    <input type="number" id="{{ paginator.size_field_id }}" name="{{ paginator.size_param }}" min="{{ paginator.size_min }}" max="{{ paginator.size_max }}" step="1" inputmode="numeric" value="{{ paginator.typed_size }}" aria-describedby="{{ paginator.size_field_id }}-hint"{% if paginator.size_error %} aria-invalid="true"{% endif %}>
+    <button class="btn secondary small" type="submit">{% translate "Show" %}</button>
+    {% if paginator.size_error %}<span id="{{ paginator.size_field_id }}-hint" class="error" role="alert">{{ paginator.size_error }}</span>{% else %}<span id="{{ paginator.size_field_id }}-hint" class="visually-hidden">{% blocktranslate with min=paginator.size_min max=paginator.size_max|thousands %}Entries per page, from {{ min }} to {{ max }}{% endblocktranslate %}</span>{% endif %}
+  </form>
+  {% endif %}
+  {% if paginator.num_pages > 1 %}
+  <span class="btn-row">
+    {% if page.has_previous %}<a class="btn secondary small" href="{% if page.previous_url %}{{ page.previous_url }}{% else %}?{% query page=page.previous_page_number %}{% endif %}">{% translate "Previous" %}</a>{% endif %}
+    {% if page.has_next %}<a class="btn secondary small" href="{% if page.next_url %}{{ page.next_url }}{% else %}?{% query page=page.next_page_number %}{% endif %}">{% translate "Next" %}</a>{% endif %}
+  </span>
+  {% endif %}
+</div>
+{% endwith %}

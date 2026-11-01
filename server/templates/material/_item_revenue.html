@@ -1,0 +1,28 @@
+{% load i18n rentalars %}
+{% comment %}
+  MAT-053: what an item earned – directly, in the projects it was assigned to when packing, and its share of the
+  pieces that went out without an item assigned – against its purchase price; bought in a set (MAT-054), the set's.
+{% endcomment %}
+<section class="panel" id="item-revenue" aria-labelledby="item-revenue-title">
+  <div class="panel-head"><h2 id="item-revenue-title">{% translate "Calculated earnings" %}</h2></div>
+  <div class="panel-body">
+    <dl class="facts">
+      <dt>{% translate "Calculated: earned with this item" %}</dt><dd><strong>{{ revenue.total|money }}</strong>{% if revenue.projects %} <span class="muted small">{% blocktranslate count count=revenue.projects %}in {{ count }} project{% plural %}in {{ count }} projects{% endblocktranslate %}</span>{% endif %}</dd>
+      <dt>{% translate "of which assigned" %}</dt><dd>{{ revenue.direct|money }} <span class="muted small">{% translate "projects it was chosen for when packing" %}</span></dd>
+      <dt>{% translate "of which estimated" %}</dt><dd>{{ revenue.estimated|money }} <span class="muted small">{% translate "its share of the pieces that went out without an item chosen" %}</span></dd>
+      {% if may_see_purchase_prices %}
+      {% if revenue.set_items %}
+      <dt>{% translate "The set earned" %}</dt><dd>{{ revenue.set_revenue|money }} <span class="muted small">{% for member in revenue.set_items %}{{ member.display_id }}{% if not forloop.last %}, {% endif %}{% endfor %}</span></dd>
+      <dt>{% translate "Purchase price of the set" %}</dt><dd>{{ revenue.purchase_price|money|default:"–" }}</dd>
+      {% else %}
+      <dt>{% translate "Purchase price (net)" %}</dt><dd>{{ revenue.purchase_price|money|default:"–" }}</dd>
+      {% endif %}
+      <dt>{% translate "Share of the purchase price" %}</dt>
+      <dd>{% if revenue.share_percent is not None %}<span class="badge {% if revenue.share_percent >= 100 %}green{% elif revenue.share_percent >= 50 %}yellow{% endif %}">{{ revenue.share_percent|number }} %</span>
+        <div class="progress revenue-progress" role="img" aria-label="{{ revenue.share_percent|number }} %"><span style="width: {% if revenue.share_percent > 100 %}100{% else %}{{ revenue.share_percent|stringformat:'d' }}{% endif %}%"></span></div>
+        {% else %}<span class="muted">{% translate "no purchase price" %}</span>{% endif %}</dd>
+      {% endif %}
+    </dl>
+    <p class="muted small">{% translate "Lines after their discounts, in projects whose material went out; a kit's line shared out to its components by their prices." %}</p>
+  </div>
+</section>

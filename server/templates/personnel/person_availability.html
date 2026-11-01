@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Availability" %} – {{ person.name }}{% endblock %}
+{% block content %}
+{% include "personnel/_person_head.html" %}
+{# PER-021, PER-022, PER-030, PER-031: what the person said about their availability, and the busy times of their calendars. #}
+<div class="columns availability-columns{% if place.view == "week" %} is-week{% endif %}">
+  <section class="panel" id="availability">
+    <div class="panel-head"><h2>{% translate "Availability" %}</h2></div>
+    <div class="panel-body">
+      <p class="muted">{% translate "Green: available, yellow: available with limits, red: not available – entered by the person or busy in the linked calendar. Absences are entered on the page of the person." %}</p>
+      {% include "personnel/_availability_calendar.html" %}
+    </div>
+  </section>
+  <section class="panel" id="calendar">
+    <div class="panel-head"><h2>{% translate "Linked calendars" %}</h2></div>
+    <div class="panel-body calendar-block">
+      {# PER-031: the calendars with name, server and state – their addresses stay the person's secret (PER-022). #}
+      {% if feeds %}
+      <ul class="feed-list">
+        {% for feed in feeds %}
+        <li class="feed-row">
+          <span class="feed-name">{% if feed.label %}{{ feed.label }} <span class="muted small">{% blocktranslate with host=feed.host %}from {{ host }}{% endblocktranslate %}</span>{% else %}{% blocktranslate with host=feed.host %}linked, from {{ host }}{% endblocktranslate %}{% endif %}</span>
+          <span class="calendar-state">{% include "personnel/_feed_state.html" %}</span>
+          {% if can.write.personnel and not person.anonymised_at %}<form method="post" action="{% url 'personnel:person_feed_remove' person.pk feed.pk %}" class="inline-form">{% csrf_token %}<button class="link-btn" type="submit" data-confirm="{% translate 'Remove the link? The busy times taken from it disappear.' %}">{% translate "remove" %}</button></form>{% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="muted">{% translate "No calendar linked. The person can link calendars under “My area → Availability”, or you enter a link here." %}</p>
+      {% endif %}
+      {% if can.write.personnel and not person.anonymised_at %}
+      {% if feeds %}
+      <form method="post" action="{% url 'personnel:person_feed' person.pk %}" class="btn-row calendar-now">{% csrf_token %}
+        <button class="btn secondary small" type="submit" name="read" value="1">{% icon "refresh" %}{% translate "Read now" %}</button>
+      </form>
+      {% endif %}
+      <form method="post" action="{% url 'personnel:person_feed' person.pk %}" class="inline-fields feed-add" novalidate>
+        {% csrf_token %}
+        <div class="field grow"><label for="{{ feed_form.url.id_for_label }}">{% if feeds %}{% translate "Link another calendar (ICS link)" %}{% else %}{{ feed_form.url.label }}{% endif %}</label>{{ feed_form.url }}</div>
+        <div class="field label-field"><label for="{{ feed_form.label.id_for_label }}">{{ feed_form.label.label }}{% include "core/_required_mark.html" with field=feed_form.label %}</label>{{ feed_form.label }}</div>
+        <button class="btn secondary" type="submit">{% translate "Link calendar" %}</button>
+      </form>
+      <p class="help-line">{% translate "The links themselves stay hidden: they give access to the person's appointments. Only the busy times count, never the titles." %}</p>
+      {% endif %}
+    </div>
+  </section>
+</div>
+{% endblock %}

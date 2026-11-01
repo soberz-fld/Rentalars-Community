@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% load i18n rentalars product_relations %}
+{% block title %}{{ model.name }}{% endblock %}
+{% block content %}
+{% include "material/_model_head.html" %}
+{# MAT-090: the photos are not the main thing – a narrow box beside the data, below it on a phone. #}
+<div class="with-aside"><div class="with-aside-main">
+<div class="panel"><div class="panel-body">
+  <dl class="facts">
+    {% if model.short_name %}<dt>{% translate "Short name" %}</dt><dd>{{ model.short_name }}</dd>{% endif %}
+    {% if model.specification %}<dt>{% translate "Description" %}</dt><dd>{{ model.specification|linebreaksbr }}</dd>{% endif %}
+    {% if model.category_specific_display %}<dt>{{ model.category.primary_field.label|default:_("Category-specific value") }}</dt><dd>{{ model.category_specific_display }}</dd>{% endif %}
+    <dt>{% translate "Product" %}</dt><dd>{% if model.default_product %}<a class="artno" href="{% url 'products:detail' model.default_product_id %}">{{ model.default_product.article_number }}</a> {{ model.default_product.name }}{% if model.default_product.pieces_per_product > 1 %}{# A product of several pieces #}<div class="muted small">{% blocktranslate with number=model.default_product.article_number count=model.default_product.pieces_per_product %}One piece of the product {{ number }} consists of {{ count }} items of this model.{% endblocktranslate %}</div>{% endif %}{% else %}<span class="badge yellow">{% translate "none – cannot be planned" %}</span>
+      {# MAT-051: one click makes a product of the same name; customer material needs its owner, so the form is used. #}
+      {% if can.write.material and can.write.products %}{% if model.category.holds_customer_material %} <a class="btn secondary small" href="{% url 'products:create' %}?category={{ model.category_id }}">{% icon "plus" %}{% translate "New product" %}</a>
+      {% else %}<form method="post" action="{% url 'material:model_create_product' model.pk %}" class="inline-form">{% csrf_token %}<button class="btn secondary small" type="submit">{% icon "plus" %}{% translate "Create as product" %}</button></form>{% endif %}{% endif %}{% endif %}</dd>
+    {# LOG-016: a model planned as material so far – or not yet – becomes vehicles of the fleet with a new vehicle product. #}
+    {% if can_join_fleet and can.write.material and can.write.products %}<dt>{% translate "Fleet" %}</dt><dd><a class="btn secondary small" href="{% url 'material:model_to_fleet' model.pk %}" hx-get="{% url 'material:model_to_fleet' model.pk %}" hx-target="#dialog" aria-haspopup="dialog">{% translate "Take into the fleet" %}</a> <span class="muted small">{% translate "For vehicles and trailers kept as material so far." %}</span></dd>{% endif %}
+    <dt>{% translate "Stock is kept as" %}</dt><dd>{{ model.get_tracking_mode_display }}</dd>
+    {% include "customfields/_model_fieldset.html" %}{# MAT-072 #}
+    {% for field in model.category.applicable_fields|slice:"1:" %}{% with value=model|field_value:field %}{% if value %}<dt>{{ field.label }}</dt><dd>{{ value }}</dd>{% endif %}{% endwith %}{% endfor %}
+    {% if model.weight_kg %}<dt>{% translate "Weight" %}</dt><dd>{{ model.weight_kg|number }} kg</dd>{% endif %}
+    {% if model.power_w is not None %}<dt>{% translate "Power" context "material" %}</dt><dd>{{ model.power_w|number }} W</dd>{% endif %}
+    {% include "material/_protection_class_fact.html" with item=None %}
+    {% if model.dimensions_display %}<dt>{% translate "Dimensions" %}</dt><dd>{{ model.dimensions_display }}{% if model.volume_litres %} <span class="muted small">({{ model.volume_litres|number }} l)</span>{% endif %}</dd>{% endif %}
+    {% if inspection_types %}<dt>{% translate "Inspections" %}</dt><dd>{% for inspection_type in inspection_types %}{{ inspection_type.name }} ({% blocktranslate count months=inspection_type.interval_months %}every month{% plural %}every {{ months }} months{% endblocktranslate %}){% if not forloop.last %}, {% endif %}{% endfor %}</dd>{% endif %}
+  </dl>
+</div></div>
+</div>
+{% include "material/_photos.html" with title=_("Photos") %}{# MAT-090 #}
+</div>
+{# MAT-058: what the items earned, loaded after the page like the box of an item (MAT-053). #}
+{% if model.default_product %}{% product_relations model.default_product editable=False %}{% endif %}
+{% if show_revenue %}<div hx-get="{% url 'projects:model_revenue' model.pk %}" hx-trigger="load" hx-target="this" hx-swap="outerHTML"><section class="panel"><div class="panel-head"><h2>{% translate "Earnings" %}</h2></div><div class="panel-body muted">{% translate "Calculating what the items earned …" %}</div></section></div>{% endif %}
+<section class="panel">
+  <div class="panel-head"><h2>{% if model.is_bulk %}{% translate "Stock" %}{% else %}{% translate "Items" %}{% endif %}</h2></div>
+  {% if page.object_list %}
+  <table class="table stack">
+    <thead><tr><th>{% translate "ID" %}</th>{% if model.is_bulk %}<th class="num">{% translate "Free stock" %}</th><th class="num">{% translate "Built in" %}</th>{% endif %}<th>{% translate "Serial number" %}</th><th>{% translate "Installed in" %}</th><th>{% translate "Purchased" %}</th><th>{% translate "Status" %}</th></tr></thead>
+    <tbody>
+    {% for item in page %}
+      <tr>
+        <td><a class="tape" href="{% url 'material:item_detail' item.pk %}">{{ item.display_id }}</a></td>
+        {% if model.is_bulk %}<td class="num" data-label="{% translate 'Free stock' %}">{{ item.quantity }}</td><td class="num" data-label="{% translate 'Built in' %}">{% if item.built_in_total %}<a href="{% url 'material:item_detail' item.pk %}#built-in">{{ item.built_in_total }}</a>{% else %}0{% endif %}</td>{% endif %}
+        <td data-label="{% translate 'Serial number' %}">{{ item.serial_number }}</td>
+        <td data-label="{% translate 'Installed in' %}">{% if item.installed_in %}<a class="tape" href="{% url 'material:item_detail' item.installed_in_id %}">{{ item.installed_in.inventory_number|item_id }}</a>{% endif %}</td>
+        <td data-label="{% translate 'Purchased' %}">{{ item.purchase_date_text }}{% if item.supplier %} <span class="muted">{{ item.supplier }}</span>{% endif %}</td>
+        <td data-label="{% translate 'Status' %}"><span class="badge {{ item.status|status_colour }}">{{ item.get_status_display }}</span></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty"><strong>{% translate "This model has no items yet." %}</strong>{% translate "Create the pieces you have in stock." %}</div>
+  {% endif %}
+  {% include "core/_pagination.html" %}
+</section>
+{% include "schedule/_calendar_link.html" with subject=model %}{# VFG-040 #}
+{% if can.delete.material and not page.object_list %}
+<form method="post" action="{% url 'material:model_delete' model.pk %}" class="section">{% csrf_token %}<button class="btn danger" type="submit" data-confirm="{% translate 'Delete this material model?' %}">{% icon "trash" %}{% translate "Delete model" %}</button></form>
+{% endif %}
+{% endblock %}

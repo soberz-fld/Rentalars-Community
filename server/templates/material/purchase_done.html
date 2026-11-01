@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Purchase entered" %}{% endblock %}
+{% block content %}
+{# MAT-061: what "Kauf einpflegen" created, with the labels to print for it (MAT-026). #}
+<div class="page-head"><div><div class="breadcrumb"><a href="{% url 'material:item_list' %}">{% translate "Material management" %}</a></div><h1>{% translate "Purchase entered" %}</h1>
+{% if first %}<p class="lead">{% blocktranslate count count=items|length %}{{ count }} item{% plural %}{{ count }} items{% endblocktranslate %}{% if first.supplier %} · {{ first.supplier.name }}{% endif %}{% if first.invoice_number %} · {% if first.purchase_date %}{% blocktranslate with number=first.invoice_number date=first.purchase_date|date:"d.m.Y" %}Invoice {{ number }} of {{ date }}{% endblocktranslate %}{% else %}{% blocktranslate with number=first.invoice_number %}Invoice {{ number }}{% endblocktranslate %}{% endif %}{% endif %}{% if invoice_count %} · {% blocktranslate count count=invoice_count %}invoice attached to {{ count }} item{% plural %}invoice attached to {{ count }} items{% endblocktranslate %}{% endif %}</p>{% endif %}</div>
+  <div class="actions">{% if items %}<a class="btn" href="{% url 'material:labels' %}?items={{ ids|urlencode }}">{% icon "print" %}{% translate "Print labels" %}</a>{% endif %}{% if can.write.material %}<a class="btn secondary" href="{% url 'material:purchase' %}">{% icon "plus" %}{% translate "Enter another purchase" %}</a>{% endif %}</div>
+</div>
+{# The question whether the purchase is to be recorded as an incoming invoice of Buchhaltung too (rentalars/incoming/services.create_from_purchase). #}
+{% if may_record_invoice and bookkeeping_on %}
+<section class="panel" aria-labelledby="record-invoice-title">
+  <div class="panel-head"><h2 id="record-invoice-title">{% translate "Record as an incoming invoice too?" %}</h2></div>
+  <form method="post" action="{% url 'incoming:from_purchase' %}" class="panel-body">{% csrf_token %}
+    <input type="hidden" name="items" value="{{ ids }}">
+    <p>{% translate "The attached invoice is put in the accounting as an incoming invoice. Supplier, number, date and the positions are taken from this purchase; you add the totals and the tax accounts." %}</p>
+    <div class="btn-row"><button class="btn" type="submit">{% translate "Yes, record it" %}</button><a class="btn secondary" href="{% url 'material:item_list' %}">{% translate "No, that is all" %}</a></div>
+  </form>
+</section>
+{% endif %}
+{# MAT-073: the purchase entry asks for no custom values; new items lacking a required one are named. #}
+{% include "customfields/_missing_required.html" %}
+<section class="panel">
+  {% if items %}
+  <table class="table stack">
+    <thead><tr><th scope="col">{% translate "ID" %}</th><th scope="col">{% translate "Model" %}</th><th scope="col">{% translate "Serial number" %}</th><th scope="col">{% translate "Storage location" %}</th>{% if with_prices %}<th scope="col" class="num">{% translate "Purchase price (net)" %}</th>{% endif %}</tr></thead>
+    <tbody>
+    {% for item in items %}
+      <tr>
+        <td><a class="tape" href="{% url 'material:item_detail' item.pk %}">{{ item.display_id }}</a></td>
+        <td data-label="{% translate 'Model' %}"><a href="{% url 'material:model_detail' item.material_model_id %}">{{ item.material_model.name }}</a>{% if item.material_model.is_bulk %} <span class="muted small">{% blocktranslate with quantity=item.quantity %}quantity {{ quantity }}{% endblocktranslate %}</span>{% endif %}</td>
+        <td data-label="{% translate 'Serial number' %}">{{ item.serial_number }}</td>
+        <td data-label="{% translate 'Storage location' %}">{{ item.storage_location.name|default:"" }}</td>
+        {% if with_prices %}<td class="num" data-label="{% translate 'Purchase price (net)' %}">{% if item.purchase_price_in_id %}{% blocktranslate with head=item.purchase_price_in.display_id %}included in the price of {{ head }}{% endblocktranslate %}{% else %}{{ item.purchase_price|money|default:"–" }}{% endif %}</td>{% endif %}
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<div class="empty">{% translate "No items." %}</div>{% endif %}
+</section>
+{% endblock %}

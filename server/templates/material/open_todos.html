@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Material with to-do" %}{% endblock %}
+{% block content %}
+{% comment %}
+  MAT-070: Offene Punkte → Material mit To-Do – one row per open to-do of an item in use, as a table of
+  core/tables.py (material/audit_tables.py): columns, sorting, groups, CSV. Who may change the material ticks to-dos
+  and marks them done together; without the page script the bar shows always (base.html).
+{% endcomment %}
+<div class="page-head"><div><h1>{% translate "Material management" %}</h1></div><div class="actions">{% include "material/_item_jump.html" %}{% if can.write.material %}<a class="btn secondary" href="{% url 'material:audit' %}">{% icon "inspection" %}{% translate "Audit" %}</a>{% endif %}</div></div>
+{% include "material/_tabs.html" %}
+{% include "material/_open_points_tabs.html" %}
+<p class="note">{% translate "Small things to be done on items – noted in an audit or on the page of an item. Tick them done once they are fixed." %}</p>
+<div class="panel">
+  <form method="get" class="filters">
+    <div class="field grow"><label for="f-q">{% translate "To-do, name or ID" %}</label><input type="search" id="f-q" name="q" value="{{ request.GET.q }}"></div>
+    {% filterpanel "material-todos" %}
+    <div class="field"><label for="f-todo">{% translate "To-do" %}</label>
+      <select id="f-todo" name="todo" data-autosubmit><option value="">{% translate "All" %}</option>{% for text in texts %}<option value="{{ text }}"{% if text == chosen_text %} selected{% endif %}>{{ text }}</option>{% endfor %}</select></div>
+    <div class="field"><label for="f-category">{% translate "Category" %}</label>
+      <select id="f-category" name="category" data-autosubmit><option value="">{% translate "All" %}</option>{% for category in categories %}<option value="{{ category.pk }}"{% if request.GET.category == category.pk|stringformat:"s" %} selected{% endif %}>{{ category.path }}</option>{% endfor %}</select></div>
+    <button class="btn secondary" type="submit">{% translate "Filter" %}</button>
+    {% endfilterpanel %}
+  </form>
+  {% include "core/_table_tools.html" %}
+  {% if page.object_list %}
+  {% if can.write.material %}{% include "core/_table.html" with stack=True select="todos" select_form="todos-done" %}{% else %}{% include "core/_table.html" with stack=True %}{% endif %}
+  {% if can.write.material %}
+  <form method="post" action="{% url 'material:todos_done' %}" id="todos-done" class="bulk-bar no-print" data-bulk-bar="todos" aria-label="{% translate 'Chosen to-dos' %}" hidden>
+    {% csrf_token %}
+    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+    <span class="count"><span data-chosen-count="todos">0</span> {% translate "chosen" %}</span>
+    <span class="bulk-buttons">
+      <button class="btn small" type="submit">{% icon "check" %}{% translate "Mark chosen to-dos done" %}</button>
+      <button class="btn secondary small" type="button" data-bulk-clear="todos">{% translate "Clear choice" %}</button>
+    </span>
+  </form>
+  {% endif %}
+  {% else %}
+  <div class="empty"><strong>{% translate "No open to-dos." %}</strong>{% translate "To-dos are noted in the audit or on the page of an item." %}</div>
+  {% endif %}
+  {% include "core/_pagination.html" %}
+</div>
+{% endblock %}

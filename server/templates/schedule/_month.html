@@ -1,0 +1,26 @@
+{% load i18n %}
+{% comment %}
+  VFG-020: the month, one grid per week. Grid row 1 holds the dates, then one row per lane of bars, then a row
+  for "+n" (projects that did not fit) and the phases of the day. The day cells lie behind everything and span
+  all rows. Each bar names its status and period in words for screen readers; colour is never the only sign.
+  VFG-039: phases only when chosen; the follow-ups of a day below its phases, when chosen.
+  Expects: weeks (calendars.MonthWeek), weekdays.
+{% endcomment %}
+<div class="month-cal">
+  <div class="month-head" aria-hidden="true">{% for day in weekdays %}<div>{{ day|date:"D" }}</div>{% endfor %}</div>
+  {% for week in weeks %}
+  <div class="month-week" role="group" aria-label="{% blocktranslate with number=week.number %}Week {{ number }}{% endblocktranslate %}" style="{{ week.rows_style }}">
+    {% for cell, column, hidden in week.cells %}<div class="month-cell{% if not cell.in_month %} other-month{% endif %}{% if cell.is_today %} today{% endif %}{% if cell.day.weekday >= 5 %} weekend{% endif %}" style="grid-column: {{ column }}"></div>{% endfor %}
+    {% for cell, column, hidden in week.cells %}<div class="month-date{% if not cell.in_month %} other-month{% endif %}{% if cell.is_today %} today{% endif %}" style="grid-column: {{ column }}"><a href="?view=week&amp;week={{ cell.day|date:'Y-m-d' }}" title="{% translate 'Open this week' %}">{{ cell.day|date:"j" }}<span class="weekday-name"> {{ cell.day|date:"D" }}</span>{% if cell.is_today %}<span class="visually-hidden"> ({% translate "today" %})</span>{% endif %}</a></div>{% endfor %}
+    {% for segment in week.segments %}{% if segment.shown %}<a class="month-bar {{ segment.css }}{% if segment.starts_before %} from-before{% endif %}{% if segment.ends_after %} goes-on{% endif %}" style="{{ segment.style }}" href="{{ segment.url }}" title="{{ segment.title }} · {{ segment.status_label }}">{{ segment.label }}<span class="visually-hidden">, {{ segment.status_label }}, {{ segment.record.start|date:"d.m. H:i" }} – {{ segment.record.end|date:"d.m. H:i" }}</span></a>{% endif %}{% endfor %}
+    {% for cell, column, hidden in week.cells %}{% if hidden or cell.phases or cell.follow_ups %}<div class="month-extra" style="grid-column: {{ column }}; grid-row: {{ week.extra_row }}">
+      {% if hidden %}<a class="month-more" href="?view=week&amp;week={{ cell.day|date:'Y-m-d' }}" title="{% translate 'Open this week' %}">+{{ hidden }}<span class="visually-hidden"> {% blocktranslate with day=cell.day|date:"d.m." count count=hidden %}more project on {{ day }}{% plural %}more projects on {{ day }}{% endblocktranslate %}</span></a>{% endif %}
+      {% for phase in cell.phases|slice:":2" %}<div class="phase-mark" title="{{ phase.project.name }}: {{ phase.label }} {{ phase.start|date:'d.m. H:i' }} – {{ phase.end|date:'d.m. H:i' }}">{{ phase.label }} · {{ phase.project.number }}</div>{% endfor %}
+      {% if cell.phases|length > 2 %}<div class="phase-mark">{% blocktranslate count count=cell.phases|length|add:"-2" %}and {{ count }} more phase{% plural %}and {{ count }} more phases{% endblocktranslate %}</div>{% endif %}
+      {# VFG-039: the follow-ups of the day, each a link to its project or service case. #}
+      {% for mark in cell.follow_ups|slice:":3" %}<a class="follow-up-mark" href="{{ mark.url }}" title="{{ mark.title }}">{% translate "Follow-up" %}{% if mark.time %} {{ mark.time_text }}{% endif %} · {{ mark.project.number }}</a>{% endfor %}
+      {% if cell.follow_ups|length > 3 %}<a class="follow-up-mark" href="?view=week&amp;week={{ cell.day|date:'Y-m-d' }}">{% blocktranslate count count=cell.follow_ups|length|add:"-3" %}and {{ count }} more follow-up{% plural %}and {{ count }} more follow-ups{% endblocktranslate %}</a>{% endif %}
+    </div>{% endif %}{% endfor %}
+  </div>
+  {% endfor %}
+</div>

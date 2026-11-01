@@ -1,0 +1,58 @@
+{% load i18n rentalars %}
+{% comment %}
+  The block "personnel" of the planning (PRJ-038): the crew lines of the whole project, never in groups,
+  with a subtotal of their own. Prices need the price right, hourly rates and costs the right for
+  personnel costs (AUT-019). A line names its phase (PRJ-080) and can be billed per day
+  (PER-029). A line names the service product of its job function, linked (PRD-044), and shows
+  the hours beyond the limit of a day with their price and cost (PER-035). The surcharges for night,
+  Sunday and holidays are shown in amount and cost (PER-009). Expects: planning; oob (optional).
+  PRJ-117 (crew planning): for whoever plans the crew every line has a box (name "crew_lines", form "crew-selection")
+  and the head one for all; the bar "chosen crew lines" below the table – shown by app.js while a box is ticked
+  (UIX-048), always without scripts – plans firmly, asks, deletes, or opens the dialog to set values.
+{% endcomment %}
+<section id="planning-crew"{% if oob %} hx-swap-oob="true"{% endif %} class="group">
+  {% include "projects/_planning_crew_lines.html" %}
+
+  {% if planning.loose_times %}
+  <div class="loose-times">
+    <p><strong>{% translate "Approved times without crew line" %}</strong> <span class="muted small">{% translate "Somebody worked without being scheduled for that job function. Count the times towards a line, or make a line of them." %}</span></p>
+    {% for bundle in planning.loose_times %}
+    <form class="btn-row" hx-post="{% url 'projects:crew_times' project.pk %}" hx-target="#planning" hx-swap="outerHTML">
+      <input type="hidden" name="person" value="{{ bundle.person.pk }}"><input type="hidden" name="job_function" value="{{ bundle.job_function.pk }}">
+      <span>{{ bundle.person.name }}, {{ bundle.job_function.name }}: <strong>{{ bundle.hours|number }} {% translate "h" %}</strong></span>
+      {% if can_plan_crew %}
+      <select name="line" aria-label="{% translate 'Crew line' %}">
+        <option value="new">{% translate "as a new crew line" %}</option>
+        {% for planned in planning.crew %}{% if planned.line.person_id == bundle.person.pk or planned.line.is_vacant %}<option value="{{ planned.line.pk }}">{{ planned.line.title }}{% if planned.line.person %} – {{ planned.line.person.name }}{% else %} – {% translate "open" context "crew" %}{% endif %}</option>{% endif %}{% endfor %}
+      </select>
+      <button class="btn secondary small" type="submit">{% translate "Take over" %}</button>
+      {% endif %}
+    </form>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if can_plan_crew %}
+  {# Add forms of the planning: the layout of .add-row – fields on one line, then the group of buttons (.add-actions), the help below. #}
+  <form class="line-add add-row crew-add no-print" hx-post="{% url 'projects:crew_add' project.pk %}" hx-target="#planning" hx-swap="outerHTML" autocomplete="off">
+    <div class="field"><label for="{{ crew_add_form.job_function.id_for_label }}">{% translate "Job function" %}</label>{{ crew_add_form.job_function }}</div>
+    <div class="field grow"><label for="{{ crew_add_form.person.id_for_label }}">{% translate "Person" %}</label>{{ crew_add_form.person }}</div>
+    <div class="field narrow"><label for="{{ crew_add_form.count.id_for_label }}">{% translate "Places" %}</label>{{ crew_add_form.count }}</div>
+    {% comment %}
+      PRJ-080: choosing a phase fills in its period. PRJ-094: for whoever edits the project, app.js adds "New phase …"
+      – and shows the list also while the project has no phase yet (hidden without the script, it would offer nothing).
+      The help of the list is the line below the fields (.add-help), named by the list (aria-describedby).
+    {% endcomment %}
+    {% if crew_add_form.has_phases or crew_add_form.offers_new_phase %}<div class="field"{% if not crew_add_form.has_phases %} data-new-phase-field hidden{% endif %}><label for="{{ crew_add_form.phase.id_for_label }}">{% translate "Phase" %}</label>{{ crew_add_form.phase }}</div>{% endif %}
+    <div class="field when"><label for="{{ crew_add_form.start.id_for_label }}">{% translate "From" %}</label>{{ crew_add_form.start }}</div>
+    <div class="field when"><label for="{{ crew_add_form.end.id_for_label }}">{% translate "Until" %}</label>{{ crew_add_form.end }}</div>
+    <div class="add-actions">
+      <span class="range-slot" data-range-slot="start"></span>{# app.js puts "Zeitraum im Kalender wählen" here #}
+      {# PER-041 (firm planning): the person is planned without request – and told. #}
+      <div class="field crew-firm"><div class="check">{{ crew_add_form.firm }}<label for="{{ crew_add_form.firm.id_for_label }}">{% translate "Planned firmly (without request)" %}</label></div></div>
+      <button class="btn secondary" type="submit">{% icon "plus" %}{% translate "Plan" %}</button>
+    </div>
+    {% if crew_add_form.has_phases or crew_add_form.offers_new_phase %}{% if crew_add_form.phase.help_text %}<div class="add-help" id="{{ crew_add_form.phase.auto_id }}_helptext">{{ crew_add_form.phase.help_text }}</div>{% endif %}{% endif %}
+  </form>
+  {% endif %}
+</section>

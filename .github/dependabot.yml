@@ -1,0 +1,13 @@
+# Dependabot (S1): the libraries in requirements.txt are fixed to one version each. Without a reminder every
+# installation stays as it was released – with the known gaps of that day. This file lets GitHub propose the update.
+version: 2
+updates:
+  - package-ecosystem: "pip"
+    directory: "/server"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"

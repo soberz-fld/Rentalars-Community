@@ -1,0 +1,20 @@
+{% load i18n rentalars %}
+{% comment %}
+  PRJ-083: the dialog "Alternative to …" for one line (its button "Alternative") or for the lines chosen on the
+  planning (PRJ-082). Expects: form (LineAlternativeForm), lines, labels, action.
+{% endcomment %}
+<form hx-post="{{ action }}" hx-target="#dialog" novalidate autocomplete="off">
+  <div class="dialog-head"><h2>{% translate "Alternative to another line" %}</h2><button type="button" class="icon-btn" data-close-dialog aria-label="{% translate 'Close' %}">{% icon "close" %}</button></div>
+  <div class="dialog-body form">
+    {% include "core/_form_errors.html" %}
+    {% for line in lines %}<input type="hidden" name="lines" value="{{ line.pk }}">{% endfor %}
+    <p>{% blocktranslate count count=lines|length %}This line becomes an alternative:{% plural %}These {{ count }} lines become alternatives:{% endblocktranslate %}</p>
+    <ul class="chosen-lines">{% for label in labels %}<li>{{ label }}</li>{% endfor %}</ul>
+    <p class="muted small">{% translate "An alternative is shown with its price, but it is not part of the total, the invoice or the packing list, and its material is only reserved like an option. Choose the line it could replace." %}</p>
+    <div class="form-grid">{% include "core/_field.html" with field=form.alternative_to %}</div>
+  </div>
+  <div class="dialog-foot">
+    <button type="button" class="btn secondary" data-close-dialog>{% translate "Cancel" %}</button>
+    <button type="submit" class="btn">{% translate "Mark as alternative" %}</button>
+  </div>
+</form>

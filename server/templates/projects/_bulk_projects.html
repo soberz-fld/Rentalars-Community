@@ -1,0 +1,12 @@
+{% load i18n rentalars %}
+{# What the bar under the list of projects offers besides the CSV file – the follow-up (projects.bulk). #}
+{% with f=bulk_fields %}
+<div class="field"><label for="bulk-fu-on">{{ f.follow_up_on.label }}</label><input type="date" id="bulk-fu-on" name="follow_up_on"></div>
+<div class="field"><label for="bulk-fu-at">{{ f.follow_up_at.label }}</label><input type="time" id="bulk-fu-at" name="follow_up_at"></div>
+<div class="field"><label for="bulk-fu-user">{{ f.follow_up_user.label }}</label><select id="bulk-fu-user" name="follow_up_user">{% for value, label in f.follow_up_user.field.choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></div>
+<div class="field"><label for="bulk-fu-note">{{ f.follow_up_note.label }}</label><input type="text" id="bulk-fu-note" name="follow_up_note" maxlength="250" placeholder="{% translate 'e.g. follow up the offer' %}"></div>
+<span class="bulk-buttons">
+  <button class="btn small" type="submit" formaction="{% url 'projects:bulk_projects' %}" name="action" value="follow_up">{% icon "calendar" %}{% translate "Set follow-up" %}</button>
+  <button class="btn secondary small" type="submit" formaction="{% url 'projects:bulk_projects' %}" name="action" value="clear_follow_up" formnovalidate>{% translate "Take off follow-up" %}</button>
+</span>
+{% endwith %}

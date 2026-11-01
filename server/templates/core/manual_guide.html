@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}{{ guide.title }} – {% translate "Manual" %}{% endblock %}
+{% block content %}
+{# An operating guide (installation, operation, update, backup, encryption, import) inside the manual. #}
+<div class="page-head"><div><h1>{% translate "Manual" %}</h1></div></div>
+{% if guide.fallback %}<div class="note" role="note" lang="en-GB">{% translate "The English manual is not available yet. Here is the German one." %}</div>{% endif %}
+<div class="manual-layout">
+  <nav class="manual-toc panel" aria-label="{% translate 'Operating guides' %}">
+    <details open>
+      <summary>{% translate "Operating guides" %}</summary>
+      <ol>
+        <li><a href="{% url 'core:manual' %}">{% translate "Contents of the manual" %}</a></li>
+        {% for entry in guides %}<li><a href="{% url 'core:manual_guide' entry.key %}"{% if entry.key == guide.key %} aria-current="page"{% endif %}>{% if entry.key == guide.key %}<strong>{{ entry.title }}</strong>{% else %}{{ entry.title }}{% endif %}</a></li>{% endfor %}
+      </ol>
+    </details>
+  </nav>
+  <div class="manual-main" lang="{% if guide.language == 'en' %}en-GB{% else %}de{% endif %}">
+    <p class="manual-pager manual-pager-top"><a class="btn secondary" href="{% url 'core:manual' %}">{% translate "Contents" %}</a></p>
+    <article class="manual panel" data-guide="{{ guide.key }}">
+      <div class="panel-body">{{ guide.html|safe }}</div>
+    </article>
+  </div>
+</div>
+{% endblock %}

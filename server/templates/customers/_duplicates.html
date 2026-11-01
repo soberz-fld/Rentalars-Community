@@ -1,0 +1,14 @@
+{% load i18n %}
+{% comment %}
+  Customers that may be the one being created (KND-008). Shown while typing (live) and again after "save";
+  then the customer is only created with the tick "create anyway".
+{% endcomment %}
+{% if duplicates %}
+<div class="note">
+  <strong>{% translate "This customer may exist already:" %}</strong>
+  <ul class="plain-list">
+    {% for duplicate in duplicates %}<li><a href="{% url 'customers:detail' duplicate.customer.pk %}" target="_blank" rel="noopener">{{ duplicate.customer.name }}</a> <span class="muted small">{{ duplicate.customer.number }}{% if duplicate.customer.city %}, {{ duplicate.customer.city }}{% endif %} – {{ duplicate.reason }}{% if not duplicate.customer.is_active %}, {% translate "deactivated" %}{% endif %}</span></li>{% endfor %}
+  </ul>
+  {% if not live and form.confirm_duplicate %}{% include "core/_field.html" with field=form.confirm_duplicate %}{% endif %}
+</div>
+{% endif %}

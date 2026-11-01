@@ -1,0 +1,23 @@
+{% load i18n rentalars %}
+{% comment %}
+  PRJ-111: change a trip of the project or add one of your own, opened from the trips on "Zeitplanung". The same
+  markup stands in the dialog and – for a browser without scripts – on a page of its own (trip_form.html).
+  For a trip Rentalars determines, a value left as it was keeps following the phases.
+  Expects: project, form, trip (None for a new trip), action.
+{% endcomment %}
+<form method="post" action="{{ action }}" hx-post="{{ action }}" hx-target="#dialog" novalidate autocomplete="off">
+  {% csrf_token %}
+  <div class="dialog-head"><h2>{% if trip %}{% blocktranslate with title=trip.title %}Change trip “{{ title }}”{% endblocktranslate %}{% else %}{% translate "New trip" %}{% endif %}</h2><button type="button" class="icon-btn" data-close-dialog data-href="{% url 'projects:course' project.pk %}#trips" aria-label="{% translate 'Close' %}">{% icon "close" %}</button></div>
+  <div class="dialog-body form">
+    {% include "core/_form_errors.html" %}
+    {% if trip and not trip.is_own %}<p class="muted small">{% translate "Rentalars determined this trip from the phases and subrentals. What you leave as it is follows them further; “Reset” brings the determined trip back." %}</p>{% endif %}
+    <div class="form-row pair">{% include "core/_field.html" with field=form.title %}{% include "core/_field.html" with field=form.start %}</div>
+    <div class="form-row pair">{% include "core/_field.html" with field=form.origin %}{% include "core/_field.html" with field=form.destination %}</div>
+    <div class="form-row">{% include "core/_field.html" with field=form.stops %}</div>
+    <div class="form-row">{% include "core/_field.html" with field=form.note %}</div>
+  </div>
+  <div class="dialog-foot">
+    <button type="button" class="btn secondary" data-close-dialog data-href="{% url 'projects:course' project.pk %}#trips">{% translate "Cancel" %}</button>
+    <button type="submit" class="btn">{% if trip %}{% translate "Save trip" %}{% else %}{% icon "plus" %}{% translate "Add trip" %}{% endif %}</button>
+  </div>
+</form>

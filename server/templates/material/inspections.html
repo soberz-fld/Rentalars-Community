@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Inspections" %}{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>{% translate "Material management" %}</h1></div><div class="actions">{% include "material/_item_jump.html" %}{% if can.read.administration %}<a class="btn secondary" href="{% url 'admin:material_inspectiontype_changelist' %}">{% icon "settings" %}{% translate "Inspection types" %}</a>{% endif %}{# MAT-083 #}</div></div>
+{% include "material/_tabs.html" %}
+{% comment %}MAT-032: items whose inspection is overdue or due within the chosen days, most urgent first.{% endcomment %}
+<div class="panel">
+  <form method="get" class="filters">
+    {% filterpanel "inspections" %}
+    <div class="field"><label for="f-type">{% translate "Inspection" %}</label><select id="f-type" name="type" data-autosubmit><option value="">{% translate "All" %}</option>{% for inspection_type in types %}<option value="{{ inspection_type.pk }}"{% if type_id == inspection_type.pk|stringformat:"d" %} selected{% endif %}>{{ inspection_type.name }}</option>{% endfor %}</select></div>
+    <div class="field"><label for="f-state">{% translate "State" %}</label><select id="f-state" name="state" data-autosubmit><option value="">{% translate "overdue and due soon" %}</option><option value="overdue"{% if state == "overdue" %} selected{% endif %}>{% translate "overdue" %}</option><option value="soon"{% if state == "soon" %} selected{% endif %}>{% translate "due soon" %}</option></select></div>
+    <div class="field"><label for="f-days">{% translate "Due within … days" %}</label><input type="number" id="f-days" name="days" min="0" max="365" value="{{ within }}" data-filter-default="{{ soon_days }}"></div>
+    <button class="btn secondary" type="submit">{% translate "Show" %}</button>
+    {% endfilterpanel %}
+  </form>
+  {% if rows %}
+  <p class="panel-body muted small">{% blocktranslate count count=row_count %}{{ count }} inspection due.{% plural %}{{ count }} inspections due.{% endblocktranslate %}{% if row_count > 500 %} {% translate "The first 500 are shown." %}{% endif %}</p>
+  {# UIX-040: a table of core/tables.py (material/inspection_tables.py). #}
+  {% include "core/_table_tools.html" %}
+  {% if can_batch %}{% include "core/_table.html" with rows=table_rows stack=True select="items" select_form="bulk-form" %}{% else %}{% include "core/_table.html" with rows=table_rows stack=True %}{% endif %}
+  {% if can_batch %}
+  {# MAT-082: tick items, then inspect them together; the next page asks day, inspector and test device once. #}
+  <form method="post" action="{% url 'material:inspection_batch' %}" id="bulk-form" class="bulk-bar no-print" autocomplete="off" data-bulk-bar="items" aria-label="{% translate 'Chosen items' %}" hidden>
+    {% csrf_token %}
+    <input type="hidden" name="type" value="{{ type_id }}">
+    <span class="count"><span data-chosen-count="items">0</span> {% translate "chosen" %}</span>
+    <span class="bulk-buttons">
+      <button class="btn small" type="submit">{% icon "check" %}{% translate "Inspect chosen items" %}</button>
+      <button class="btn secondary small" type="button" data-bulk-clear="items">{% translate "Clear choice" %}</button>
+    </span>
+  </form>
+  {% endif %}
+  {% include "core/_pagination.html" %}
+  {% elif has_types %}<div class="empty"><strong>{% translate "Nothing is due." %}</strong></div>
+  {% else %}<div class="empty"><strong>{% translate "No inspection types yet." %}</strong>{% translate "Set them up in the master data (Settings → Master data → Inspection types), with the categories or models they apply to." %}</div>{% endif %}
+</div>
+{% endblock %}

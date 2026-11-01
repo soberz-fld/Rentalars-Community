@@ -1,0 +1,48 @@
+{% load i18n rentalars %}
+{% comment %}
+  EML-036: the correspondence as a conversation. Each mail shows what is new in it; signature and quoted
+  earlier mails fold away. mail.js scrolls to the newest message at the bottom. Expects: project, entries.
+  EML-055: each message shows its lock (mail/_lock.html; can_lock, here).
+{% endcomment %}
+<ol class="conversation" data-scroll-end aria-label="{% translate 'Conversation' %}">
+  {% for entry in entries %}
+  {% if entry.mail.is_note %}
+  {# EML-051: a note stands in the middle – nobody wrote it to anybody. #}
+  <li class="bubble is-note">
+    <article>
+      <header class="bubble-head">
+        <strong>{% icon "note" %}{% translate "Note" %} · {{ entry.mail.sent_by|default:entry.mail.sender_name|default:"–" }}</strong>
+        <time class="muted" datetime="{{ entry.mail.date|date:'c' }}">{{ entry.mail.date|date:"D d.m.Y H:i" }}</time>
+        {% include "mail/_lock.html" with mail=entry.mail %}
+      </header>
+      {% if entry.mail.project_id != project.pk %}<span class="badge part-mail" title="{{ entry.mail.project.name }}">{{ entry.mail.project.number }}</span> {% endif %}{% if entry.mail.subject %}<a class="bubble-subject" href="{% url 'mail:detail' entry.mail.project_id entry.mail.pk %}">{{ entry.mail.subject }}</a>{% else %}<a class="bubble-subject" href="{% url 'mail:detail' entry.mail.project_id entry.mail.pk %}">{% translate "Open note" %}</a>{% endif %}
+      <div class="bubble-text">{{ entry.text|urlize|linebreaksbr }}</div>
+    </article>
+  </li>
+  {% else %}
+  <li class="bubble {% if entry.is_outgoing %}is-out{% else %}is-in{% endif %}">
+    <article>
+      <header class="bubble-head">
+        <strong>{% if entry.is_outgoing %}{{ entry.mail.sent_by|default:entry.mail.sender_name }}{% else %}{{ entry.mail.sender_name|default:entry.mail.sender_address }}{% endif %}</strong>
+        <time class="muted" datetime="{{ entry.mail.date|date:'c' }}">{{ entry.mail.date|date:"D d.m.Y H:i" }}</time>
+        {% include "mail/_lock.html" with mail=entry.mail %}
+      </header>
+      {% if entry.mail.project_id != project.pk %}<span class="badge part-mail" title="{{ entry.mail.project.name }}">{{ entry.mail.project.number }}</span> {% endif %}<a class="bubble-subject" href="{% url 'mail:detail' entry.mail.project_id entry.mail.pk %}">{{ entry.mail.subject|default:_("(no subject)") }}</a>
+      {% if entry.mail.is_automatic %} <span class="badge yellow">{{ entry.mail.get_kind_display }}</span>{% endif %}
+      {% if entry.text %}<div class="bubble-text">{{ entry.text|urlize|linebreaksbr }}</div>{% endif %}
+      {% if entry.rest %}
+      <details class="bubble-rest">
+        <summary>{% translate "Show quoted text and signature" %}</summary>
+        <div class="bubble-text muted">{{ entry.rest|linebreaksbr }}</div>
+      </details>
+      {% endif %}
+      {% if entry.attachments %}
+      <ul class="bubble-files">
+        {% for item in entry.attachments %}<li><a href="{% url 'mail:attachment' entry.mail.project_id entry.mail.pk item.pk %}" target="_blank" rel="noopener">{% icon "file" %}{{ item.filename }}</a></li>{% endfor %}
+      </ul>
+      {% endif %}
+    </article>
+  </li>
+  {% endif %}
+  {% endfor %}
+</ol>

@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Expenses" %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>{% if can.special.approve_times %}{% translate "Personnel" %}{% else %}{% translate "My area" %}{% endif %}</h1></div>
+</div>
+{# ZEI-019: with the right to approve a tab of "Personnel"; otherwise the own expenses in "My area". #}
+{% if can.special.approve_times %}{% include "personnel/_tabs.html" with tab="expenses" %}{% else %}{% include "personnel/_my_tabs.html" with tab="expenses" %}{% endif %}
+<div class="panel">
+  <form method="get" class="filters" novalidate>
+    {% filterpanel "expense-report" %}
+    {% if form.fields.person.queryset|length > 1 %}<div class="field"><label for="{{ form.person.id_for_label }}">{{ form.person.label }}</label>{{ form.person }}</div>{% endif %}
+    <div class="field"><label for="{{ form.project.id_for_label }}">{{ form.project.label }}</label>{{ form.project }}</div>
+    <div class="field"><label for="{{ form.kind.id_for_label }}">{{ form.kind.label }}</label>{{ form.kind }}</div>
+    <div class="field"><label for="{{ form.since.id_for_label }}">{{ form.since.label }}</label>{{ form.since }}</div>
+    <div class="field"><label for="{{ form.until.id_for_label }}">{{ form.until.label }}</label>{{ form.until }}</div>
+    <div class="field"><label for="{{ form.status.id_for_label }}">{{ form.status.label }}</label>{{ form.status }}</div>
+    <button class="btn secondary" type="submit">{% translate "Show" %}</button>
+    {% endfilterpanel %}
+  </form>
+  {% if is_default_period %}<p class="panel-body muted small">{% translate "Without a filter: the current month." %}</p>{% endif %}
+  {% if report.rows %}
+  <table class="table stack expense-sums">
+    <thead><tr><th>{% translate "Month" %}</th><th>{% translate "Person" %}</th><th class="num">{% translate "Expenses" %}</th><th class="num">{% translate "Amount" %}</th><th class="num">{% translate "Reimbursed" %}</th><th class="num">{% translate "To reimburse" %}</th></tr></thead>
+    <tbody>
+    {% for row in report.rows %}
+      <tr>
+        <td>{{ row.month|date:"F Y" }}</td>
+        <td data-label="{% translate 'Person' %}">{{ row.person.sort_name }}</td>
+        <td class="num" data-label="{% translate 'Expenses' %}">{{ row.expenses|length }}</td>
+        <td class="num" data-label="{% translate 'Amount' %}">{{ row.total|money }}</td>
+        <td class="num" data-label="{% translate 'Reimbursed' %}">{{ row.reimbursed|money }}</td>
+        <td class="num" data-label="{% translate 'To reimburse' %}">{{ row.outstanding|money }}</td>
+      </tr>
+    {% endfor %}
+      <tr class="sum"><td colspan="2">{% translate "Total" %}</td><td class="num" data-label="{% translate 'Expenses' %}">{{ report.expenses|length }}</td><td class="num" data-label="{% translate 'Amount' %}">{{ report.total|money }}</td><td class="num" data-label="{% translate 'Reimbursed' %}">{{ report.reimbursed|money }}</td><td class="num" data-label="{% translate 'To reimburse' %}">{{ report.outstanding|money }}</td></tr>
+    </tbody>
+  </table>
+  <div class="panel-body expense-notes">
+    {% if report.by_kind %}<p class="small expense-kinds">{% for label, amount in report.by_kind %}{% if not forloop.first %} · {% endif %}{{ label }} {{ amount|money }}{% endfor %}</p>{% endif %}
+    <p class="muted small">{% translate "“To reimburse”: approved and not marked as reimbursed yet. Rejected expenses are left out unless chosen under “Status”." %}</p>
+  </div>
+  {% else %}
+  <div class="empty"><strong>{% translate "No expenses in this selection." %}</strong></div>
+  {% endif %}
+</div>
+
+{% if report.expenses %}
+{# UIX-040: the expenses as a table of core/tables.py (timetracking/expense_list_tables.py): columns, sorting, groups, CSV. #}
+<section class="panel">
+  <div class="panel-head"><h2>{% translate "The expenses" %}</h2></div>
+  {% include "core/_table_tools.html" %}
+<form method="post" action="{% url 'timetracking:expense_reimburse' %}" autocomplete="off">
+  {% csrf_token %}<input type="hidden" name="query" value="{{ query }}">
+  {% include "core/_table.html" with stack=True no_bulk=True %}
+  {% include "core/_pagination.html" %}
+  {% if may_manage %}
+  <div class="panel-body btn-row expense-reimburse">
+    <div class="field"><label for="reimbursed-on">{% translate "Reimbursed on" %}</label><input type="date" id="reimbursed-on" name="reimbursed_on" value="{{ today|date:'Y-m-d' }}" max="{{ today|date:'Y-m-d' }}"></div>
+    <button class="btn" type="submit">{% icon "check" %}{% translate "Mark the ticked as reimbursed" %}</button>
+  </div>
+  {% endif %}
+</form>
+</section>
+{% if may_manage %}{% for expense in page %}{% if expense.status == "approved" %}
+<form id="reopen-{{ expense.pk }}" method="post" action="{% url 'timetracking:expense_reopen' expense.pk %}" hidden>{% csrf_token %}<input type="hidden" name="query" value="{{ query }}"></form>
+{% endif %}{% endfor %}{% endif %}
+{% endif %}
+{% endblock %}

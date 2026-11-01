@@ -1,0 +1,28 @@
+{% load i18n rentalars %}
+{% comment %}
+  MAT-060 (new supplier): a new supplier with its master data, in a dialog over the form that asks for one – the
+  items of a model, an item, a purchase. Loaded with hx-get into the dialog of the page (#dialog) or, from a field
+  inside a dialog, into one over it (PRJ-101). Saved, the answer "supplierCreated" names the supplier and closes the
+  dialog (material.views.supplier_create). Expects: form, action.
+{% endcomment %}
+<form method="post" action="{{ action }}" hx-post="{{ action }}" hx-target="this" hx-swap="outerHTML" novalidate autocomplete="off" aria-labelledby="supplier-dialog-title">
+  {% csrf_token %}
+  <div class="dialog-head"><h2 id="supplier-dialog-title">{% translate "New supplier" context "material" %}</h2><button type="button" class="icon-btn" data-close-dialog aria-label="{% translate 'Close' %}">{% icon "close" %}</button></div>
+  <div class="dialog-body form">
+    {% include "core/_form_errors.html" %}
+    {% include "core/_field.html" with field=form.name %}
+    <div class="form-row pair">{% include "core/_field.html" with field=form.contact %}{% include "core/_field.html" with field=form.customer_number %}</div>
+    <div class="form-row pair">{% include "core/_field.html" with field=form.email %}{% include "core/_field.html" with field=form.phone %}</div>
+    <fieldset>
+      <legend>{% translate "Address" %}</legend>
+      {% include "core/_field.html" with field=form.street %}
+      <div class="form-row pair">{% include "core/_field.html" with field=form.postal_code %}{% include "core/_field.html" with field=form.city %}</div>
+      {% include "core/_field.html" with field=form.country %}
+    </fieldset>
+    {% include "core/_field.html" with field=form.note %}
+  </div>
+  <div class="dialog-foot">
+    <button type="button" class="btn secondary" data-close-dialog>{% translate "Cancel" %}</button>
+    <button type="submit" class="btn">{% translate "Save supplier" context "material" %}</button>
+  </div>
+</form>

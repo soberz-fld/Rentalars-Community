@@ -1,0 +1,28 @@
+{% load i18n rentalars %}
+{% comment %}
+  The photos of a model or an item (MAT-090). Expects: photos (the owner's own), upload_url, title; model_photos (an
+  item also shows those of its model). A photo is made anew when it is uploaded (JPEG, at most 2048 pixels, with the place);
+  the preview opens the whole photo.
+{% endcomment %}
+<section class="panel photos" id="photos">
+  <div class="panel-head"><h2>{{ title }}</h2></div>
+  {% if can.write.material %}<form method="post" action="{{ upload_url }}" enctype="multipart/form-data" class="panel-body photo-upload">{% csrf_token %}
+    <input type="file" name="photos" multiple accept="image/jpeg,image/png,image/webp,image/gif" aria-label="{% translate 'Photos' %}">
+    <button class="btn secondary small" type="submit">{% icon "upload" %}{% translate "Upload" %}</button>
+  </form>{% endif %}
+  {% if photos %}
+  <ul class="photo-grid">{% for stored in photos %}
+    <li>
+      <a href="{% url 'material:file' stored.pk %}"><img src="{% url 'material:file_small' stored.pk %}" alt="{{ stored.label }}" loading="lazy"></a>
+      {% if stored.title %}<span class="photo-title">{{ stored.title }}</span>{% endif %}
+      {% if can.delete.material %}<form method="post" action="{% url 'material:file_delete' stored.pk %}" class="inline-form">{% csrf_token %}<button class="link-btn small" type="submit" data-confirm="{% translate 'Remove this photo?' %}">{% translate "remove" %}</button></form>{% endif %}
+    </li>
+  {% endfor %}</ul>
+  {% else %}<div class="empty">{% translate "No photos yet." %}</div>{% endif %}
+  {% if model_photos %}
+  <div class="panel-body"><h3 class="small-head">{% translate "Photos of the model" %}</h3></div>
+  <ul class="photo-grid">{% for stored in model_photos %}
+    <li><a href="{% url 'material:file' stored.pk %}"><img src="{% url 'material:file_small' stored.pk %}" alt="{{ stored.label }}" loading="lazy"></a></li>
+  {% endfor %}</ul>
+  {% endif %}
+</section>

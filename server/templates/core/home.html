@@ -1,0 +1,236 @@
+{% extends "base.html" %}
+{% load i18n rentalars subprojects price_offers %}
+{% block title %}{% translate "Home" %}{% endblock %}
+{% block content %}
+{% comment %}
+  UIX-003: the start page follows the rights of the role. Each block shows only for those it concerns
+  and only with what they may see; an empty block is left out rather than shown empty – except the
+  coming projects, which tell a new installation where to begin.
+{% endcomment %}
+<div class="page-head"><div><h1>{% translate "Home" %}</h1></div></div>
+
+<form class="searchbar" method="get" action="{% url 'core:search' %}" role="search">
+  <input type="search" name="q" placeholder="{% translate 'Projects, customers, products …' %}" title="{% translate 'Search projects, customers, products, material ID or serial number' %}" aria-label="{% translate 'Search projects, customers, products, material ID or serial number' %}">
+  <button class="btn" type="submit">{% icon "search" %}{% translate "Search" %}</button>
+</form>
+
+{# UIX-021: one grid for all boxes, with the same distance everywhere. #}
+<div class="dashboard">
+{% if notifications %}
+<section class="panel wide">
+  <div class="panel-head"><h2>{% translate "New for you" %}</h2><a class="btn secondary small" href="{% url 'notifications:list' %}?unread=1">{% translate "All notifications" %}</a></div>
+  <ul class="notification-list">
+    {% for item in notifications %}<li class="unread"><a href="{% url 'notifications:open' item.pk %}">{{ item.title }}</a> <span class="when">{{ item.created_at|date:"D d.m. H:i" }}</span></li>{% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+{% if own_requests %}
+<section class="panel wide">
+  <div class="panel-head"><h2>{% translate "You are asked" %}</h2></div>
+  <table class="table stack">
+    <tbody>
+    {% for line in own_requests %}
+      <tr>
+        <td><a href="{% url 'projects:deployment' line.project_id %}">{{ line.project.number }} {{ line.project.name }}</a>{% if line.project.parent_id %}<div class="muted small">{{ line.project|part_of }}</div>{% endif %}<div class="muted small">{{ line.job_function.name }}</div></td>
+        <td class="nowrap" data-label="{% translate 'When' %}">{{ line.start|date:"D d.m. H:i" }} – {{ line.end|date:"D d.m. H:i" }}</td>
+        <td class="actions"><form method="post" action="{% url 'projects:crew_answer' line.project_id line.pk %}" class="inline-form">{% csrf_token %}<input type="hidden" name="next" value="{% url 'core:home' %}"><button class="btn small" name="answer" value="accept" type="submit">{% translate "Accept" %}</button> <button class="btn secondary small" name="answer" value="decline" type="submit">{% translate "Decline" %}</button></form> {% offer_hint line %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+
+{% if follow_ups %}
+{# PRJ-105: the user's follow-ups whose day has come. #}
+<section class="panel wide">
+  <div class="panel-head"><h2>{% translate "Your follow-ups" %}</h2><a class="btn secondary small" href="{% url 'schedule:follow_ups' %}?who=mine">{% translate "All my follow-ups" %}</a></div>
+  <table class="table stack follow-up-list">
+    <tbody>
+    {% for project in follow_ups %}
+      <tr>
+        <td><a href="{% url 'projects:overview' project.pk %}">{{ project.number }} {{ project.name }}</a>{% if project.parent_id %}<div class="muted small">{{ project|part_of }}</div>{% endif %}{% if project.follow_up_note %}<div class="small">{{ project.follow_up_note }}</div>{% endif %}</td>
+        <td class="nowrap" data-label="{% translate 'Follow-up on' %}">{{ project.follow_up_on|date:"D d.m." }}{% if project.follow_up_at %} {% blocktranslate with time=project.follow_up_at|time:"H:i" %}at {{ time }}{% endblocktranslate %}{% endif %}{% if project.follow_up_on < today %} <span class="badge yellow">{% translate "overdue" %}</span>{% endif %}</td>
+        <td data-label="{% translate 'Status' %}">{% if project.is_service_case %}<span class="badge accent">{% translate "service case" %}</span>{% else %}<span class="badge {{ project.status|status_colour }}">{{ project.get_status_display }}</span>{% endif %}</td>
+        <td class="actions">{% if project.may_edit %}<form method="post" action="{% url 'projects:follow_up_done' project.pk %}" class="inline-form">{% csrf_token %}<input type="hidden" name="next" value="{% url 'core:home' %}"><button class="btn secondary small" type="submit" aria-label="{% blocktranslate with number=project.number %}Follow-up of {{ number }} done{% endblocktranslate %}">{% icon "check" %}{% translate "Done" context "follow-up" %}</button></form>{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+
+{% if open_invoices %}
+{# DOK-015: closed projects without invoice – for who may see prices. #}
+<section class="panel">
+  <div class="panel-head"><h2>{% translate "Invoices still to be written" %}</h2><a class="btn secondary small" href="{% url 'projects:list' %}?invoice=open">{% translate "All" %}</a></div>
+  <ul class="file-list">
+    {% for project in open_invoices %}<li><a href="{% if project.is_service_case %}{% url 'projects:case_detail' project %}{% else %}{% url 'projects:overview' project.pk %}{% endif %}">{{ project.number }} {{ project.name }}</a> <span class="muted small">{% if project.customer_id %}{{ project.customer.name }} · {% endif %}{{ project.end|date:"d.m.Y" }}</span></li>{% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+{% if own_cases %}
+{# PRJ-090: the service cases the user is responsible for and that are not done. #}
+<section class="panel">
+  <div class="panel-head"><h2>{% translate "My service cases" %}</h2><a class="btn secondary small" href="{% if own_person %}{% url 'projects:my_cases' %}{% else %}{% url 'projects:cases' %}?mine=1{% endif %}">{% translate "All my service cases" %}</a></div>
+  <ul class="file-list">
+    {% for case in own_cases %}<li><a href="{% url 'projects:case_detail' case %}">{{ case.number }} {{ case.name }}</a> <span class="muted small">{{ case.case_status_label }} · {{ case.created_at|date:"d.m. H:i" }}</span></li>{% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+{% if own_person %}
+<section class="panel">
+  {# UIX-043: the block stays and leads to the table under My area → Meine Einsätze. #}
+  <div class="panel-head"><h2>{% translate "My deployments" %}</h2><a class="btn secondary small" href="{% url 'projects:my_deployments' %}">{% translate "All my deployments" %}</a></div>
+  {% if own_deployments %}
+  <table class="table stack">
+    <thead><tr><th>{% translate "Project" %}</th><th>{% translate "As" %}</th><th>{% translate "When" %}</th><th>{% translate "Meeting point" %}</th></tr></thead>
+    <tbody>
+    {% for line in own_deployments %}
+      <tr>
+        <td><a href="{% url 'projects:deployment' line.project_id %}">{{ line.project.number }} {{ line.project.name }}</a>{% if line.request_status == "requested" %} <span class="badge yellow">{% translate "asked" %}</span>{% endif %}{% if line.project.parent_id %}<div class="muted small">{{ line.project|part_of }}</div>{% endif %}</td>
+        <td data-label="{% translate 'As' %}">{{ line.job_function.name }}</td>
+        <td class="nowrap" data-label="{% translate 'When' %}">{{ line.start|date:"D d.m. H:i" }} – {{ line.end|date:"D d.m. H:i" }}</td>
+        <td data-label="{% translate 'Meeting point' %}">{{ line.meeting_point|default:"–" }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty">{% translate "You are not scheduled for any upcoming project." %}</div>
+  {% endif %}
+</section>
+{% if can_record_time %}
+<section class="panel">
+  <div class="panel-head"><h2>{% translate "Time tracking" %}</h2></div>
+  <div class="panel-body">
+    {% if running_timer %}<p>{% blocktranslate with since=running_timer.start|date:"H:i" project=running_timer.project_label %}Running since {{ since }} – {{ project }}{% endblocktranslate %}</p>{% endif %}
+    <div class="btn-row">
+      <a class="btn" href="{% url 'timetracking:quick' %}" hx-get="{% url 'timetracking:quick' %}" hx-target="#dialog">{% icon "clock" %}{% translate "Record time" %}</a>
+      <a class="btn secondary" href="{% url 'timetracking:my_times' %}">{% translate "My times" %}</a>
+    </div>
+  </div>
+</section>
+{% endif %}
+{% endif %}
+
+{% if to_pack or coming_back %}
+  {% if to_pack %}
+  <section class="panel">
+    <div class="panel-head"><h2>{% translate "To pack today and tomorrow" %}</h2></div>
+    <table class="table stack">
+      <tbody>
+      {% for project in to_pack %}
+        <tr>
+          <td><a href="{% url 'packing:packlist' project.pk %}">{{ project.number }} {{ project.name }}</a>{% if project.parent_id %}<div class="muted small">{{ project|part_of }}</div>{% endif %}<div class="muted small">{{ project.customer_name }}</div></td>
+          <td class="nowrap" data-label="{% translate 'Out' %}">{{ project.start|date:"D d.m. H:i" }}</td>
+          <td data-label="{% translate 'Packing' %}">{% for packlist in project.packlists.all|slice:":3" %}<span class="badge {{ packlist.status|status_colour }}"{% if packlist.title %} title="{{ packlist.title }}"{% endif %}>{{ packlist.get_status_display }}</span> {% empty %}<span class="badge">{% translate "open" %}</span>{% endfor %}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </section>
+  {% endif %}
+  {% if coming_back %}
+  <section class="panel">
+    <div class="panel-head"><h2>{% translate "Expected back today" %}</h2></div>
+    <table class="table stack">
+      <tbody>
+      {% for project in coming_back %}
+        <tr>
+          <td><a href="{% url 'packing:packlist' project.pk %}">{{ project.number }} {{ project.name }}</a>{% if project.parent_id %}<div class="muted small">{{ project|part_of }}</div>{% endif %}</td>
+          <td class="nowrap" data-label="{% translate 'Back by' %}">{{ project.end|date:"D d.m. H:i" }}{% if project.end < now %} <span class="badge red">{% translate "overdue" %}</span>{% endif %}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </section>
+  {% endif %}
+{% endif %}
+
+{% if can.read.projects %}
+  <section class="panel">
+    <div class="panel-head"><h2>{% translate "Coming up" %}</h2>{% if can.write.projects %}<a class="btn small" href="{% url 'projects:create' %}">{% icon "plus" %}{% translate "New project" %}</a>{% endif %}</div>
+    {% if projects_upcoming %}
+    <table class="table stack">
+      <thead><tr><th>{% translate "Project" %}</th><th>{% translate "Period" %}</th><th>{% translate "Status" %}</th></tr></thead>
+      <tbody>
+      {% for project in projects_upcoming %}
+        <tr>
+          <td><a href="{% url 'projects:overview' project.pk %}">{{ project.number }} {{ project.name }}</a>{% if project.parent_id %}<div class="muted small">{{ project|part_of }}</div>{% endif %}<div class="muted small">{{ project.customer_name }}</div></td>
+          <td data-label="{% translate 'Period' %}">{{ project.start|date:"D d.m. H:i" }} – {{ project.end|date:"D d.m. H:i" }}</td>
+          <td class="status-cell" data-label="{% translate 'Status' %}"><span class="badge {{ project.status|status_colour }}">{{ project.get_status_display }}</span></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty"><strong>{% translate "No projects are coming up." %}</strong>{% translate "Projects appear here as soon as they are created." %}</div>
+    {% endif %}
+  </section>
+
+  <section class="panel">
+    <div class="panel-head"><h2>{% translate "Out at the moment" %}</h2></div>
+    {% if projects_out %}
+    <table class="table stack">
+      <thead><tr><th>{% translate "Project" %}</th><th>{% translate "Back by" %}</th><th></th></tr></thead>
+      <tbody>
+      {% for project in projects_out %}
+        <tr>
+          <td><a href="{% url 'projects:overview' project.pk %}">{{ project.number }} {{ project.name }}</a>{% if project.status != "out" %} <span class="badge yellow">{% translate "partly issued" %}</span>{% endif %}{% if project.parent_id %}<div class="muted small">{{ project|part_of }}</div>{% endif %}<div class="muted small">{{ project.customer_name }}</div></td>
+          <td class="nowrap" data-label="{% translate 'Back by' %}">{{ project.end|date:"D d.m. H:i" }}</td>
+          <td class="actions">{% if can.read.packing %}<a href="{% url 'packing:packlist' project.pk %}">{% translate "Packing list" %}</a>{% endif %}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty">{% translate "No material is out right now." %}</div>
+    {% endif %}
+  </section>
+
+{% if open_item_projects or shortages %}
+  {% if open_item_projects %}
+  <section class="panel">
+    <div class="panel-head"><h2>{% translate "Open items" %}</h2><a class="btn secondary small" href="{% url 'projects:open_items' %}">{% translate "All" %}</a></div>
+    <table class="table stack">
+      <tbody>
+      {% for project in open_item_projects %}
+        <tr><td><a href="{% url 'projects:course' project.pk %}">{{ project.number }} {{ project.name }}</a>{% if project.parent_id %}<div class="muted small">{{ project|part_of }}</div>{% endif %}</td>
+        <td data-label="{% translate 'Still open' %}">{% if project.open_count %}<span class="badge yellow">{% blocktranslate count count=project.open_count %}{{ count }} open{% plural %}{{ count }} open{% endblocktranslate %}</span>{% elif project.done_count %}<span class="badge green">{% translate "can be confirmed" %}</span>{% else %}<span class="muted small">{% translate "nothing noted yet" %}</span>{% endif %}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </section>
+  {% endif %}
+  {% if shortages %}
+  <section class="panel">
+    <div class="panel-head"><h2>{% translate "Open shortages" %}</h2><a class="btn secondary small" href="{% url 'availability:shortages' %}">{% blocktranslate count count=shortage_count %}{{ count }} in total{% plural %}{{ count }} in total{% endblocktranslate %}</a></div>
+    <table class="table stack">
+      <tbody>
+      {% for shortage in shortages %}
+        <tr><td><a href="{% url 'projects:detail' shortage.project.pk %}"{% if shortage.project.parent_id %} title="{{ shortage.project|part_of }}"{% endif %}>{{ shortage.project.number }}</a> <span class="artno">{{ shortage.product.article_number }}</span> {{ shortage.product.name }}</td>
+        <td class="num" data-label="{% translate 'Missing' %}"><span class="avail short">{{ shortage.quantity }}</span></td>
+        <td class="nowrap" data-label="{% translate 'From' %}">{{ shortage.line.start|date:"D d.m." }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </section>
+  {% endif %}
+{% endif %}
+{% endif %}
+
+{% if unknown_mail_count or mail_problems %}
+<section class="panel">
+  <div class="panel-head"><h2>{% translate "E-mail" %}</h2><a class="btn secondary small" href="{% url 'mail:unknown_list' %}">{% translate "Open" %}</a></div>
+  <div class="panel-body">
+    {% for problem in mail_problems %}<p><span class="badge red">{% translate "error" %}</span> {% blocktranslate with name=problem.name %}Mails of “{{ name }}” cannot be fetched:{% endblocktranslate %} {{ problem.last_error }}</p>{% endfor %}
+    {% if unknown_mail_count %}<p>{% blocktranslate count count=unknown_mail_count %}{{ count }} inquiry or mail with an unknown tag waits for a project.{% plural %}{{ count }} inquiries or mails with an unknown tag wait for a project.{% endblocktranslate %}</p>{% endif %}
+  </div>
+</section>
+{% endif %}
+</div>
+{% endblock %}

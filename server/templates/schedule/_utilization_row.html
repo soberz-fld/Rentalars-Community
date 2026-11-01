@@ -1,0 +1,14 @@
+{% load i18n %}
+{% comment %}
+  One product of the material utilization (VFG-012, VFG-029): per column the firm reservations against the plannable
+  stock, options in addition. VFG-037: also a component under its kit – row.per_kit pieces
+  make one kit. Expects: row (schedule.services.UtilizationRow), scale.
+{% endcomment %}
+<div class="tl-label{% if row.per_kit %} is-part{% endif %}">{% if row.per_kit %}<span class="part-of" title="{% translate 'per kit' %}">{{ row.per_kit }} ×</span> {% endif %}<span class="artno">{{ row.product.article_number }}</span> {{ row.product.name|truncatechars:30 }}<div class="muted small">{% blocktranslate with stock=row.stock %}stock {{ stock }}{% endblocktranslate %}</div></div>
+<div class="tl-row" style="{{ scale.row_style }}">
+  {% if scale.is_hourly %}
+  {% for run in row.loads %}<div class="tl-load {{ run.load.level }}" style="{{ run.style }}" title="{{ run.period }}: {% blocktranslate with firm=run.load.firm optional=run.load.optional stock=run.load.stock %}{{ firm }} of {{ stock }} firmly reserved, {{ optional }} as options{% endblocktranslate %}">{% if run.load.firm or run.load.optional %}<span class="tl-text">{{ run.load.firm }}{% if run.load.optional %}<sup>+{{ run.load.optional }}</sup>{% endif %}</span>{% endif %}</div>{% endfor %}
+  {% else %}
+  {% for load in row.loads %}<div class="tl-load {{ load.level }}" title="{{ load.day|date:'D d.m.' }}: {% blocktranslate with firm=load.firm optional=load.optional stock=load.stock %}{{ firm }} of {{ stock }} firmly reserved, {{ optional }} as options{% endblocktranslate %}">{% if load.firm or load.optional %}{{ load.firm }}{% if load.optional %}<sup>+{{ load.optional }}</sup>{% endif %}{% endif %}</div>{% endfor %}
+  {% endif %}
+</div>

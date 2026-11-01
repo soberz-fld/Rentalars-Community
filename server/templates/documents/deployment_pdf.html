@@ -1,0 +1,126 @@
+{% load i18n rentalars %}<!doctype html>
+{% get_current_language as LANGUAGE_CODE %}<html lang="{% if LANGUAGE_CODE == 'en' %}en-GB{% else %}{{ LANGUAGE_CODE }}{% endif %}">
+<head>
+<meta charset="utf-8">
+<title>{% translate "Deployment overview" %} {{ project.number }}</title>
+<style>
+  /* PRJ-081: the deployment view on paper, with the letterhead and footer of the documents (DOK-004, DOK-005). */
+  @font-face { font-family: "Barlow"; font-weight: 400; src: url("{{ fonts.regular }}"); }
+  @font-face { font-family: "Barlow"; font-weight: 600; src: url("{{ fonts.semibold }}"); }
+  @font-face { font-family: "Barlow Condensed"; font-weight: 600; src: url("{{ fonts.condensed }}"); }
+  @page {
+    size: A4; margin: 20mm 18mm 34mm 25mm;
+    @bottom-left { content: element(footer); }
+    @bottom-right { content: "{% translate 'Page' %} " counter(page) " / " counter(pages); font: 7.5pt "Barlow"; color: #555; vertical-align: top; padding-top: 3mm; }
+  }
+  body { font-family: "Barlow", sans-serif; font-size: 9.5pt; color: #111; line-height: 1.4; }
+  .letterhead { display: flex; justify-content: space-between; align-items: flex-start; height: 25mm; }
+  .letterhead img { max-height: 20mm; max-width: 60mm; }
+  .letterhead .company { text-align: right; font-size: 8.5pt; color: #444; }
+  h1 { font-family: "Barlow Condensed", sans-serif; font-size: 18pt; margin: 4mm 0 0; }
+  .subtitle { font-size: 11pt; margin: 0 0 4mm; }
+  h2 { font-family: "Barlow Condensed", sans-serif; font-size: 12pt; margin: 6mm 0 1.5mm; break-after: avoid; }
+  p { margin: 0 0 2.5mm; }
+  table { width: 100%; border-collapse: collapse; }
+  table.facts td { padding: 0.8mm 0; border: none; vertical-align: top; }
+  table.facts td:first-child { color: #555; width: 45mm; padding-right: 3mm; }
+  table.rows th { text-align: left; font-size: 7.5pt; font-weight: 600; color: #555; padding: 1mm; border-bottom: 0.6pt solid #111; }
+  table.rows td { padding: 1.3mm 1mm; border-bottom: 0.3pt solid #ccc; vertical-align: top; }
+  table.rows tr { break-inside: avoid; }
+  .num { text-align: right; white-space: nowrap; }
+  .details { font-size: 8pt; color: #555; }
+  .own td { font-weight: 600; }
+  .own .details { font-weight: 400; }
+  .mine { border: 0.6pt solid #111; padding: 2mm 3mm; margin-bottom: 2mm; break-inside: avoid; }
+  .mine strong { font-size: 10.5pt; }
+  .footer { position: running(footer); font-size: 7pt; color: #555; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4mm; border-top: 0.3pt solid #999; padding-top: 2mm; width: 160mm; }
+</style>
+</head>
+<body>
+  <div class="footer">
+    <div>{% if company.name %}<strong>{{ company.name }}</strong><br>{% endif %}{% for line in company.lines %}{{ line }}<br>{% endfor %}{{ company.country }}</div>
+    <div>{% if company.phone %}{% translate "Phone" %} {{ company.phone }}<br>{% endif %}{% if company.email %}{{ company.email }}<br>{% endif %}{{ company.website }}</div>
+    <div>{% if company.register_details %}{{ company.register_details }}{% endif %}{% if footer %}{% if company.register_details %}<br>{% endif %}{{ footer|linebreaksbr }}{% endif %}</div>
+  </div>
+
+  <div class="letterhead">
+    <div>{% if logo %}<img src="{{ logo }}" alt="">{% endif %}</div>
+    <div class="company">{% if company.name %}<strong>{{ company.name }}</strong><br>{% endif %}{% for line in company.lines %}{{ line }}<br>{% endfor %}{{ company.phone }}</div>
+  </div>
+
+  <h1>{% translate "Deployment overview" %} {{ project.number }}</h1>
+  <p class="subtitle">{{ project.name }}</p>
+
+  {# AUT-025: when and where – never the customer or a price (AUT-023). #}
+  <table class="facts">
+    {% if project.parent_id %}<tr><td>{% translate "Whole project" %}</td><td>{{ project.parent.number }} {{ project.parent.name }}</td></tr>{% endif %}
+    <tr><td>{% translate "Material out" %}</td><td>{{ project.start|date:"D d.m.Y H:i" }} – {{ project.end|date:"D d.m.Y H:i" }}</td></tr>
+    {% if project.event_start %}<tr><td>{% translate "Event" %}</td><td>{{ project.event_start|date:"D d.m.Y H:i" }} – {{ project.event_end|date:"D d.m.Y H:i" }}</td></tr>{% endif %}
+    <tr><td>{% translate "Venue" %}</td><td>{{ project.venue_label|default:"–" }}</td></tr>
+    {% if project.contact %}<tr><td>{% translate "Contact on site" %}</td><td>{{ project.contact.name }}{% if project.contact.phone %}, {{ project.contact.phone }}{% endif %}</td></tr>{% endif %}
+    {% if project.manager %}<tr><td>{% translate "Project manager" %}</td><td>{{ project.manager }}</td></tr>{% endif %}
+    <tr><td>{% translate "As of" %}</td><td>{{ printed_at|date:"d.m.Y H:i" }}</td></tr>
+  </table>
+
+  {% if picture.own_rows %}
+  <h2>{% translate "My deployment" %}</h2>
+  {% for row in picture.own_rows %}{% with line=row.line %}
+  <div class="mine">
+    <strong>{{ line.job_function.name }}</strong> · {{ line.start|date:"D d.m.Y H:i" }} – {{ line.end|date:"D d.m.Y H:i" }} ({{ line.planned_hours|number }} {% translate "h" %})
+    {% if line.meeting_point %}<div>{% translate "Meeting point" %}: {{ line.meeting_point }}</div>{% endif %}
+        {% if line.vehicle_line %}<div data-own-vehicle>{% translate "Vehicle" %}: {{ line.vehicle_line.label }}{% if line.is_driver %} – {% translate "you drive" %}{% endif %}</div>{% endif %}
+    {% if line.note %}<div class="details">{{ line.note|linebreaksbr }}</div>{% endif %}
+    {% if line.request_status %}<div class="details">{{ line.get_request_status_display }}</div>{% endif %}
+  </div>
+  {% endwith %}{% endfor %}
+  {% endif %}
+
+  {% if picture.phases %}
+  <h2>{% translate "Schedule" %}</h2>
+  <table class="rows">
+    <thead><tr><th>{% translate "Phase" %}</th><th>{% translate "When" %}</th><th>{% translate "Where" %}</th></tr></thead>
+    <tbody>{% for phase in picture.phases %}<tr><td>{{ phase.label }}{% if phase.notes %}<div class="details">{{ phase.notes|linebreaksbr }}</div>{% endif %}</td><td class="nowrap">{{ phase.start|date:"D d.m. H:i" }} – {{ phase.end|date:"D d.m. H:i" }}</td><td>{{ phase.place }}</td></tr>{% endfor %}</tbody>
+  </table>
+  {% endif %}
+
+  {% if project.venue_site %}{% with venue=project.venue_site %}
+  <h2>{{ venue.name }}</h2>
+  <table class="facts">
+    {% if venue.address_lines %}<tr><td>{% translate "Address" %}</td><td>{% for line in venue.address_lines %}{{ line }}{% if not forloop.last %}<br>{% endif %}{% endfor %}</td></tr>{% endif %}
+    {% if venue.contact_name or venue.contact_phone or venue.contact_email %}<tr><td>{% translate "Contact on site" %}</td><td>{{ venue.contact_name }}{% if venue.contact_phone %}<br>{{ venue.contact_phone }}{% endif %}{% if venue.contact_email %}<br>{{ venue.contact_email }}{% endif %}</td></tr>{% endif %}
+    {% if venue.access_notes %}<tr><td>{% translate "Access and loading" %}</td><td>{{ venue.access_notes|linebreaksbr }}</td></tr>{% endif %}
+    {% if venue.power_notes %}<tr><td>{% translate "Power" %}</td><td>{{ venue.power_notes|linebreaksbr }}</td></tr>{% endif %}
+    {% if venue.notes %}<tr><td>{% translate "Notes" %}</td><td>{{ venue.notes|linebreaksbr }}</td></tr>{% endif %}
+  </table>
+  {% endwith %}{% endif %}
+
+  <h2>{% translate "Crew" %}</h2>
+  {% if picture.rows %}
+  <table class="rows">
+    <thead><tr><th>{% translate "Person" %}</th><th>{% translate "Job function" %}</th><th>{% translate "Period" %}</th><th>{% translate "Meeting point" %}</th><th>{% translate "Contact" context "contact data" %}</th></tr></thead>
+    <tbody>
+    {% for row in picture.rows %}{% with line=row.line %}
+      <tr{% if row.is_self %} class="own"{% endif %}>
+        <td>{% if row.person %}{{ row.person.name }}{% else %}{% translate "open" context "crew" %}{% endif %}</td>
+        <td>{{ line.job_function.name }}{% if line.vehicle_line %}<div class="details">{{ line.vehicle_line.label }}{% if line.is_driver %} · {% translate "driver" %}{% endif %}</div>{% endif %}</td>
+        <td>{{ line.start|date:"D d.m. H:i" }} – {{ line.end|date:"D d.m. H:i" }}</td>
+        <td>{{ line.meeting_point }}</td>
+        <td class="details">{{ row.phone }}{% if row.phone and row.email %}<br>{% endif %}{{ row.email }}</td>
+      </tr>
+    {% endwith %}{% endfor %}
+    </tbody>
+  </table>
+  {% if not picture.sees_all_contacts %}<p class="details">{% translate "Phone numbers and e-mail addresses only of people who released them for colleagues." %}</p>{% endif %}
+  {% else %}
+  <p>{% translate "Nobody is planned yet." %}</p>
+  {% endif %}
+
+  {% if picture.own_entries %}
+  <h2>{% translate "My times in this project" %}</h2>
+  <table class="rows">
+    <thead><tr><th>{% translate "Day" %}</th><th>{% translate "Time" %}</th><th>{% translate "Job function" %}</th><th class="num">{% translate "Hours" %}</th><th>{% translate "Status" %}</th></tr></thead>
+    <tbody>{% for entry in picture.own_entries %}<tr><td>{{ entry.start|date:"D d.m.Y" }}</td><td>{{ entry.start|date:"H:i" }} – {% if entry.end %}{{ entry.end|date:"H:i" }}{% else %}{% translate "running" %}{% endif %}</td><td>{{ entry.job_function.name }}</td><td class="num">{% if entry.end %}{{ entry.hours|number }}{% endif %}</td><td>{{ entry.get_status_display }}</td></tr>{% endfor %}</tbody>
+  </table>
+  {% endif %}
+</body>
+</html>

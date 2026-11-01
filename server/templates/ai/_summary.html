@@ -1,0 +1,112 @@
+{% load i18n rentalars %}
+{% comment %}
+  EML-044: the short overview without AI – always there. EML-040: the summary by AI, labelled with model and date,
+  marked as out of date when newer mails arrived; "Zusammenfassen" starts it in the background and the block asks
+  every three seconds how far it got.
+{% endcomment %}
+<section class="panel ai-summary" id="ai-summary" aria-labelledby="ai-summary-title"{% if job_running %} hx-get="{% url 'ai:summary' project.pk %}?job={{ job.pk }}" hx-trigger="every 3s" hx-target="this" hx-swap="outerHTML"{% endif %}>
+  <div class="panel-head"><h2 id="ai-summary-title">{% translate "Summary" %}</h2>{# EML-050: "Zusammenfassung", the same in a project and a service case #}
+    {% if switched_on and not unavailable and not job_running and overview.mail_count %}
+    <form method="post" action="{% url 'ai:summary' project.pk %}" hx-post="{% url 'ai:summary' project.pk %}" hx-target="#ai-summary" hx-swap="outerHTML" class="actions ai-summary-start">
+      {% csrf_token %}
+      <div class="check"><input type="checkbox" name="chat" value="1" id="ai-summary-chat"><label for="ai-summary-chat">{% translate "Include the chat" %}</label></div>
+      <button class="btn small" type="submit">{% icon "list" %}{% if shown.summary %}{% translate "Summarise again" %}{% else %}{% translate "Summarise" %}{% endif %}</button>
+    </form>
+    {% endif %}
+  </div>
+  <div class="panel-body settings-stack" aria-live="polite">
+    {% if error %}<p class="note red">{{ error }}</p>{% endif %}
+    {# EML-040: how long "Zusammenfassen" will take, measured on this server #}
+    {% if estimate and switched_on and not unavailable and not job_running %}<p class="{% if estimate.is_long %}note{% else %}muted small{% endif %} ai-estimate">{% if estimate.is_long %}{% blocktranslate count minutes=estimate.minutes %}The summary will take about {{ minutes }} minute – a long time. You can go on working meanwhile; a smaller model or a faster processor makes it quicker (Settings → AI).{% plural %}The summary will take about {{ minutes }} minutes – a long time. You can go on working meanwhile; a smaller model or a faster processor makes it quicker (Settings → AI).{% endblocktranslate %}{% else %}{% blocktranslate count minutes=estimate.minutes %}The summary takes about {{ minutes }} minute.{% plural %}The summary takes about {{ minutes }} minutes.{% endblocktranslate %}{% endif %}</p>
+    {% elif speed_unknown and switched_on and not unavailable and not job_running %}<p class="muted small ai-estimate">{% translate "How long a summary takes is not known yet: the speed of the local AI was not measured (Settings → AI)." %}</p>{% endif %}
+    {% if job_running %}
+    <div class="ai-job">
+      <p><span class="badge yellow">{{ job.get_status_display }}</span> {% translate "The summary is being written." %} {{ job.progress }} %{% if job.message %}{# EML-040: what it does now, e.g. "schreibt … 120 Wörter" #}<span class="muted"> – {{ job.message }}</span>{% endif %}</p>
+      <div class="progress" role="progressbar" aria-valuenow="{{ job.progress }}" aria-valuemin="0" aria-valuemax="100" aria-label="{% translate 'Progress' %}"><span style="width: {{ job.progress }}%"></span></div>
+      <p class="muted small">{% translate "You can go on working meanwhile; you will be told when it is done." %}</p>
+    </div>
+    {% elif job and job.status == "failed" %}<p class="note red">{{ job.message }}</p>{% endif %}
+
+    {% if shown.summary %}
+    {# EML-050: folded when the page loads, like the short overview below – open only right after "Zusammenfassen" finished. #}
+    <details class="ai-result"{% if just_written %} open{% endif %}>
+      {# EML-050: the block itself is "Zusammenfassung" – the badge names the AI, the summary line says it to screen readers. #}
+      <summary class="ai-result-title"><span class="visually-hidden">{% translate "Summary by AI" %}</span><span class="badge accent" aria-hidden="true">{% translate "made by AI" %}</span>{% if shown.summary.is_automatic %} <span class="badge outline">{% translate "created automatically" %}</span>{% endif %}{% if shown.stale %} <span class="badge yellow">{% translate "out of date" %}</span>{% endif %} <span class="muted small">{{ shown.summary.created_at|date:"SHORT_DATETIME_FORMAT" }}</span></summary>
+      <p class="muted small">{% blocktranslate with model=shown.summary.model provider=shown.summary.provider_label date=shown.summary.created_at|date:"SHORT_DATETIME_FORMAT" count mails=shown.summary.mail_count %}Written by the model {{ model }} ({{ provider }}) on {{ date }} from {{ mails }} mail.{% plural %}Written by the model {{ model }} ({{ provider }}) on {{ date }} from {{ mails }} mails.{% endblocktranslate %}{% if shown.summary.include_chat %} {% translate "The chat was included." %}{% endif %} {% translate "AI can be wrong: check important details in the mails." %}{# How it was made, what it did not read #}{% if shown.summary.is_automatic %} {% translate "Created automatically at night." %}{% endif %}{% if not shown.summary.covers_locked %} {% translate "Messages with lock were not read." %}{% endif %}{% if shown.summary.dropped_entries %} {% blocktranslate count count=shown.summary.dropped_entries %}{{ count }} older entry was left out because the text was too long.{% plural %}{{ count }} older entries were left out because the text was too long.{% endblocktranslate %}{% endif %}</p>
+      {% if shown.stale %}<p class="note">{% if shown.new_mails %}{% blocktranslate count count=shown.new_mails %}{{ count }} newer mail is not in the summary.{% plural %}{{ count }} newer mails are not in the summary.{% endblocktranslate %}{% else %}{% translate "The correspondence changed since the summary was written." %}{% endif %}{% if auto_on and not auto_excluded_project and not auto_excluded_customer %} {% translate "It is renewed automatically at night, or press “Summarise again” now." %}{% endif %}</p>{% endif %}
+      {# The text of the model is shown as plain text – escaped, never as HTML or Markdown. #}
+      <div class="ai-text">{{ shown.summary.text }}</div>
+      {% if shown.versions %}
+      <details class="ai-versions">
+        <summary>{% blocktranslate count count=shown.versions|length %}{{ count }} earlier summary{% plural %}{{ count }} earlier summaries{% endblocktranslate %}</summary>
+        {% for version in shown.versions %}
+        <div class="ai-version">
+          <p class="muted small">{{ version.created_at|date:"SHORT_DATETIME_FORMAT" }} · {{ version.model }} ({{ version.provider_label }}) · {% if version.is_automatic %}{% translate "created automatically" %}{% else %}{% translate "made on request" %}{% endif %}</p>
+          <div class="ai-text">{{ version.text }}</div>
+        </div>
+        {% endfor %}
+      </details>
+      {% endif %}
+    </details>
+    {% elif shown.hidden %}
+    <p class="muted">{% translate "The stored summary covers subprojects whose correspondence you may not read; it is not shown to you." %}</p>
+    {% endif %}
+
+    {% if not switched_on %}
+    <p class="muted small">{% translate "Summaries with AI are switched off. Whoever may change the settings switches them on under Settings → AI." %}</p>
+    {% elif unavailable %}
+    <p class="note">{{ unavailable }}</p>
+    {% elif leaves_company %}
+    <p class="note red">{% blocktranslate with provider=endpoint.label %}“Summarise” sends the mails to {{ provider }}: their content leaves the company.{% endblocktranslate %}</p>
+    {% endif %}
+
+    {# No automatic summaries for this project, or for all projects of its customer. #}
+    {% if switched_on and auto_on and can_switch_project or switched_on and auto_on and can_switch_customer %}
+    <div class="ai-auto-switches">
+      <p class="muted small">{% blocktranslate with start=window_start|time:"H:i" end=window_end|time:"H:i" %}Automatic summaries are on: at night ({{ start }} to {{ end }}) this correspondence gets a new summary when mails were added.{% endblocktranslate %}</p>
+      {% if can_switch_project %}
+      <form method="post" action="{% url 'ai:auto_project' project.pk %}" hx-post="{% url 'ai:auto_project' project.pk %}" hx-target="#ai-summary" hx-swap="outerHTML" class="actions">{% csrf_token %}
+        <input type="hidden" name="excluded" value="{% if auto_excluded_project %}0{% else %}1{% endif %}">
+        <button class="btn secondary small" type="submit">{% if auto_excluded_project %}{% translate "Allow automatic summaries for this project again" %}{% else %}{% translate "No automatic summaries for this project" %}{% endif %}</button>
+        {% if auto_excluded_project %}<span class="badge yellow">{% translate "excluded" %}</span>{% endif %}
+      </form>
+      {% endif %}
+      {% if can_switch_customer and project.customer_id %}
+      <form method="post" action="{% url 'ai:auto_customer' project.pk project.customer_id %}" hx-post="{% url 'ai:auto_customer' project.pk project.customer_id %}" hx-target="#ai-summary" hx-swap="outerHTML" class="actions">{% csrf_token %}
+        <input type="hidden" name="excluded" value="{% if auto_excluded_customer %}0{% else %}1{% endif %}">
+        <button class="btn secondary small" type="submit">{% if auto_excluded_customer %}{% translate "Allow automatic summaries for this customer again" %}{% else %}{% translate "No automatic summaries for any project of this customer" %}{% endif %}</button>
+        {% if auto_excluded_customer %}<span class="badge yellow">{% translate "customer excluded" %}</span>{% endif %}
+      </form>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    {% with o=overview %}
+    {# EML-050: always folded when the block loads – also without a summary by AI, so that it looks the same everywhere. #}
+    <details class="ai-overview">
+      <summary>{% translate "Short overview without AI" %}</summary>
+      {% if o.mail_count %}
+      <dl class="facts">
+        <dt>{% translate "Mails" %}</dt>
+        <dd>{% blocktranslate count count=o.received|add:o.sent %}{{ count }} mail{% plural %}{{ count }} mails{% endblocktranslate %} · {% blocktranslate with received=o.received sent=o.sent %}{{ received }} received, {{ sent }} sent{% endblocktranslate %}{% if o.notes %} · {% blocktranslate count count=o.notes %}{{ count }} note{% plural %}{{ count }} notes{% endblocktranslate %}{% endif %}</dd>
+        <dt>{% translate "Period" %}</dt>
+        <dd>{{ o.first.date|date:"SHORT_DATE_FORMAT" }} – {{ o.last.date|date:"SHORT_DATE_FORMAT" }}</dd>
+        <dt>{% translate "Last written" %}</dt>
+        <dd>{{ o.last_writer }}, {{ o.last.date|date:"SHORT_DATETIME_FORMAT" }}{% if o.last_is_incoming %} <span class="badge yellow">{% translate "received – not answered yet" %}</span>{% endif %}</dd>
+        <dt>{% translate "Participants" %}</dt>
+        <dd>{% for person in o.writers %}{{ person.name }} ({{ person.written }}){% if not forloop.last %}, {% endif %}{% endfor %}{% if o.recipients %}<div class="muted small">{% translate "Also received:" %} {{ o.recipients|join:", " }}</div>{% endif %}</dd>
+        {% if o.dates %}<dt>{% translate "Dates mentioned" %}</dt>
+        <dd><ul class="plain-list">{% for item in o.dates %}<li>{{ item.date|date:"SHORT_DATE_FORMAT" }} <span class="muted small">– „{{ item.text }}“, <a href="{% url 'mail:detail' item.mail.project_id item.mail.pk %}">{{ item.mail.display_subject|default:_("(no subject)")|truncatechars:50 }}</a></span></li>{% endfor %}</ul></dd>{% endif %}
+        {% if o.amounts %}<dt>{% translate "Amounts mentioned" %}</dt>
+        <dd><ul class="plain-list">{% for item in o.amounts %}<li>{{ item.text }} <span class="muted small">– <a href="{% url 'mail:detail' item.mail.project_id item.mail.pk %}">{{ item.mail.display_subject|default:_("(no subject)")|truncatechars:50 }}</a></span></li>{% endfor %}</ul></dd>{% endif %}
+        {% if o.questions %}<dt>{% translate "Open questions" %}</dt>
+        <dd><ul class="plain-list">{% for item in o.questions %}<li>„{{ item.text }}“ <span class="muted small">– {{ item.mail.sender_name|default:item.mail.sender_address }}, {{ item.mail.date|date:"SHORT_DATE_FORMAT" }}</span></li>{% endfor %}</ul></dd>{% endif %}
+        {% if o.attachments %}<dt>{% translate "Attachments" %}</dt>
+        <dd><ul class="plain-list">{% for item in o.attachments %}<li><a href="{% url 'mail:attachment' item.mail.project_id item.mail_id item.pk %}">{{ item.filename }}</a> <span class="muted small">– {{ item.mail.date|date:"SHORT_DATE_FORMAT" }}</span></li>{% endfor %}</ul>{% if o.more_attachments %}<div class="muted small">{% blocktranslate count count=o.more_attachments %}and {{ count }} more{% plural %}and {{ count }} more{% endblocktranslate %}</div>{% endif %}</dd>{% endif %}
+      </dl>
+      {% if o.scanned_part %}<p class="muted small">{% translate "Dates, amounts and questions are taken from the newest 200 mails." %}</p>{% endif %}
+      {% else %}<p class="muted">{% translate "No mails yet." %}</p>{% endif %}
+    </details>
+    {% endwith %}
+  </div>
+</section>

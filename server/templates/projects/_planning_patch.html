@@ -1,0 +1,16 @@
+{% comment %}
+  The parts of the planning block that a change touched (see projects.planning.build_patch).
+  Every part carries hx-swap-oob: htmx puts it in the place of the element with the same id and leaves
+  the rest of the page alone. A project with 500 lines therefore answers with a few kilobytes instead
+  of the whole planning (NFA-013). The hints about all lines are not among the parts; they follow with
+  a request of their own (see _planning_notes.html).
+{% endcomment %}
+{% include "projects/_planning_messages.html" with oob=True %}
+{% for group in patch.groups %}{% include "projects/_group.html" with oob=True %}{% endfor %}
+{# PRJ-037: the subtotals of the groups above a changed group change with it. #}
+{% for group in patch.totals %}{% include "projects/_group_total.html" with oob=True %}{% endfor %}
+{% if patch.ungrouped %}{% include "projects/_group_none.html" with oob=True %}{% endif %}
+{% if patch.crew %}{% include "projects/_planning_crew.html" with oob=True %}{% endif %}
+{% if patch.logistics %}{% include "projects/_planning_logistics.html" with oob=True %}{% endif %}
+{% include "projects/_planning_surcharges.html" with oob=True %}
+{% include "projects/_planning_totals.html" with oob=True %}

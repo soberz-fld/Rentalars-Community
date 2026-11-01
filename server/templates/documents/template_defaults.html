@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}{% translate "Template texts in English or German" %}{% endblock %}
+{% block content %}
+{% comment %}
+  DOK-018: the default texts of heading, introduction and closing text of every document template, in English
+  or back in German. Own texts – neither the German nor the English default – are marked and not ticked; nothing is
+  written before the button is pressed. Footer, logo and the validity of the offer stay. The language of the documents
+  is a setting of its own (company data); it is switched too only when ticked. See documents/template_texts.py.
+{% endcomment %}
+<div class="page-head"><div>
+  <div class="breadcrumb"><a href="{% url 'core:administration' %}">{% translate "Settings" %}</a> › <a href="{% url 'admin:documents_documenttemplate_changelist' %}">{% translate "Document templates" %}</a></div>
+  <h1>{% translate "Template texts in English or German" %}</h1>
+  <p class="lead">{% translate "Take over the default texts of Rentalars for heading, introduction and closing text of the document templates – in English, or back in German. Footer, logo and the validity of the offer stay as they are." %}</p>
+</div></div>
+
+<nav class="btn-row" aria-label="{% translate 'Language of the texts' %}">
+  <a class="btn{% if language != 'en' %} secondary{% endif %}" href="?language=en"{% if language == "en" %} aria-current="page"{% endif %}>{% translate "English texts" %}</a>
+  <a class="btn{% if language != 'de' %} secondary{% endif %}" href="?language=de"{% if language == "de" %} aria-current="page"{% endif %}>{% translate "German texts" %}</a>
+</nav>
+
+<form method="post" action="{% url 'documents:template_defaults' %}">
+  {% csrf_token %}<input type="hidden" name="language" value="{{ language }}">
+  {% if has_own %}<p class="note">{% translate "Fields marked “own text” hold neither the German nor the English default text. They are not ticked: tick them only if they shall be replaced. The change log keeps the previous texts." %}</p>{% endif %}
+  {% for comparison in comparisons %}
+  <section class="panel" aria-labelledby="template-{{ comparison.kind }}">
+    <div class="panel-head"><h2 id="template-{{ comparison.kind }}">{{ comparison.label }}</h2>{% if not comparison.changes %}<span class="badge green">{% if language == "en" %}{% translate "already the English texts" %}{% else %}{% translate "already the German texts" %}{% endif %}</span>{% endif %}</div>
+    {% if comparison.changes %}
+    <table class="table stack">
+      <thead><tr><th class="c-check">{% translate "Take over" %}</th><th>{% translate "Field" %}</th><th>{% translate "Now" %}</th><th>{% translate "New" %}</th></tr></thead>
+      <tbody>
+      {% for change in comparison.changes %}
+        <tr>
+          <td class="c-check">{% if can_edit %}<input type="checkbox" id="field-{{ change.kind }}-{{ change.name }}" name="fields" value="{{ change.key }}"{% if not change.own %} checked{% endif %}><input type="hidden" name="seen-{{ change.key }}" value="{{ change.seen }}">{% endif %}</td>
+          <td><label for="field-{{ change.kind }}-{{ change.name }}">{{ change.label }}</label>{% if change.own %} <span class="badge yellow">{% translate "own text" %}</span>{% endif %}</td>
+          <td data-label="{% translate 'Now' %}">{% if change.current %}{{ change.current|linebreaksbr }}{% else %}<span class="muted">–</span>{% endif %}</td>
+          <td data-label="{% translate 'New' %}">{% if change.new %}{{ change.new|linebreaksbr }}{% else %}<span class="muted">–</span>{% endif %}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+  </section>
+  {% endfor %}
+
+  <section class="panel" aria-labelledby="document-language">
+    <div class="panel-head"><h2 id="document-language">{% translate "Language of the documents" %}</h2></div>
+    <div class="panel-body">
+      <p>{% blocktranslate with current=document_language_name %}The language of the documents is a setting of its own (now: {{ current }}). It decides the fixed texts of offers, invoices and the other documents – column heads, dates and amounts –, while the templates hold your own texts. It is set under “Company data and settings”.{% endblocktranslate %}</p>
+      {% if can_edit and language != document_language %}
+      <label class="check"><input type="checkbox" name="document_language" value="1"> {% if language == "en" %}{% translate "Also make the documents English" %}{% else %}{% translate "Also make the documents German" %}{% endif %}</label>
+      {% endif %}
+    </div>
+  </section>
+
+  {% if can_edit %}{% if has_changes or language != document_language %}
+  <div class="btn-row"><button class="btn" type="submit">{% if language == "en" %}{% translate "Take over the English template texts" %}{% else %}{% translate "Take over the German template texts" %}{% endif %}</button></div>
+  {% endif %}{% else %}
+  <p class="muted">{% translate "Taking over texts needs the right to change the settings." %}</p>
+  {% endif %}
+</form>
+{% endblock %}

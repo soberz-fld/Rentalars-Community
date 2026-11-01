@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% if invoice.invoice_number %}{% blocktranslate with number=invoice.invoice_number %}Invoice {{ number }}{% endblocktranslate %}{% else %}{% translate "Incoming invoice" %}{% endif %}{% endblock %}
+{% block content %}
+{% comment %}
+  Incoming invoices: one incoming invoice. The positions are the "Kontierung" (tax account, kind, net amount, tax rate), the sum under them is worked out while typing. The file and what was read from it, the head with the note and the status, (DOK-023, DOK-024)
+  the positions (goods, ancillary cost, other), the ancillary costs spread over the goods with the acquisition cost of each
+  position, and what was booked in. One form saves head and positions (rentalars/incoming/views.py invoice_detail); the
+  buttons beside it (read again, create the supplier, status, delete) are forms or "formaction" of their own.
+{% endcomment %}
+<div class="page-head">
+  <div><div class="breadcrumb"><a href="{% url 'incoming:list' %}">{% translate "Incoming documents" %}</a></div>
+    <h1>{% if invoice.invoice_number %}{% blocktranslate with number=invoice.invoice_number %}Invoice {{ number }}{% endblocktranslate %}{% else %}{{ invoice.original_name }}{% endif %}</h1>
+    <p class="lead">{{ invoice.supplier_label|default:_("Supplier not named yet") }} · <span class="badge {% if invoice.status == 'open' %}yellow{% elif invoice.status == 'checked' %}green{% else %}accent{% endif %}">{{ invoice.get_status_display }}</span></p></div>
+  <div class="actions">
+    <a class="btn secondary" href="{% url 'incoming:file' invoice.pk %}" target="_blank" rel="noopener">{% icon "file" %}{% translate "Open the original" %}</a>
+    {% if may_change and has_goods %}<a class="btn" href="{% url 'incoming:book' invoice.pk %}">{% icon "box-in" %}{% translate "Book in goods" %}</a>{% endif %}
+  </div>
+</div>
+{% include "documents/_accounting_tabs.html" %}
+
+{% if asked_book %}
+{# After "Beleg erfassen" – the question whether the goods are to be entered in the material management too. #}
+<section class="panel" aria-labelledby="incoming-asked-title" id="asked-book">
+  <div class="panel-head"><h2 id="incoming-asked-title">{% translate "Enter in the material management too?" %}</h2></div>
+  <div class="panel-body">
+    {% if has_goods %}
+    <p>{% translate "The goods of this invoice can become items or quantities in the material management now." %}</p>
+    <div class="btn-row"><a class="btn" href="{% url 'incoming:book' invoice.pk %}">{% icon "box-in" %}{% translate "Yes, book in the goods" %}</a><a class="btn secondary" href="{% url 'incoming:detail' invoice.pk %}">{% translate "No, only the invoice" %}</a></div>
+    {% else %}
+    <p class="muted">{% translate "No goods are known yet. Once the positions are read or entered, “Book in goods” on this page makes items of them." %}</p>
+    <div class="btn-row"><a class="btn secondary" href="{% url 'incoming:detail' invoice.pk %}">{% translate "Understood" %}</a></div>
+    {% endif %}
+  </div>
+</section>
+{% endif %}
+
+{% if duplicates %}
+<div class="message warning" role="status">{% translate "This may be an invoice you have already:" %}
+  {% for other in duplicates %}<a href="{% url 'incoming:detail' other.pk %}">{{ other.supplier_label|default:other.original_name }} {{ other.invoice_number }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}
+</div>
+{% endif %}
+
+<section class="panel" aria-labelledby="incoming-file-title">
+  <div class="panel-head"><h2 id="incoming-file-title">{% translate "File" %}</h2></div>
+  <div class="panel-body">
+    <p>{% icon "file" %} <strong>{{ invoice.original_name }}</strong> <span class="muted small">{{ invoice.size|filesizeformat }} · {% blocktranslate with date=invoice.created_at|date:"d.m.Y H:i" %}uploaded {{ date }}{% endblocktranslate %}</span></p>
+    {% if job %}{% include "incoming/_reading.html" with finished=False %}{% else %}{% include "incoming/_reading.html" with finished=True %}{% endif %}
+    {% include "incoming/_einvoice.html" %}
+    {# DOK-048: what is paid of this invoice #}
+    <p><a class="btn secondary small" href="{% url 'incoming:payments' invoice.pk %}">{% icon "invoice" %}{% translate "Payments" %}</a></p>
+    {% if may_change %}
+    <form method="post" action="{% url 'incoming:read' invoice.pk %}" class="btn-row">{% csrf_token %}
+      <button class="btn secondary small" type="submit"{% if has_goods and invoice.reading.source == "ai" %} data-confirm="{% translate 'Read the invoice again? Empty fields are filled. Positions that are not booked in and that you did not type or correct are replaced by the new reading.' %}"{% endif %}>{% icon "refresh" %}{% translate "Read again" %}</button>
+    </form>
+    {% endif %}
+  </div>
+</section>
+
+<form method="post" class="form wide incoming-form" id="incoming-form" novalidate{% if may_change %} hx-post="{% url 'incoming:kontierung_sum' invoice.pk %}" hx-trigger="input delay:250ms" hx-target="#kontierung-sum" hx-swap="outerHTML" hx-sync="this:queue last" hx-disinherit="*"{% endif %}>
+  {% csrf_token %}
+  {% include "core/_form_errors.html" %}
+  {% if formset.non_form_errors %}<div class="message error" role="alert">{% for error in formset.non_form_errors %}<div>{{ error }}</div>{% endfor %}</div>{% endif %}
+
+  <section class="panel" aria-labelledby="incoming-head-title">
+    <div class="panel-head"><h2 id="incoming-head-title">{% translate "Invoice" %}</h2></div>
+    <fieldset class="panel-body form-grid"{% if not may_change %} disabled{% endif %}>
+      {% url 'material:supplier_suggest' as supplier_url %}{% translate "Search or type a name" as supplier_placeholder %}{% include "material/_name_typeahead.html" with field=head.supplier_name url=supplier_url placeholder=supplier_placeholder %}
+      {% include "core/_field.html" with field=head.invoice_number %}
+      {% include "core/_field.html" with field=head.invoice_date %}
+      {% include "core/_field.html" with field=head.due_date %}
+      {% include "core/_field.html" with field=head.currency %}
+      {% include "core/_field.html" with field=head.exchange_rate %}
+      {% include "core/_field.html" with field=head.total_net %}
+      {% include "core/_field.html" with field=head.total_tax %}
+      {% include "core/_field.html" with field=head.total_gross %}
+      {% include "core/_field.html" with field=head.status %}
+    </fieldset>
+    <div class="panel-body">
+      {% if supplier_missing and may_change %}
+      <p class="note small">{% blocktranslate with name=invoice.supplier_name %}“{{ name }}” is not in the master data yet. It is created when you book goods in – or now:{% endblocktranslate %}
+        <button class="btn secondary small" type="submit" formaction="{% url 'incoming:create_supplier' invoice.pk %}" formnovalidate>{% icon "plus" %}{% translate "Create the supplier" %}</button></p>
+      {% endif %}
+      <fieldset class="form-grid"{% if not may_change %} disabled{% endif %}>{% include "core/_field.html" with field=head.note %}</fieldset>
+    </div>
+  </section>
+
+  <section class="panel" aria-labelledby="incoming-positions-title">
+    <div class="panel-head"><h2 id="incoming-positions-title">{% translate "Kontierung" %}</h2></div>
+    <div class="panel-body">
+      <p class="muted small">{% translate "Split the invoice over the tax accounts: one line for each kind of cost. Mark the freight, packaging, customs … as “ancillary cost”: they are spread over the goods below. Goods become items or quantities when you book them in; “other” (a service, a deposit) is only kept." %}</p>
+      {{ formset.management_form }}
+      <div class="incoming-positions">
+      {% for item in rows %}{% with form=item.form position=item.position cost=item.cost booked=item.booked %}
+        <fieldset class="purchase-row incoming-position{% if form.errors %} has-error{% endif %}" id="{% if position %}position-{{ position.pk }}{% else %}new-position{% endif %}"{% if not may_change %} disabled{% endif %}>
+          <legend>{% if position %}{% blocktranslate with number=position.place %}Kontierung {{ number }}{% endblocktranslate %}{% else %}{% translate "New Kontierung" %}{% endif %}</legend>
+          {{ form.id }}
+          {% if form.non_field_errors %}<div class="message error">{{ form.non_field_errors }}</div>{% endif %}
+          <div class="form-grid">
+            {% include "core/_field.html" with field=form.description %}
+            {% include "core/_field.html" with field=form.tax_account %}
+            {% include "core/_field.html" with field=form.position_type %}
+            {% include "core/_field.html" with field=form.amount_net %}
+            {% include "core/_field.html" with field=form.tax_rate %}
+            <div class="field-slot{% if not form.shows_asset %} hidden{% endif %}" data-show-if="{{ form.prefix }}-position_type=goods">{% include "core/_field.html" with field=form.asset_kind %}</div>
+            <div class="field-slot{% if not form.shows_useful_life %} hidden{% endif %}" data-show-if="{{ form.prefix }}-position_type=goods&amp;{{ form.prefix }}-asset_kind=fixed_asset">
+              {% include "core/_field.html" with field=form.useful_life_months %}
+              <p class="help small">{% translate "How long the asset is written off. The tax authorities publish standard values (AfA tables):" %} <a href="https://www.bundesfinanzministerium.de/Web/DE/Themen/Steuern/Steuerverwaltungu-Steuerrecht/Betriebspruefung/AfA_Tabellen/afa_tabellen.html" target="_blank" rel="noopener">{% translate "AfA tables of the Federal Ministry of Finance" %}</a></p>
+            </div>
+            <div class="field-slot{% if head.allocation_key.value != 'weight' %} hidden{% endif %}" data-show-if="allocation_key=weight">{% include "core/_field.html" with field=form.weight_kg %}</div>
+          </div>
+          {% if position and position.line_net is not None and cost and cost.total is not None and cost.share %}<p class="small muted">{% blocktranslate with total=cost.total|money piece=cost.per_piece|money %}Acquisition cost {{ total }}, {{ piece }} per piece{% endblocktranslate %}</p>{% endif %}
+          {% if booked %}<p class="small"><span class="badge accent">{% translate "booked in" %}</span> {% blocktranslate with rows=booked.rows pieces=booked.pieces ids=booked.ids %}{{ rows }} items, {{ pieces }} pieces: {{ ids }}{% endblocktranslate %}</p>{% endif %}
+          {% if form.DELETE and not form.booked %}<div class="purchase-row-tools">{% include "core/_field.html" with field=form.DELETE %}</div>{% endif %}
+        </fieldset>
+      {% endwith %}{% endfor %}
+      </div>
+      {% if may_change %}<div class="btn-row"><button class="btn secondary small" type="submit" name="action" value="add">{% icon "plus" %}{% translate "Another Kontierung" %}</button></div>{% endif %}
+      {% include "incoming/_kontierung_sum.html" %}
+    </div>
+  </section>
+
+  <section class="panel" aria-labelledby="incoming-cost-title">
+    <div class="panel-head"><h2 id="incoming-cost-title">{% translate "Ancillary costs and acquisition cost" %}</h2></div>
+    <div class="panel-body">
+      <fieldset class="form-grid"{% if not may_change %} disabled{% endif %}>{% include "core/_field.html" with field=head.allocation_key %}</fieldset>
+      <p class="muted small">{% translate "The key only changes the preview below; it is saved with the invoice." %}</p>
+      {% include "incoming/_costing.html" %}
+    </div>
+  </section>
+
+  {% if may_change %}<div class="btn-row"><button class="btn" type="submit" name="action" value="save">{% icon "check" %}{% translate "Save" %}</button><a class="btn secondary" href="{% url 'incoming:list' %}">{% translate "Back to the list" %}</a></div>{% endif %}
+</form>
+
+{% if may_change %}
+<section class="panel" aria-labelledby="incoming-actions-title">
+  <div class="panel-head"><h2 id="incoming-actions-title">{% translate "Status" %}</h2></div>
+  <div class="panel-body btn-row">
+    {% if invoice.status != "checked" %}<form method="post" action="{% url 'incoming:status' invoice.pk %}" class="inline-form">{% csrf_token %}<input type="hidden" name="status" value="checked"><button class="btn secondary" type="submit">{% icon "check" %}{% translate "Mark as checked" %}</button></form>{% endif %}
+    {% if invoice.status != "booked_in" %}<form method="post" action="{% url 'incoming:status' invoice.pk %}" class="inline-form">{% csrf_token %}<input type="hidden" name="status" value="booked_in"><button class="btn secondary" type="submit">{% translate "Mark as booked in" %}</button></form>{% endif %}
+    {% if invoice.status != "open" %}<form method="post" action="{% url 'incoming:status' invoice.pk %}" class="inline-form">{% csrf_token %}<input type="hidden" name="status" value="open"><button class="btn secondary" type="submit">{% translate "Mark as open" %}</button></form>{% endif %}
+    {% if may_delete %}<form method="post" action="{% url 'incoming:delete' invoice.pk %}" class="inline-form">{% csrf_token %}<button class="btn secondary" type="submit" data-confirm="{% translate 'Delete this invoice with its positions and its file?' %}">{% icon "trash" %}{% translate "Delete the invoice" %}</button></form>{% endif %}
+  </div>
+</section>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "Inquiries" %}{% endblock %}
+{% block content %}
+{% comment %}
+  EML-042: the tab "Inquiries" under Projects. Mails whose tag names no project (EML-014) and – from mailboxes
+  that take them in – mails without a tag (EML-041, EML-047). They wait unchanged in the inbox of their mailbox
+  until somebody takes them over into a project or removes them from the list. The state of the fetch is in the
+  settings.
+  PRJ-107: a table on core.tables (columns, sorting, CSV, grouping – UIX-040); the project number is typed with suggestions;
+  an inquiry becomes a project or a service case; a trash-can button takes one mail off the list, the tick boxes
+  and "Remove chosen from the list" several – after a confirmation.
+  EML-053: "Add inquiry" notes one by hand (e.g. a phone call); it shows the badge „Notiert“, can be edited
+  and becomes a note in the correspondence when it is taken over.
+{% endcomment %}
+<div class="page-head"><div><h1>{% translate "Projects" %}</h1></div>
+  {# The mailboxes and the mail log live in the settings (EML-035, EML-039, EML-041). #}
+  <div class="actions">
+    {# EML-053: an inquiry noted by hand, e.g. during a phone call. #}
+    {% if can_assign %}<a class="btn" href="{% url 'mail:inquiry_create' %}">{% icon "plus" %}{% translate "Add inquiry" %}</a>{% endif %}
+    {% if can.read.administration %}<a class="btn secondary" href="{% url 'mail:log' %}">{% icon "list" %}{% translate "Mail log" %}</a>{% endif %}
+    {% if can.write.email or can.write.administration %}<a class="btn secondary" href="{% url 'mail:settings' %}">{% icon "settings" %}{% translate "Mailboxes" %}</a>{% endif %}
+  </div>
+</div>
+{% include "projects/_list_tabs.html" %}
+<section class="panel" aria-labelledby="inquiries-title">
+  <div class="panel-head"><h2 id="inquiries-title">{% translate "Inquiries" %}</h2>
+    <span class="muted small">{% if takes_untagged %}{% blocktranslate with example=tag_prefix %}Mails with a tag like [{{ example }}#2026-0042] go to their project by themselves. Here wait the mails whose tag names no project, and the mails without a tag. They stay unchanged in the inbox until you take them over.{% endblocktranslate %}{% else %}{% blocktranslate with example=tag_prefix %}Mails with a tag like [{{ example }}#2026-0042] go to their project by themselves. Here wait the mails whose tag names no project – a typing error or an unknown number. They stay unchanged in the inbox until you take them over.{% endblocktranslate %}{% endif %}</span></div>
+  <form method="get" class="filters">
+    <div class="field grow"><label for="f-q">{% translate "Search" %}</label><input type="search" id="f-q" name="q" value="{{ filters.q }}" placeholder="{% translate 'Subject, sender, tag, phone' %}"></div>
+    {% filterpanel "inquiries" %}
+    <div class="field"><label for="f-kind">{% translate "Kind" %}</label>
+      <select id="f-kind" name="kind" data-autosubmit>
+        <option value="">{% translate "All" %}</option>
+        <option value="inquiry"{% if filters.kind == "inquiry" %} selected{% endif %}>{% translate "without tag" %}</option>
+        <option value="unknown_tag"{% if filters.kind == "unknown_tag" %} selected{% endif %}>{% translate "unknown tag" %}</option>
+        <option value="defect"{% if filters.kind == "defect" %} selected{% endif %}>{% translate "defect report" %}</option>
+        <option value="manual"{% if filters.kind == "manual" %} selected{% endif %}>{% translate "noted by hand" %}</option>
+      </select></div>
+    {% if mailbox_choices %}<div class="field"><label for="f-mailbox">{% translate "Mailbox" %}</label>
+      <select id="f-mailbox" name="mailbox" data-autosubmit><option value="">{% translate "All" %}</option>{% for value, label in mailbox_choices %}<option value="{{ value }}"{% if filters.mailbox == value|stringformat:"d" %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>{% endif %}
+    <button class="btn secondary" type="submit">{% translate "Filter" %}</button>
+    {% endfilterpanel %}
+  </form>
+  {% include "core/_table_tools.html" %}
+  {% if entries %}
+  {# UIX-015, UIX-044: why a sort or a grouping in Python was not done – the list is too long. #}
+  {% if table.sort_notice %}<ul class="messages"><li class="message info" role="status">{{ table.sort_notice }}</li></ul>{% endif %}
+  <div class="table-scroll">
+  <table class="table stack inquiry-list">
+    <thead><tr>
+      {% if can_assign %}<th class="c-check" scope="col"><input type="checkbox" data-check-all="items" aria-label="{% translate 'Choose all on this page' %}"></th>{% endif %}
+      {% for header in table.headers %}
+      <th class="{{ header.column.css }}"{% if header.is_active %} aria-sort="{% if header.descending %}descending{% else %}ascending{% endif %}"{% endif %} scope="col">{% if header.sortable %}<a href="{{ header.url }}">{{ header.column.label }}{% if header.is_active %}<span class="sort" aria-hidden="true">{% if header.descending %}▼{% else %}▲{% endif %}</span>{% endif %}</a>{% else %}{{ header.column.label }}{% endif %}</th>
+      {% endfor %}
+      {% if can_assign %}<th scope="col">{% translate "Assign" %}</th>{% endif %}
+    </tr></thead>
+    <tbody>
+    {% for row, item in entries %}
+      {# UIX-040: grouped (?group=), a heading row above the first mail of each group, with its number of mails. #}
+      {% if row.group %}<tr class="table-group"><th colspan="{{ group_span }}" scope="colgroup">{{ row.group.label }} <span class="table-group-count">{% blocktranslate count count=row.group.count %}{{ count }} entry{% plural %}{{ count }} entries{% endblocktranslate %}</span></th></tr>{% endif %}
+      <tr>
+        {% if can_assign %}<td class="c-check"><input type="checkbox" name="items" value="{{ item.pk }}" form="bulk-form" aria-label="{% blocktranslate with subject=item.subject|default:'–' %}Choose “{{ subject }}”{% endblocktranslate %}"></td>{% endif %}
+        {% for cell in row.cells %}<td{% if cell.css %} class="{{ cell.css }}"{% endif %}{% if cell.label %} data-label="{{ cell.label }}"{% endif %}>{{ cell.html }}</td>{% endfor %}
+        {% if can_assign %}
+        <td data-label="{% translate 'Assign' %}" class="inquiry-actions">
+          {% if item.is_defect %}
+          {# MAT-057: a defect report put here by an automation – no mail to take over; it becomes a service case. #}
+          {% if can.write.projects %}<a class="btn small" href="{% url 'projects:case_create' %}?inquiry={{ item.pk }}">{% icon "plus" %}{% translate "As a service case" %}</a>{% endif %}
+          {% else %}
+          {# PRJ-107: the number with suggestions while typing (number and name); a number typed in full works too. #}
+          <form method="post" action="{% url 'mail:unknown_assign' item.pk %}" class="inline-form compact-form">{% csrf_token %}
+            <div class="typeahead" data-typeahead data-typeahead-free data-url="{% url 'mail:project_suggestions' %}">
+              <input type="search" name="project_text" data-typeahead-input placeholder="{% translate 'Project number' %}" aria-label="{% translate 'Project number' %}" required size="14" autocomplete="off">
+              <input type="hidden" name="project_number" data-typeahead-value>
+            </div>
+            <button class="btn small" type="submit">{% translate "Take over" %}</button></form>
+          {% endif %}
+          {% if item.is_manual and item.can_change %}
+          {# EML-053: an inquiry noted by hand – changed or deleted by who noted it or may write in E-mail. #}
+          <a class="btn secondary small" href="{% url 'mail:inquiry_edit' item.pk %}">{% icon "edit" %}{% translate "Edit" %}</a>
+          {% endif %}
+          {% if item.is_inquiry and not item.is_defect and can.write.projects %}
+          {# PRJ-107, PRJ-090: an inquiry without tag becomes a project or a service case of its own, with the mail in it. #}
+          <a class="btn secondary small" href="{% url 'projects:create' %}?inquiry={{ item.pk }}">{% icon "plus" %}{% translate "As a project" %}</a>
+          <a class="btn secondary small" href="{% url 'projects:case_create' %}?inquiry={{ item.pk }}">{% icon "plus" %}{% translate "As a service case" %}</a>
+          {% endif %}
+          <form method="post" action="{% url 'mail:unknown_dismiss' item.pk %}" class="inline-form">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="icon-btn" type="submit" title="{% translate 'remove from list' %}">{% icon "trash" %}<span class="visually-hidden">{% translate "remove from list" %}</span></button></form>
+        </td>
+        {% endif %}
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% if can_assign %}
+  {# UIX-048: after the list, shown only while entries are ticked; it docks at the lower edge while scrolling. #}
+  <form method="post" action="{% url 'mail:unknown_dismiss_many' %}" id="bulk-form" class="bulk-bar no-print" data-bulk-bar="items" aria-label="{% translate 'Chosen entries' %}" hidden>
+    {% csrf_token %}
+    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+    <span class="count"><span data-chosen-count="items">0</span> {% translate "chosen" %}</span>
+    <span class="bulk-buttons">
+      <button class="btn secondary small" type="submit" data-confirm="{% translate 'Remove the chosen mails from the list? They stay in the inbox.' %}">{% icon "trash" %}{% translate "Remove chosen from the list" %}</button>
+      <button class="btn secondary small" type="button" data-bulk-clear="items">{% translate "Clear choice" %}</button>
+    </span>
+  </form>
+  {% endif %}
+  {% include "core/_pagination.html" %}
+  {% elif filtered %}<div class="empty">{% translate "No mail matches the filters." %}</div>
+  {% else %}<div class="empty">{% translate "No inquiries and no mails with an unknown tag." %}</div>{% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% load i18n period_marks %}
+{% block title %}{% if phase %}{{ phase.label }}{% else %}{% translate "New phase" %}{% endif %} {{ project.number }}{% endblock %}
+{% block content %}
+<div class="page-head"><div><div class="breadcrumb"><a href="{% url 'projects:course' project.pk %}">{{ project.number }} {{ project.name }}</a></div><h1>{% if phase %}{{ phase.label }}{% else %}{% translate "New phase" %}{% endif %}</h1></div></div>
+<div class="panel"><div class="panel-body">
+  {# PRJ-099: the calendars show the rental period and the event period of the project hatched. #}
+  <form method="post" class="form wide" novalidate data-calendar-marks="{% project_period_marks project %}">
+    {% csrf_token %}
+    {% if form.function_rows %}<button type="submit" class="visually-hidden" tabindex="-1" aria-hidden="true">{% translate "Save phase" %}</button>{% endif %}
+    {% include "core/_form_errors.html" %}
+    <div class="form-grid">
+      {% include "core/_field.html" with field=form.kind %}
+      {% include "core/_field.html" with field=form.title %}
+      {% include "core/_field.html" with field=form.start %}
+      {% include "core/_field.html" with field=form.end %}
+      {% include "core/_field.html" with field=form.venue_site %}
+      {% include "core/_field.html" with field=form.location %}
+    </div>
+    {% include "core/_field.html" with field=form.notes %}
+    {# PRJ-120: a new phase names job functions with places; saving plans that many open places. #}
+    {% if form.function_rows %}{% include "projects/_function_rows.html" %}{% endif %}
+    {# PRJ-080: only for a phase with crew lines – they can move along with a new period. #}
+    {% if form.move_crew %}{% include "core/_field.html" with field=form.move_crew %}{% endif %}
+    <div class="btn-row"><button class="btn" type="submit">{% translate "Save phase" %}</button><a class="btn secondary" href="{% url 'projects:course' project.pk %}">{% translate "Cancel" %}</a></div>
+  </form>
+</div></div>
+{% endblock %}

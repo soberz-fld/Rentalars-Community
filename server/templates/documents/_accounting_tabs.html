@@ -1,0 +1,17 @@
+{% load i18n %}
+{% comment %}
+  DOK-019: the tabs of "Buchhaltung" – the outgoing documents and the monthly statement of the service cases
+  (DOK-016). Expects may_see_outgoing and may_use_statements
+  (documents.outgoing.tabs) and tab. DATEV export and Lexware Office stay in the settings.
+{% endcomment %}
+<nav class="tabs" aria-label="{% translate 'Accounting' %}">
+  {% if may_see_outgoing %}<a href="{% url 'documents:outgoing' %}"{% if tab == "outgoing" %} aria-current="page"{% endif %}>{% translate "Outgoing documents" %}</a>{% endif %}
+  {% if may_use_statements %}<a href="{% url 'documents:statements' %}"{% if tab == "statements" %} aria-current="page"{% endif %}>{% translate "Monthly statement" %}</a>{% endif %}
+  {# "Beleg erfassen" – upload an invoice – and "Eingangsbelege" – the register (rentalars/incoming) #}{% if may_capture %}<a href="{% url 'incoming:capture' %}"{% if tab == "capture" %} aria-current="page"{% endif %}>{% translate "Capture a document" %}</a>{% endif %}
+  {% if may_see_incoming %}<a href="{% url 'incoming:list' %}"{% if tab == "incoming" %} aria-current="page"{% endif %}>{% translate "Incoming documents" %}</a>{% endif %}
+  {# The Anlagenspiegel and the used sales from stock (rentalars/material/asset_views) #}{% if may_see_assets %}<a href="{% url 'material:asset_register' %}"{% if tab == "assets" %} aria-current="page"{% endif %}>{% translate "Asset register" %}</a><a href="{% url 'material:sales' %}"{% if tab == "sales" %} aria-current="page"{% endif %}>{% translate "Sales from stock" %}</a>{% endif %}
+  {# DOK-048, DOK-045: open items and the EÜR #}{% if may_see_open_items %}<a href="{% url 'documents:open_items' %}"{% if tab == "open_items" %} aria-current="page"{% endif %}>{% translate "Open invoices" %}</a>{% endif %}
+  {# DOK-050: bank statements #}{% if may_see_bank %}<a href="{% url 'documents:bank' %}"{% if tab == "bank" %} aria-current="page"{% endif %}>{% translate "Bank" %}</a>{% endif %}
+  {% if may_see_euer %}<a href="{% url 'documents:euer' %}"{% if tab == "euer" %} aria-current="page"{% endif %}>{% translate "Profit statement (EÜR)" %}</a><a href="{% url 'documents:archive' %}"{% if tab == "archive" %} aria-current="page"{% endif %}>{% translate "Archive" %}</a>{% endif %}
+  {# The import of old projects from invoices (rentalars/projects/legacy_import) #}{% if may_use_legacy %}<a href="{% url 'projects:legacy' %}"{% if tab == "legacy" %} aria-current="page"{% endif %}>{% translate "Import old projects" %}</a>{% endif %}
+</nav>

@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% load i18n rentalars trips %}
+{% block title %}{% translate "Schedule" %} {{ project.number }}{% endblock %}
+{% block content %}
+{% include "projects/_head.html" %}
+{% comment %}
+  The schedule ("Zeitplanung") of a project: the open items (PRJ-059), the timeline of
+  the project (PRJ-103), the phases with period and place (PRJ-006) and their crew (PRJ-080). When
+  the last open item of a project "Confirmed – details open" is done, the page suggests switching to "Confirmed"
+  (scenario 20). PRJ-102: there is no box "Venue"; the venue stays in the head and the form.
+  The crew on the timeline as in the personnel plan (VFG-035); the crew lines of a phase changed, asked and
+  removed here (PRJ-110, _phase_crew_list.html); trips changed, removed and added (PRJ-111, _trips.html).
+{% endcomment %}
+{% if suggest_confirmation and can_edit %}
+<form method="post" action="{% url 'projects:set_status' project.pk %}" class="note accent statusline">
+  {% csrf_token %}
+  <span>{% translate "All open items are done." %}</span>
+  <button class="btn small" name="status" value="confirmed">{% icon "check" %}{% translate "Set to “Confirmed”" %}</button>
+</form>
+{% elif needs_items %}
+<p class="note">{% translate "The project is “Confirmed – details open”. Note below what is still open, so that it can be followed up." %}</p>
+{% endif %}
+{% if extension %}
+{# PRJ-100: the phase just saved lies beyond the rental period. Only "Extend" changes the rental period. #}
+<form method="post" action="{% url 'projects:phase_extend_period' project.pk extension.phase.pk %}" class="note accent rental-period-question" aria-labelledby="rental-period-title">
+  {% csrf_token %}
+  <h2 id="rental-period-title">{% translate "Extend the rental period?" %}</h2>
+  {% include "projects/_rental_period_question.html" with title_id="rental-period-title" %}
+  <div class="btn-row">
+    {% if extension.blocked_by %}
+    <a class="btn secondary small" href="{% url 'projects:course' project.pk %}">{% translate "Close" %}</a>
+    {% else %}
+    <button class="btn small" type="submit" data-autofocus>{% translate "Extend" %}</button>
+    <a class="btn secondary small" href="{% url 'projects:course' project.pk %}">{% translate "Do not extend" %}</a>
+    {% endif %}
+  </div>
+</form>
+{% endif %}
+
+<section class="panel" id="open-items">
+  <div class="panel-head"><h2>{% translate "Open items" %}</h2></div>
+  {% if open_items %}
+  <ul class="checklist">
+    {% for item in open_items %}
+    <li{% if item.is_done %} class="done"{% endif %}>
+      {% if can_edit %}
+      <form method="post" action="{% url 'projects:open_item_toggle' project.pk item.pk %}" class="inline-form">
+        {% csrf_token %}<input type="hidden" name="done" value="{% if item.is_done %}0{% else %}1{% endif %}">
+        <button class="check-btn{% if item.is_done %} on{% endif %}" type="submit" aria-label="{% if item.is_done %}{% translate 'Mark as open' %}{% else %}{% translate 'Mark as done' %}{% endif %}">{% if item.is_done %}{% icon "check" %}{% endif %}</button>
+      </form>
+      {% else %}<span class="check-btn{% if item.is_done %} on{% endif %}">{% if item.is_done %}{% icon "check" %}{% endif %}</span>{% endif %}
+      <span class="text"><span class="item-text">{{ item.text }}</span>{% if item.is_done %}<span class="muted small"> – {% blocktranslate with who=item.done_by|default:"?" when=item.done_at|date:"d.m.Y H:i" %}done by {{ who }}, {{ when }}{% endblocktranslate %}</span>{% endif %}</span>
+      {% if can_edit %}<form method="post" action="{% url 'projects:open_item_delete' project.pk item.pk %}" class="inline-form">{% csrf_token %}<button class="icon-btn" type="submit" aria-label="{% translate 'Remove' %}" data-confirm="{% translate 'Remove this open item?' %}">{% icon "trash" %}</button></form>{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}<div class="empty">{% translate "Nothing is open." %}</div>{% endif %}
+  {% if items_form %}
+  <div class="panel-body">
+    <form method="post" action="{% url 'projects:open_items_add' project.pk %}" class="form">
+      {% csrf_token %}{% include "core/_required_note.html" with form=items_form %}
+      {% include "core/_field.html" with field=items_form.texts %}
+      <div class="btn-row"><button class="btn secondary small" type="submit">{% icon "plus" %}{% translate "Note" context "verb" %}</button></div>
+    </form>
+  </div>
+  {% endif %}
+</section>
+
+{% include "schedule/_course_timeline.html" %}
+
+<section class="panel" id="phases">
+  <div class="panel-head"><h2>{% translate "Phases" %}</h2>{% if can_edit %}<a class="btn secondary small" href="{% url 'projects:phase_create' project.pk %}">{% icon "plus" %}{% translate "New phase" %}</a>{% endif %}</div>
+  {% if phases %}
+  <table class="table stack phases">
+    <thead><tr><th>{% translate "Phase" %}</th><th>{% translate "Period" %}</th><th>{% translate "Place" %}</th><th></th></tr></thead>
+    {% for entry in phase_crew %}{% with phase=entry.phase %}
+    <tbody data-phase="{{ phase.pk }}">
+      <tr>
+        <td><strong>{{ phase.label }}</strong>{% if phase.title %} <span class="muted small">{{ phase.get_kind_display }}</span>{% endif %}{% if phase.notes %}<div class="muted small">{{ phase.notes|linebreaksbr }}</div>{% endif %}</td>
+        <td class="nowrap" data-label="{% translate 'Period' %}">{{ phase.start|date:"D d.m. H:i" }} – {{ phase.end|date:"D d.m. H:i" }}</td>
+        <td data-label="{% translate 'Place' %}">{{ phase.place|default:"–" }}</td>
+        <td class="actions">{% if can_edit %}<a class="icon-btn" href="{% url 'projects:phase_edit' project.pk phase.pk %}" aria-label="{% translate 'Edit phase' %}">{% icon "edit" %}</a>
+          <form method="post" action="{% url 'projects:phase_delete' project.pk phase.pk %}" class="inline-form">{% csrf_token %}<button class="icon-btn" type="submit" aria-label="{% translate 'Remove phase' %}" data-confirm="{% if entry.lines %}{% translate 'Remove this phase? Its crew lines stay, without phase.' %}{% else %}{% translate 'Remove this phase?' %}{% endif %}">{% icon "trash" %}</button></form>{% endif %}</td>
+      </tr>
+      {# PRJ-080: who works in this phase; the period only where it differs from the phase's. #}
+      {% if entry.lines or can_plan_crew %}
+      <tr class="phase-crew-row">
+        <td colspan="4">
+          {% include "projects/_phase_crew_list.html" with lines=entry.lines %}
+          {% if can_plan_crew %}<a class="btn secondary small" href="{% url 'projects:phase_crew_add' project.pk phase.pk %}" hx-get="{% url 'projects:phase_crew_add' project.pk phase.pk %}" hx-target="#dialog">{% icon "plus" %}{% translate "Personnel for this phase" %}</a>{% endif %}
+        </td>
+      </tr>
+      {% endif %}
+    </tbody>
+    {% endwith %}{% endfor %}
+  </table>
+  {# PRJ-092: the kinds – from the planning meetings to the follow-up work after the return. #}
+  {% else %}<div class="empty"><strong>{% translate "No phases yet." %}</strong>{% translate "Planning and meetings, packing, setup, event, teardown, follow-up work – each with its period and place, for everybody who works on the project." %}</div>{% endif %}
+</section>
+
+{% if crew_without_phase.lines %}
+{# PRJ-080: the crew lines that belong to no phase, with their own periods. #}
+<section class="panel" id="crew-without-phase">
+  <div class="panel-head"><h2>{% translate "Personnel without phase" %}</h2>{% if can_plan_crew %}<a class="btn secondary small" href="{% url 'projects:detail' project.pk %}#planning-crew">{% translate "To the planning" %}</a>{% endif %}</div>
+  <div class="panel-body">{% include "projects/_phase_crew_list.html" with lines=crew_without_phase.lines phase=None %}</div>
+</section>
+{% endif %}
+{# PRJ-097: the trips of the project with their route links, and the map of its places. #}
+{% project_trips project %}
+{% endblock %}

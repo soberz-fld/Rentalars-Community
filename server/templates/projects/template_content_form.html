@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{{ section_title }} – {{ template.name }}{% endblock %}
+{% block content %}
+{% comment %}PRJ-135: add or change one entry of a template's content. Expects template, form, section, section_title, entry, mode, expect.{% endcomment %}
+<div class="page-head"><div>
+  <div class="breadcrumb"><a href="{% url 'projects:template_content' template.pk %}">{{ template.name }}</a></div>
+  <h1>{{ section_title }}</h1>
+</div></div>
+<div class="panel"><div class="panel-body">
+  <form method="post" class="form" novalidate autocomplete="off">
+    {% csrf_token %}
+    {% if section == "lines" and not entry %}<input type="hidden" name="as" value="{{ mode }}">{% endif %}
+    {% if expect %}<input type="hidden" name="expect" value="{{ expect }}">{% endif %}
+    {% include "core/_form_errors.html" %}
+    <div class="form-grid">
+    {% for field in form %}
+      {% if field.name == "product" and section == "lines" %}
+      <div class="field{% if field.errors %} has-error{% endif %}">
+        <label>{{ field.label }}{% include "core/_required_mark.html" %}</label>
+        <div class="typeahead" data-typeahead data-url="{% url 'products:suggest' %}?exclude_kind=surcharge,vehicle">
+          <input type="search" data-typeahead-input placeholder="{% translate 'Article number or product' %}" aria-label="{% translate 'Product' %}" autocomplete="off" value="{{ form.product_name }}">
+          <input type="hidden" name="product" data-typeahead-value value="{{ field.value|default_if_none:'' }}">
+        </div>
+        {{ field.errors }}
+      </div>
+      {% else %}
+      {% include "core/_field.html" %}
+      {% endif %}
+    {% endfor %}
+    </div>
+    <div class="btn-row"><button class="btn" type="submit">{% translate "Save" %}</button><a class="btn secondary" href="{% url 'projects:template_content' template.pk %}">{% translate "Cancel" %}</a></div>
+  </form>
+</div></div>
+{% endblock %}

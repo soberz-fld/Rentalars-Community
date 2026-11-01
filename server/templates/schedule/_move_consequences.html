@@ -1,0 +1,99 @@
+{% load i18n %}
+{% comment %}
+  VFG-026: what a move would do (schedule.moves.preview_move) – found by trying it in a transaction that is undone,
+  with every box ticked that can be, so that each box says what it does:
+  * a phase: its crew moves along (PRJ-080), and who is asked again for the new times (PER-034); beyond the rental
+    period the box "extend" with what the longer period means for the material (PRJ-100, PRJ-012);
+  * the rental period: the material lines that take it, the parts of a whole project that move along (PRJ-044),
+    moved as a whole the box for the event, the phases and the crew; the material missing afterwards (PRJ-012);
+  * the event period: nothing else;
+  * a deployment (VFG-031, personnel plan): its planned hours, who is asked again, its warnings at the new times;
+    PRJ-121, on "Zeitplanung": the box "follow" – the phase whose only person it is, or the open
+    places of its job function with the same times – saying what follows and why (preview.followers), and for a
+    following phase beyond the rental period the box "extend" (schedule/_move_extension.html, PRJ-100).
+  A change of the times above sends the form again and replaces this part and, out of band, the buttons (partial).
+  Expects: form, preview (None while the times do not fit), partial (optional).
+{% endcomment %}
+<div id="move-consequences" class="move-consequences">
+{% if preview %}
+{% with move=preview.move outcome=preview.outcome %}
+{% if preview.errors %}
+  <ul class="messages" role="alert">{% for text in preview.errors %}<li class="message error">{{ text }}</li>{% endfor %}</ul>
+{% elif not move.changes_anything %}
+  <p class="muted move-unchanged">{% translate "The times are the same as before: change them above, or drag the bar in the timeline." %}</p>
+{% else %}
+  <p class="move-after"><strong>{% translate "New" context "times" %}:</strong> {{ preview.new_text }}</p>
+  <h3 class="move-heading">{% translate "What follows" %}</h3>
+  {% if move.what == "phase" %}
+    {% if preview.phase_crew %}
+    <div class="field move-option">
+      <div class="check">{{ form.move_crew }}<label for="{{ form.move_crew.id_for_label }}">{{ form.move_crew.label }}</label></div>
+      <div class="help" id="move-move_crew-help">{% if outcome.crew %}{% include "schedule/_move_crew.html" with crew=outcome.crew %}{% else %}{% translate "No crew line of the phase changes its times." %}{% endif %}</div>
+    </div>
+    {% else %}<p class="muted small">{% translate "Nobody is planned for this phase." %}</p>{% endif %}
+    {% include "schedule/_move_extension.html" %}
+  {% elif move.what == "period" %}
+    {% if outcome.material_lines %}<p>{% blocktranslate trimmed count count=outcome.material_lines %}
+      {{ count }} material line has the rental period and takes the new one; lines with a period of their own keep it.
+    {% plural %}
+      {{ count }} material lines have the rental period and take the new one; lines with a period of their own keep it.
+    {% endblocktranslate %}</p>{% endif %}
+    {% if preview.parts %}<p>{% translate "The subprojects move along:" %}</p>
+    <ul class="move-list">{% for change in preview.parts %}<li>{% blocktranslate trimmed with what=change.label old=change.before new=change.after %}{{ what }}: before {{ old }}, now {{ new }}{% endblocktranslate %}</li>{% endfor %}</ul>{% endif %}
+    {% if move.offers_schedule %}
+      {% if preview.schedule_changes or outcome.crew %}
+      <div class="field move-option">
+        <div class="check">{{ form.with_schedule }}<label for="{{ form.with_schedule.id_for_label }}">{{ form.with_schedule.label }}</label></div>
+        <div class="help" id="move-with_schedule-help">
+          <ul class="move-list">{% for change in preview.schedule_changes %}{% if change.kind != "part" %}<li>{% blocktranslate trimmed with what=change.label old=change.before new=change.after %}{{ what }}: before {{ old }}, now {{ new }}{% endblocktranslate %}</li>{% endif %}{% endfor %}</ul>
+          {% if outcome.crew %}{% include "schedule/_move_crew.html" with crew=outcome.crew %}{% endif %}
+        </div>
+      </div>
+      {% else %}<p class="muted small">{% translate "The project has no event, phases or crew to move along." %}</p>{% endif %}
+    {% else %}
+    <p class="muted small">{% translate "Only the rental period changes: the event, the phases and the crew keep their times." %}</p>
+    {% endif %}
+    {% if preview.material_note %}<p class="message {{ preview.material_note.0 }}">{{ preview.material_note.1 }}</p>{% endif %}
+    <p class="muted small">{% translate "Everybody scheduled for the project hears of the new rental period." %}</p>
+  {% elif move.what == "crew" %}
+    {# VFG-031: a deployment dragged in the personnel plan – hours (PRJ-023), asked again (PER-034), warnings (PRJ-022). #}
+    {% if outcome.hours_after is not None %}<p>{% blocktranslate trimmed with new=outcome.hours_after|floatformat:2 old=outcome.hours_before|floatformat:2 %}
+      The planned hours follow the period: {{ new }} instead of {{ old }}.
+    {% endblocktranslate %}</p>{% endif %}
+    {% for change in outcome.crew|slice:":1" %}{# the deployment itself; what follows it is listed with the box below #}
+      {% if change.asked_again is not None %}<p><strong>{% blocktranslate trimmed with who=change.who %}{{ who }} is asked again for the new times.{% endblocktranslate %}</strong></p>{% endif %}
+      {% if change.warnings %}<p>{% translate "At the new times:" %}</p>{% for warning in change.warnings %}<div class="move-warning">{{ warning }}</div>{% endfor %}
+      {% else %}<p class="muted small">{% translate "No conflict at the new times." %}</p>{% endif %}
+    {% endfor %}
+    {% if preview.offers_follow %}
+    {# PRJ-121: what follows the person – the phase whose only person they are, or the open places of their job function. #}
+    {% with followers=preview.followers %}
+    <div class="field move-option move-follow">
+      <div class="check">{{ form.follow }}<label for="{{ form.follow.id_for_label }}">{{ followers.label }}</label></div>
+      <div class="help" id="move-follow-help">
+        <p>{{ followers.reason }}</p>
+        {% if followers.phase %}<ul class="move-list">{% for change in outcome.changes %}{% if change.kind == "phase" %}<li>{% blocktranslate trimmed with what=change.label old=change.before new=change.after %}{{ what }}: before {{ old }}, now {{ new }}{% endblocktranslate %}</li>{% endif %}{% endfor %}</ul>{% endif %}
+        {% if outcome.crew|length > 1 %}{% include "schedule/_move_crew.html" with crew=outcome.crew|slice:"1:" %}{% endif %}
+        {% if outcome.vehicle_lines %}<p>{% blocktranslate trimmed count count=outcome.vehicle_lines %}{{ count }} vehicle booking moves along with the phase.{% plural %}{{ count }} vehicle bookings move along with the phase.{% endblocktranslate %}</p>{% endif %}
+        <p class="muted small">{% translate "Without the tick only this deployment moves." %}</p>
+      </div>
+    </div>
+    {% endwith %}
+    {# PRJ-121: the following phase beyond the rental period – the same choice as a phase dragged itself (PRJ-100). #}
+    {% include "schedule/_move_extension.html" %}
+    {% else %}
+    {% if move.crew_line.phase %}<p class="muted small">{% blocktranslate trimmed with phase=move.crew_line.phase.label %}
+      The deployment belongs to the phase “{{ phase }}”; the phase keeps its times.
+    {% endblocktranslate %}</p>{% endif %}
+    <p class="muted small">{% translate "Only this deployment changes; the project, its phases and the other crew keep their times." %}</p>
+    {% endif %}
+  {% else %}
+    <p>{% translate "Only the event period changes; the rental period, the phases and the crew keep their times." %}</p>
+  {% endif %}
+  {# PRJ-005 (event end; PRJ-127): the event ends after "Material zurück bis" – for a move of the event or of the rental period. #}
+  {% for text in outcome.warnings %}<p class="message warning" role="status">{{ text }}</p>{% endfor %}
+{% endif %}
+{% endwith %}
+{% endif %}
+</div>
+{% if partial %}{% include "schedule/_move_foot.html" with oob=True %}{% endif %}

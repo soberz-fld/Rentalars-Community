@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% translate "My availability" %}{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>{% translate "My area" %}</h1></div></div>
+{% include "personnel/_my_tabs.html" with tab="availability" %}
+<p class="tab-lead">{% translate "Show personnel planning when you can work: green available, yellow with limits, red not available. They see it when planning." %}</p>
+{# PER-021 to PER-023, PER-027, PER-028: when I can work, and my calendars. #}
+<div class="columns availability-columns{% if place.view == "week" %} is-week{% endif %}">
+  <section class="panel" id="availability">
+    <div class="panel-head"><h2>{% translate "My availability" %}</h2></div>
+    <div class="panel-body">
+      {% include "personnel/_availability_calendar.html" %}
+    </div>
+  </section>
+  {% include "personnel/_own_calendars.html" %}
+</div>
+{% endblock %}

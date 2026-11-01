@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% load i18n rentalars %}
+{% block title %}{% if item %}{{ item.display_id }} – {% endif %}{% translate "Audit" %}{% endblock %}
+{% block content %}
+{% comment %}
+  MAT-068: the audit mode. IDs typed or scanned one after the other; per item "In Ordnung" – or to-dos by quick
+  pick and as free text, then "Audit speichern". Plain forms: Enter in a field sends its form, and everything works
+  without the page script, on a phone too. After "In Ordnung" the next ID can be typed straight away: the field
+  "Next ID" belongs to the form of "In Ordnung", so Enter there records this item and opens the next one.
+{% endcomment %}
+<div class="page-head"><div><h1>{% translate "Material management" %}</h1></div><div class="actions">{% include "material/_item_jump.html" %}</div></div>
+{% include "material/_tabs.html" with tab="audit" %}
+<p class="tab-lead">{% translate "A short look at each item: type or scan its ID, then “In order” – or note what is to be done. Due audits are listed under Open points → Audit due." %}{% if not settings_row.is_active %} {% translate "Audits are switched off: no audit becomes due, but audits and to-dos can still be noted." %}{% endif %}</p>
+
+<section class="panel audit-scan" aria-labelledby="audit-id-title">
+  <div class="panel-head"><h2 id="audit-id-title">{% if item %}{% translate "Another item" %}{% else %}{% translate "Which item?" %}{% endif %}</h2></div>
+  <form method="get" action="{% url 'material:audit' %}" class="panel-body audit-id-form" role="search" aria-labelledby="audit-id-title">
+    <div class="field grow">
+      <label for="audit-id">{% translate "ID of the item" %}</label>
+      <input type="search" id="audit-id" name="id" value="{{ typed }}" autocomplete="off" required maxlength="200" aria-describedby="audit-id-help"{% if not item %} autofocus{% endif %}>
+      <div class="help" id="audit-id-help">{% translate "0427, 427 or #0427 – or scan the label." %}</div>
+    </div>
+    <button class="btn{% if item %} secondary{% endif %}" type="submit">{% icon "search" %}{% translate "Show" %}</button>
+  </form>
+</section>
+
+{% if item %}
+<section class="panel audit-item" aria-labelledby="audit-item-title">
+  <div class="panel-head">
+    <h2 id="audit-item-title"><a class="tape" href="{% url 'material:item_detail' item.pk %}">{{ item.display_id }}</a> {{ item.material_model.name }}</h2>
+    <span class="badge {{ item.status|status_colour }}">{{ item.get_status_display }}</span>
+  </div>
+  <div class="panel-body">
+    <dl class="facts">
+      {% include "material/_audit_facts.html" with state=state %}
+    </dl>
+    {# MAT-079: category, place and serial number moved into the overview of the master data. #}
+    {% include "material/_audit_master_data.html" %}
+    {% if item.is_archived %}<p class="note">{% translate "This item is archived. It needs no audit; one can still be recorded." %}</p>{% endif %}
+
+    <form method="post" action="{% url 'material:audit' %}" class="audit-ok" autocomplete="off">
+      {% csrf_token %}
+      <input type="hidden" name="item" value="{{ item.pk }}">
+      <input type="hidden" name="action" value="ok">
+      <div class="inline-fields">
+        <button class="btn" type="submit">{% icon "check" %}{% translate "In order" %}</button>
+        <div class="field grow">
+          <label for="audit-next">{% translate "In order – next ID" %}</label>
+          <input type="search" id="audit-next" name="next" maxlength="200" autofocus aria-describedby="audit-next-help">
+          <div class="help" id="audit-next-help">{% translate "Enter records this item as in order and opens the next one; empty, it goes back to the field above." %}</div>
+        </div>
+      </div>
+    </form>
+
+    <form method="post" action="{% url 'material:audit' %}" class="audit-todos" autocomplete="off">
+      {% csrf_token %}
+      <input type="hidden" name="item" value="{{ item.pk }}">
+      <input type="hidden" name="action" value="todos">
+      {% if open_todos %}
+      <fieldset class="audit-open">
+        <legend>{% translate "Open to-dos – tick what is done" %}</legend>
+        {% for todo in open_todos %}
+        <div class="check"><input type="checkbox" id="audit-done-{{ todo.pk }}" name="done" value="{{ todo.pk }}"><label for="audit-done-{{ todo.pk }}">{{ todo.text }} <span class="muted small">{% blocktranslate with day=todo.created_at|date:"d.m.Y" %}noted {{ day }}{% endblocktranslate %}</span></label></div>
+        {% endfor %}
+      </fieldset>
+      {% endif %}
+      <fieldset class="audit-picks">
+        <legend>{% translate "Note to-dos" %}</legend>
+        {% for pick in quick_todos %}
+        <label class="audit-pick"><input type="checkbox" name="todo" value="{{ pick }}"><span>{{ pick }}</span></label>
+        {% empty %}<p class="muted small">{% translate "No quick picks yet – they are set under Settings → Audits." %}</p>
+        {% endfor %}
+      </fieldset>
+      <div class="inline-fields">
+        <div class="field grow"><label for="audit-todo-text">{% translate "Another to-do" %}</label><input type="text" id="audit-todo-text" name="todo_text" maxlength="{{ todo_max_length }}"></div>
+        <div class="field grow"><label for="audit-note">{% translate "Note on the audit" %}</label><input type="text" id="audit-note" name="note" maxlength="{{ note_max_length }}"></div>
+      </div>
+      <button class="btn secondary" type="submit">{% icon "note" %}{% translate "Save audit" %}</button>
+    </form>
+  </div>
+</section>
+{% endif %}
+
+<section class="panel" aria-labelledby="audit-round-title">
+  <div class="panel-head">
+    <h2 id="audit-round-title">{% translate "Audited in this round" %}{% if round %} <span class="badge">{{ round|length }}</span>{% endif %}</h2>
+    {% if round %}<form method="post" action="{% url 'material:audit' %}" class="inline-form">{% csrf_token %}<input type="hidden" name="action" value="new_round"><button class="btn secondary small" type="submit">{% icon "refresh" %}{% translate "New round" %}</button></form>{% endif %}
+  </div>
+  {% if round %}
+  <div class="table-scroll">
+  <table class="table dense stack">
+    <thead><tr><th scope="col">{% translate "ID" %}</th><th scope="col">{% translate "Article name" %}</th><th scope="col">{% translate "Result" %}</th><th scope="col">{% translate "Time" %}</th></tr></thead>
+    <tbody>{% for entry in round %}
+      <tr><td><a class="tape" href="{% url 'material:item_detail' entry.pk %}#audit">{{ entry.id }}</a></td><td data-label="{% translate 'Article name' %}">{{ entry.name }}</td>
+        <td data-label="{% translate 'Result' %}"><span class="badge {% if entry.is_ok %}green{% else %}yellow{% endif %}">{{ entry.result_label }}</span>{% if entry.todos %} <span class="muted small">{% blocktranslate count count=entry.todos %}{{ count }} to-do{% plural %}{{ count }} to-dos{% endblocktranslate %}</span>{% endif %}</td>
+        <td data-label="{% translate 'Time' %}">{{ entry.time }}</td></tr>
+    {% endfor %}</tbody>
+  </table>
+  </div>
+  {% else %}<div class="empty">{% translate "Nothing audited in this round yet." %}</div>{% endif %}
+</section>
+{% endblock %}
