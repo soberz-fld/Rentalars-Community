@@ -9,7 +9,7 @@
 # verifies that on every change (NFA-053). See THIRD-PARTY.md.
 
 # --- Chosen directly ---------------------------------------------------------
-Django==5.2.18                      # web framework, long-term support release (NFA-054)
+Django==6.1.2                      # web framework, long-term support release (NFA-054)
 djangorestframework==3.18.3         # the API
 django-filter==26.2                 # filters of API lists
 drf-spectacular==0.30.0             # OpenAPI description of the API (API-004)
