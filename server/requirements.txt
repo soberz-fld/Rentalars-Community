@@ -44,7 +44,7 @@ pyasn1==0.6.4
 pycparser==3.11
 pydyf==0.12.1
 pyphen==0.18.1
-python-dateutil==2.9.0.post0
+python-dateutil==3.0.0
 PyYAML==6.0.3
 referencing==0.37.0
 rpds-py==2026.9.1
