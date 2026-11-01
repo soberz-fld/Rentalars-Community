@@ -3,7 +3,7 @@
 
 -r requirements.txt
 
-ruff==0.17.0                        # style, docstrings, likely bugs (NFA-062)
+ruff==0.17.3                        # style, docstrings, likely bugs (NFA-062)
 coverage==7.16.2                    # which lines the tests reach
 polib==1.2.0                        # reading the language files in tests (NFA-026)
 pip-audit==2.10.1                     # known vulnerabilities of the libraries (scripts/check.sh)
