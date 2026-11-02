@@ -140,7 +140,7 @@ Copyright © 2026 Lars Wilting, fld-vt.de.
 
 **Entstehung mit KI.** Große Teile von Rentalars – Programmcode, Tests und Dokumentation – wurden mit Hilfe von
 KI-Assistenten geschrieben, vor allem mit Claude (Anthropic, über Claude Code). Die Anforderungen, die Entscheidungen und die
-Abnahme liegen bei Lars Wilting. Commits, an denen ein KI-Assistent beteiligt ist, nennen diesen mit einer Zeile
+Abnahme liegen bei Lars Wilting. Commits, an denen ein KI-Assistent beteiligt ist, nennen ihn mit einer Zeile
 `Co-Authored-By: Claude <noreply@anthropic.com>` (mit dem jeweiligen Modellnamen), sodass GitHub Claude am Commit als Mit-Autor
 zeigt. Ob und wie weit an solchem Code Urheberrechte bestehen, ist rechtlich nicht abschließend geklärt; die Lizenz oben gilt für
 alles, was daran Schutz genießt.
