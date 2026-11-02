@@ -36,7 +36,7 @@ cffi==2.1.1
 click==8.5.0
 cssselect2==0.10.1
 et_xmlfile==2.0.0
-fonttools==4.66.1
+fonttools==4.68.0
 inflection==0.5.1
 jsonschema-specifications==2025.9.1
 jsonschema==4.26.0
