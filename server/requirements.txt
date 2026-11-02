@@ -40,7 +40,7 @@ fonttools==4.66.1
 inflection==0.5.1
 jsonschema-specifications==2025.9.1
 jsonschema==4.26.0
-pyasn1==0.6.4
+pyasn1==0.6.5
 pycparser==3.11
 pydyf==0.12.1
 pyphen==0.18.1
