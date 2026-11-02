@@ -1,13 +1,29 @@
-# Dependabot (S1): the libraries in requirements.txt are fixed to one version each. Without a reminder every
-# installation stays as it was released – with the known gaps of that day. This file lets GitHub propose the update.
+# Dependabot is switched off for version updates on purpose.
+#
+# The libraries in server/requirements.txt are fixed to one version each (NFA-029): an installation gets exactly the
+# versions the release was tested with. A proposed jump - python-dateutil to a new major version, say - can break the
+# application and the checks without anybody having asked for it. Libraries are updated by hand and deliberately
+# (server/docs/dev/getting-started.md, "Updating libraries"), then the whole test suite runs.
+#
+# "open-pull-requests-limit: 0" keeps Dependabot from opening pull requests for new versions. GitHub's security alerts
+# and security updates are a setting of the repository (Settings, Code security) and are not affected.
+#
+# To switch it on again: raise the limit and keep the "ignore" lines, so that only minor and patch updates are proposed.
 version: 2
 updates:
   - package-ecosystem: "pip"
     directory: "/server"
     schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 5
+      interval: "monthly"
+    open-pull-requests-limit: 0
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "monthly"
+    open-pull-requests-limit: 0
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
